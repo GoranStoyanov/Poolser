@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# SPM / Swift build artifacts
+.build/
+*.o
+*.d
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Xcode-generated schemes (keep shared ones if added manually)
+*.xcscheme
+
+# CocoaPods (not used, but just in case)
+Pods/
+
+# Environment / secrets
+.env
+*.pem
