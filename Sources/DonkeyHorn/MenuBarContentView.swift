@@ -28,19 +28,30 @@ struct MenuBarContentView: View {
 
     private var shortWallet: String {
         let addr = settings.walletAddress
-        guard addr.count >= 10 else { return addr.isEmpty ? "no wallet configured" : addr }
-        let a = addr.hasPrefix("0x") ? addr : "0x\(addr)"
-        return "\(a.prefix(6))…\(a.suffix(4))"
+        guard !addr.isEmpty else { return "no wallet configured" }
+        return addr.hasPrefix("0x") ? addr : "0x\(addr)"
     }
 
     private var header: some View {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Uniswap Positions")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("DonkeyHorn")
                     .font(.system(size: 13, weight: .semibold))
-                Text(shortWallet)
-                    .font(.system(size: 10, design: .monospaced))
+                Text("for Uniswap positions")
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
+
+                HStack(spacing: 5) {
+                    Image(systemName: "wallet.pass.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(shortWallet)
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                }
+                .foregroundStyle(Color.blue)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.blue.opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(Color.blue.opacity(0.3), lineWidth: 0.7))
             }
             Spacer()
             Button { service.refresh() } label: {
@@ -146,6 +157,7 @@ struct MenuBarContentView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
     }
+
 }
 
 // MARK: - Position Card

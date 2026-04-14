@@ -1,4 +1,6 @@
-# DonkeyCorn
+# DonkeyHorn
+
+**DonkeyHorn** — for Uniswap positions.
 
 A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [Uniswap v4](https://uniswap.org) liquidity positions. See unclaimed fees in USD at a glance, check whether positions are in range, and open any position directly in the Uniswap app — all without leaving your desktop.
 
@@ -38,8 +40,8 @@ A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [
 The project uses Swift Package Manager with no external dependencies.
 
 ```bash
-git clone https://github.com/GoranStoyanov/DonkeyCorn.git
-cd DonkeyCorn
+git clone https://github.com/GoranStoyanov/DonkeyHorn.git
+cd DonkeyHorn
 swift build -c release
 ```
 
@@ -84,7 +86,7 @@ Settings are saved to `UserDefaults` and persist across launches.
 
 ## RPC Rate Limiting Notes
 
-DonkeyCorn includes built-in pacing to reduce `HTTP 429` rate-limit errors:
+DonkeyHorn includes built-in pacing to reduce `HTTP 429` rate-limit errors:
 
 - Credit-aware request limiter (safe margin for constrained plans)
 - Reduced `eth_getLogs` concurrency/chunk pressure
@@ -112,7 +114,7 @@ If your provider still rate-limits frequently:
 
 ## Privacy
 
-DonkeyCorn communicates only with:
+DonkeyHorn communicates only with:
 
 - The RPC URL you provide (to read on-chain data)
 - [CoinGecko](https://coingecko.com) and [DefiLlama](https://defillama.com) public APIs (to fetch token prices in USD)

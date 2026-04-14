@@ -1,4 +1,4 @@
-# DonkeyCorn — TODO
+# DonkeyHorn — TODO
 
 ## Quick Fixes / Polish
 
@@ -61,7 +61,7 @@ Uses 4 concurrent StateView calls per position:
 ## App Store Submission Prerequisites
 
 - [ ] Create Xcode project targeting this SPM package
-- [ ] Set `CFBundleIdentifier` in the Xcode target (e.g. `com.yourname.DonkeyCorn`)
+- [ ] Set `CFBundleIdentifier` in the Xcode target (e.g. `com.yourname.DonkeyHorn`)
 - [ ] Set up Apple Developer account and code signing
 - [ ] Configure provisioning profiles in Xcode
 - [ ] Test `SMAppService` (Launch at Login) with a properly bundled `.app` — it requires a bundle ID to work

@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "DonkeyCorn",
+    name: "DonkeyHorn",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "DonkeyCorn",
-            path: "Sources/DonkeyCorn"
+            name: "DonkeyHorn",
+            path: "Sources/DonkeyHorn"
         )
     ]
 )
