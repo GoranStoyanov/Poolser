@@ -29,7 +29,10 @@ struct EthereumClient {
         let (data, _) = try await URLSession.shared.data(for: req)
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw Err.badJSON }
         if let err = json["error"] as? [String: Any] { throw Err.rpc(err["message"] as? String ?? "unknown") }
-        guard let result = json["result"] as? String else { throw Err.noResult }
+        guard let result = json["result"] as? String else {
+            log("eth_blockNumber ← no result", level: .error)
+            throw Err.noResult
+        }
         let hex = result.hasPrefix("0x") ? String(result.dropFirst(2)) : result
         guard let n = Int(hex, radix: 16) else { throw Err.badJSON }
         return n
@@ -69,7 +72,10 @@ struct EthereumClient {
             log("getLogs ← error: \(msg)", level: .error)
             throw Err.rpc(msg)
         }
-        let result = json["result"] as? [[String: Any]] ?? []
+        guard let result = json["result"] as? [[String: Any]] else {
+            log("getLogs ← no result (null response from RPC) \(short(address)) \(fromBlock)–\(toBlock)", level: .error)
+            return []
+        }
         log("getLogs ← \(result.count) events", level: .response)
         return result
     }
@@ -103,7 +109,7 @@ struct EthereumClient {
             throw Err.rpc(msg)
         }
         guard let result = json["result"] as? String else {
-            log("eth_call ← no result", level: .error)
+            log("eth_call ← no result: \(short(to)) \(selector)", level: .error)
             throw Err.noResult
         }
 
