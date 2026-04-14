@@ -2,7 +2,7 @@
 
 **👀 Poolser** — for Uniswap positions.
 
-A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [Uniswap v4](https://uniswap.org) liquidity positions. See unclaimed fees in USD at a glance, check whether positions are in range, and open any position directly in the Uniswap app — all without leaving your desktop.
+A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [Uniswap v4](https://uniswap.org) liquidity positions. See unclaimed fees in USD at a glance, check whether positions are in range, and open positions directly in the Uniswap app.
 
 > **Disclaimer:** This is an independent hobby project with no affiliation, association, or connection to Uniswap Labs or the Uniswap Protocol. "Uniswap" is a trademark of Uniswap Labs.
 
@@ -11,8 +11,13 @@ A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [
 ## Features
 
 - Live unclaimed fee totals in the menu bar (auto-refresh every 10 minutes + manual refresh)
-- Multi-chain support for Uniswap v3 on Infura-backed EVM networks (Ethereum, Base, Arbitrum, Optimism, Polygon)
-- Supports **Uniswap v4** positions on Ethereum mainnet
+- Multi-chain Uniswap v3 support on Infura-backed EVM networks:
+  - Ethereum
+  - Base
+  - Arbitrum
+  - Optimism
+  - Polygon
+- Uniswap v4 position loading + fee calculation on Ethereum mainnet
 - Per-position breakdown: token pair, fee tier, in/out-of-range status, position value, unclaimed fees
 - Tick range visualization with:
   - in/out-of-range styling
@@ -22,10 +27,12 @@ A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [
   - retries with backoff + jitter
   - request pacing with a shared credit-based limiter
   - clearer RPC error surfacing in-app logs/UI
+  - stale refresh protection (older in-flight loads cannot override newer refreshes)
 - Incremental v4 ownership discovery:
   - bootstrap scan is chunked and resumable
   - ownership cache avoids rescanning full history every refresh
-- Reads data directly from chain RPC (Infura-hosted endpoints generated from your API key), with no third-party indexer
+- Chain icons in UI (downloaded once from CoinGecko and cached locally)
+- Reads data directly from chain RPC (Infura endpoints derived from your API key), with no third-party indexer
 - Click any position to open it on app.uniswap.org
 - Launch at Login support (toggle in Settings)
 - Native macOS app — no Electron, no web view
@@ -60,15 +67,21 @@ open Package.swift
 
 ## Configuration
 
-On first launch, open **Settings** (gear icon in the popup, or `⌘,`) and enter:
+Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 
 | Field | Description |
 |---|---|
 | Wallet Address | Your Ethereum address (`0x…`) |
 | Infura API Key | The API key only (no full URL needed) |
 | Enabled Networks | Toggle supported Infura networks on/off |
+| Refresh Interval | Auto-refresh period |
+| RPC Credit Budget | Local pacing budget for RPC calls |
+| v4 Log Settings | Chunk size/concurrency/bootstrap controls for v4 log scans |
 
-Settings are saved to `UserDefaults` and persist across launches.
+Important behavior:
+- Setting edits are draft-only until you press **Save & Refresh**
+- Closing settings with `X`/`Esc` discards unsaved changes
+- Saved settings are persisted in `UserDefaults`
 
 ## How Position Discovery Works
 
@@ -78,6 +91,7 @@ Settings are saved to `UserDefaults` and persist across launches.
 - Loads per-position details via `positions(tokenId)`
 
 ### v4
+- Currently active on Ethereum mainnet in this codebase (other chains are configured but gated by deployment-block support)
 - Uses `balanceOf(owner)` on the v4 `PositionManager`
 - Reconstructs ownership from `Transfer` logs (v4 PM is not ERC-721 Enumerable)
 - Persists a local ownership cache in `UserDefaults`:
@@ -97,7 +111,7 @@ Poolser includes built-in pacing to reduce `HTTP 429` rate-limit errors:
 If your provider still rate-limits frequently:
 
 1. Increase the refresh interval and avoid rapid manual refresh spam.
-2. Use a higher-throughput RPC plan.
+2. Use a higher-throughput Infura plan.
 3. Prefer reliable archival/log-capable endpoints for heavy `eth_getLogs` workloads.
 
 ## Troubleshooting
@@ -114,12 +128,16 @@ If your provider still rate-limits frequently:
 - Intermittent `no result` / bad JSON in logs
   - Usually provider instability. The app retries automatically, but a more reliable endpoint helps.
 
+- A network you enabled disappears from selection after refresh
+  - Your Infura project likely has no access to that network; Poolser auto-disables networks that return access-denied responses.
+
 ## Privacy
 
 Poolser communicates only with:
 
-- The Infura RPC endpoints derived from your API key (to read on-chain data)
-- [CoinGecko](https://coingecko.com) and [DefiLlama](https://defillama.com) public APIs (to fetch token prices in USD)
+- Infura RPC endpoints derived from your API key (on-chain reads)
+- [CoinGecko](https://coingecko.com) and [DefiLlama](https://defillama.com) public APIs (token USD pricing)
+- CoinGecko asset-platform metadata/icons (for chain icon rendering + local cache)
 
 No analytics, no tracking, no data leaves your machine beyond those requests.
 
