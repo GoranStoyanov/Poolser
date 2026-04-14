@@ -23,6 +23,7 @@ final class UniswapService: ObservableObject {
     @Published var lastError: String?
 
     private let priceService = PriceService()
+    private let poolStatsService = PoolStatsService()
     private var timer: Timer?
     private var refreshIntervalCancellable: AnyCancellable?
     private var activeLoadTask: Task<Void, Never>?
@@ -87,7 +88,34 @@ final class UniswapService: ObservableObject {
         }
 
         guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-        let all = results.flatMap(\.positions)
+        var all = results.flatMap(\.positions)
+
+        // Enrich v3 positions with pool stats from GeckoTerminal (best-effort, fire-and-collect)
+        all = await withTaskGroup(of: Position.self, returning: [Position].self) { group in
+            for pos in all {
+                group.addTask { [pos] in
+                    var p = pos
+                    guard !p.isV4,
+                          let addr = p.poolAddress,
+                          let network = SupportedChain.byID(p.chainID)?.geckoterminalNetworkID
+                    else { return p }
+                    let feePct = Double(p.feeRaw) / 1_000_000
+                    if let stats = await self.poolStatsService.stats(
+                        network: network,
+                        poolAddress: addr,
+                        feePct: feePct
+                    ) {
+                        p.volumeUSD24h = stats.volumeUSD24h
+                        p.feeAPR = stats.feeAPR
+                    }
+                    return p
+                }
+            }
+            var enriched: [Position] = []
+            for await p in group { enriched.append(p) }
+            return enriched
+        }
+
         positions = all.sorted { lhs, rhs in
             (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0)
         }
@@ -288,6 +316,7 @@ final class UniswapService: ObservableObject {
                 }
                 p.currentTick = tick
                 p.inRange = tick >= p.tickLower && tick <= p.tickUpper
+                p.poolAddress = pool.lowercased()
                 computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
             } catch { /* inRange stays nil */ }
 

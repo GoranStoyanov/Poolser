@@ -294,6 +294,15 @@ struct PositionCard: View {
                     }
                     Spacer()
                 }
+                // Row 3b: pool stats (GeckoTerminal)
+                if let stats = pos.poolStatsLabel {
+                    HStack {
+                        Text(stats)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                }
                 // Row 4: fees + token ID
                 HStack(spacing: 6) {
                     Group {

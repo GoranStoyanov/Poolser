@@ -28,6 +28,10 @@ struct Position: Identifiable {
     var isV4: Bool = false
     var poolId: Data? = nil   // keccak256(PoolKey) — used for StateView queries
     var feesError: String? = nil  // set when fee computation fails
+    // pool stats (GeckoTerminal)
+    var poolAddress: String? = nil  // v3 pool contract address
+    var volumeUSD24h: Double? = nil
+    var feeAPR: Double? = nil
 
     var isFullRange: Bool {
         tickLower <= -887200 && tickUpper >= 887200
@@ -65,12 +69,30 @@ struct Position: Identifiable {
         return String(format: "$%.2f", positionUSD)
     }
 
+    /// Pool stats line, e.g. "Vol 24h: $1.2M · APR: 8.4%"
+    var poolStatsLabel: String? {
+        guard volumeUSD24h != nil || feeAPR != nil else { return nil }
+        var parts: [String] = []
+        if let vol = volumeUSD24h { parts.append("Vol 24h: \(formatCompact(vol))") }
+        if let apr = feeAPR       { parts.append(String(format: "APR: %.1f%%", apr)) }
+        return parts.joined(separator: " · ")
+    }
+
     /// Current token amounts held in the position, e.g. "0.05 WBTC + 1,200 USDC".
     var distributionLabel: String {
         var parts: [String] = []
         if amount0 > 0 { parts.append(trimNum(amount0) + " " + sym0) }
         if amount1 > 0 { parts.append(trimNum(amount1) + " " + sym1) }
         return parts.joined(separator: " + ")
+    }
+}
+
+private func formatCompact(_ x: Double) -> String {
+    switch x {
+    case 1_000_000_000...: return String(format: "$%.2fB", x / 1_000_000_000)
+    case 1_000_000...:     return String(format: "$%.2fM", x / 1_000_000)
+    case 1_000...:         return String(format: "$%.1fK", x / 1_000)
+    default:               return String(format: "$%.2f", x)
     }
 }
 
