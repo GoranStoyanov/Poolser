@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarContentView: View {
     @EnvironmentObject var service: UniswapService
+    @ObservedObject private var settings = AppSettings.shared
     @State private var showSettings = false
     @State private var showLogs     = false
 
@@ -25,16 +26,23 @@ struct MenuBarContentView: View {
 
     // MARK: - Header
 
+    private var shortWallet: String {
+        let addr = settings.walletAddress
+        guard addr.count >= 10 else { return addr.isEmpty ? "no wallet configured" : addr }
+        let a = addr.hasPrefix("0x") ? addr : "0x\(addr)"
+        return "\(a.prefix(6))…\(a.suffix(4))"
+    }
+
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Uniswap Positions")
-                .font(.system(size: 13, weight: .semibold))
-            Spacer()
-            if service.isLoading {
-                ProgressView()
-                    .scaleEffect(0.65)
-                    .frame(width: 14, height: 14)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Uniswap Positions")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(shortWallet)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
             }
+            Spacer()
             Button { service.refresh() } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 12, weight: .medium))
@@ -52,11 +60,18 @@ struct MenuBarContentView: View {
     @ViewBuilder
     private var contentArea: some View {
         if service.isLoading {
-            ProgressView()
-                .scaleEffect(0.65)
-                .frame(width: 14, height: 14)
-                .padding(.vertical, 24)
-                .frame(maxWidth: .infinity)
+            VStack(spacing: 10) {
+                ProgressView()
+                    .scaleEffect(0.65)
+                Text("Fetching positions…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Text("Pacing requests to respect RPC rate limits")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
         } else {
             VStack(spacing: 0) {
                 if let err = service.lastError {
