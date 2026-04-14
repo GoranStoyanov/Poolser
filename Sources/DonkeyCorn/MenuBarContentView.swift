@@ -6,7 +6,7 @@ struct MenuBarContentView: View {
 
     var body: some View {
         if showSettings {
-            SettingsView(onDone: { showSettings = false })
+            SettingsView(onDismiss: { showSettings = false })
                 .environmentObject(service)
         } else {
             VStack(spacing: 0) {

@@ -3,10 +3,26 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject  private var service: UniswapService
-    var onDone: (() -> Void)? = nil
+    var onDismiss: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("Settings")
+                    .font(.system(size: 15, weight: .semibold))
+                Spacer()
+                Button {
+                    onDismiss?()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.escape, modifiers: [])
+            }
+
             settingsSection("Ethereum Configuration") {
                 VStack(spacing: 0) {
                     fieldRow(
@@ -61,10 +77,10 @@ struct SettingsView: View {
                 Spacer()
                 Button("Save & Refresh") {
                     service.refresh()
-                    onDone?()
+                    onDismiss?()
                 }
-                    .keyboardShortcut(.return)
-                    .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.return)
+                .buttonStyle(.borderedProminent)
             }
         }
         .padding(20)
