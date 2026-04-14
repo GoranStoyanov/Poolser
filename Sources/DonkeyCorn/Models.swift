@@ -26,8 +26,13 @@ struct Position: Identifiable {
     var poolId: Data? = nil   // keccak256(PoolKey) — used for StateView queries
     var feesError: String? = nil  // set when fee computation fails
 
+    var isFullRange: Bool {
+        tickLower <= -887200 && tickUpper >= 887200
+    }
+
     var rangeLabel: String {
         if error != nil { return "ERROR" }
+        if isFullRange   { return "FULL RANGE" }
         switch inRange {
         case true:  return "IN RANGE"
         case false: return "OUT RANGE"

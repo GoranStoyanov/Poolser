@@ -172,8 +172,8 @@ struct PositionCard: View {
                             .font(.system(size: 13, weight: .medium))
                     }
                 }
-                // Row 2: range bar
-                if let tick = pos.currentTick {
+                // Row 2: range bar (hidden for full-range positions)
+                if let tick = pos.currentTick, !pos.isFullRange {
                     TickRangeBar(
                         tickLower: pos.tickLower,
                         tickUpper: pos.tickUpper,
@@ -239,6 +239,7 @@ struct PositionCard: View {
     }
 
     private var rangeColor: Color {
+        if pos.isFullRange { return .blue }
         switch pos.inRange {
         case true:  return .green
         case false: return .orange
