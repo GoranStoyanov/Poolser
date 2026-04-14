@@ -8,9 +8,20 @@ A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [
 
 ## Features
 
-- Live unclaimed fee totals in the menu bar (refreshes every 10 minutes)
+- Live unclaimed fee totals in the menu bar (auto-refresh every 10 minutes + manual refresh)
 - Supports both **Uniswap v3** and **Uniswap v4** positions on Ethereum mainnet
-- Per-position breakdown: token pair, fee tier, in/out of range status, fee amounts in USD
+- Per-position breakdown: token pair, fee tier, in/out-of-range status, position value, unclaimed fees
+- Tick range visualization with:
+  - in/out-of-range styling
+  - current tick needle and boundary markers
+  - compact out-of-range distance labels
+- Robust RPC handling:
+  - retries with backoff + jitter
+  - request pacing with a shared credit-based limiter
+  - clearer RPC error surfacing in-app logs/UI
+- Incremental v4 ownership discovery:
+  - bootstrap scan is chunked and resumable
+  - ownership cache avoids rescanning full history every refresh
 - Reads data directly from Ethereum via your own RPC — no third-party indexer or API key required
 - Click any position to open it on app.uniswap.org
 - Launch at Login support (toggle in Settings)
@@ -54,6 +65,50 @@ On first launch, open **Settings** (gear icon in the popup, or `⌘,`) and enter
 | RPC URL | Any Ethereum JSON-RPC endpoint |
 
 Settings are saved to `UserDefaults` and persist across launches.
+
+## How Position Discovery Works
+
+### v3
+- Uses `balanceOf(owner)` on the v3 `NonfungiblePositionManager`
+- Enumerates token IDs via `tokenOfOwnerByIndex`
+- Loads per-position details via `positions(tokenId)`
+
+### v4
+- Uses `balanceOf(owner)` on the v4 `PositionManager`
+- Reconstructs ownership from `Transfer` logs (v4 PM is not ERC-721 Enumerable)
+- Persists a local ownership cache in `UserDefaults`:
+  - last scanned block
+  - candidate token IDs
+  - currently owned token IDs
+- First-time bootstrap is bounded per refresh and resumes next refresh until caught up
+
+## RPC Rate Limiting Notes
+
+DonkeyCorn includes built-in pacing to reduce `HTTP 429` rate-limit errors:
+
+- Credit-aware request limiter (safe margin for constrained plans)
+- Reduced `eth_getLogs` concurrency/chunk pressure
+- Retry logic for transient/null/malformed responses
+
+If your provider still rate-limits frequently:
+
+1. Increase the refresh interval and avoid rapid manual refresh spam.
+2. Use a higher-throughput RPC plan.
+3. Prefer reliable archival/log-capable endpoints for heavy `eth_getLogs` workloads.
+
+## Troubleshooting
+
+- `RPC: HTTP 429`
+  - Your RPC provider is throttling requests. See the rate-limiting section above.
+
+- `v4: bootstrap scan in progress (next from 0x...)`
+  - Expected on first sync for wallets with long history. The app resumes from that block next refresh.
+
+- `v4: no Transfer events found for this wallet (balance=N)`
+  - Usually indicates incomplete log coverage from the RPC provider, or bootstrap not completed yet.
+
+- Intermittent `no result` / bad JSON in logs
+  - Usually provider instability. The app retries automatically, but a more reliable endpoint helps.
 
 ## Privacy
 
