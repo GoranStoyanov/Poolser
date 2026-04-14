@@ -3,11 +3,11 @@ import Foundation
 struct EthereumClient {
     let rpcURL: URL
     // Infura free tier nominal throughput is 500 credits/sec.
-    // Keep a safety margin to reduce bursty 429s.
-    private static let infuraBudgetCreditsPerSecond = 400
+    // App default keeps a safety margin to reduce bursty 429s.
+    private static let defaultBudgetCreditsPerSecond = 400
     private static let limiter = RPCCreditLimiter(
-        creditsPerSecond: Double(infuraBudgetCreditsPerSecond),
-        maxBurstCredits: Double(infuraBudgetCreditsPerSecond)
+        creditsPerSecond: Double(defaultBudgetCreditsPerSecond),
+        maxBurstCredits: Double(defaultBudgetCreditsPerSecond)
     )
     private let costEthCall = 80
     private let costEthGetLogs = 255
@@ -34,6 +34,7 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...blockNumberMaxRetries {
             do {
+                await configureLimiterFromSettings()
                 await Self.limiter.acquire(credits: costEthBlockNumber)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
@@ -86,6 +87,7 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...logsMaxRetries {
             do {
+                await configureLimiterFromSettings()
                 let jsonTopics: [Any] = topics.map { t -> Any in
                     guard let t = t else { return NSNull() }
                     return t
@@ -146,6 +148,7 @@ struct EthereumClient {
 
         for attempt in 0...callMaxRetries {
             do {
+                await configureLimiterFromSettings()
                 await Self.limiter.acquire(credits: costEthCall)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0",
@@ -245,11 +248,16 @@ struct EthereumClient {
             .replacingOccurrences(of: "\n", with: " ")
             ?? "non-utf8 \(prefix.count)B"
     }
+
+    private func configureLimiterFromSettings() async {
+        let cps = Double(AppSettings.shared.rpcCreditsPerSecondBudget)
+        await Self.limiter.configure(creditsPerSecond: cps, maxBurstCredits: cps)
+    }
 }
 
 private actor RPCCreditLimiter {
-    private let creditsPerSecond: Double
-    private let maxBurstCredits: Double
+    private var creditsPerSecond: Double
+    private var maxBurstCredits: Double
     private var availableCredits: Double
     private var lastRefill: TimeInterval
 
@@ -258,6 +266,13 @@ private actor RPCCreditLimiter {
         self.maxBurstCredits = max(1, maxBurstCredits)
         self.availableCredits = self.maxBurstCredits
         self.lastRefill = Date().timeIntervalSince1970
+    }
+
+    func configure(creditsPerSecond: Double, maxBurstCredits: Double) {
+        refill()
+        self.creditsPerSecond = max(1, creditsPerSecond)
+        self.maxBurstCredits = max(1, maxBurstCredits)
+        availableCredits = min(availableCredits, self.maxBurstCredits)
     }
 
     func acquire(credits: Int) async {

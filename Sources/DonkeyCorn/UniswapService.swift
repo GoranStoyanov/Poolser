@@ -9,10 +9,7 @@ private let v4PM           = "0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9E"
 private let v4SV           = "0x7fFE42C4a5DEeA5b0feC41C94C136Cf115597227"
 /// First block to scan for v4 Transfer events (~Jan 2025, before v4 mainnet launch).
 private let v4PMDeployBlock = "0x14A0000"
-private let v4LogsChunkSize = 12_000
-private let v4LogsMaxConcurrentRequests = 2
 private let v4ReorgLookbackBlocks = 24
-private let v4BootstrapMaxChunksPerRefresh = 80
 
 private struct V4OwnershipCache: Codable {
     let lastScannedBlock: Int
@@ -37,11 +34,13 @@ final class UniswapService: ObservableObject {
 
     private let priceService = PriceService()
     private var timer: Timer?
+    private var refreshIntervalCancellable: AnyCancellable?
 
     init() {
-        timer = .scheduledTimer(withTimeInterval: 600, repeats: true) { [weak self] _ in
-            Task { await self?.load() }
-        }
+        configureTimer()
+        refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
+            .removeDuplicates()
+            .sink { [weak self] _ in self?.configureTimer() }
         Task { await load() }
     }
 
@@ -261,6 +260,9 @@ final class UniswapService: ObservableObject {
         let deployBlock = Int(v4PMDeployBlock.dropFirst(2), radix: 16)!
         let previousCache = loadV4OwnershipCache(wallet: wallet)
         let hasCache = previousCache != nil
+        let chunkSize = AppSettings.shared.v4LogChunkSize
+        let maxConcurrentLogs = AppSettings.shared.v4LogMaxConcurrentRequests
+        let bootstrapMaxChunksPerRefresh = AppSettings.shared.v4BootstrapMaxChunksPerRefresh
         let bootstrapFrom = previousCache?.nextBootstrapFromBlock ?? (hasCache ? nil : deployBlock)
         let scanStartBlock = bootstrapFrom ?? max(
             deployBlock,
@@ -268,10 +270,9 @@ final class UniswapService: ObservableObject {
         )
         let scanEndBlock: Int = {
             guard let b = bootstrapFrom else { return currentBlock }
-            let maxSpan = v4LogsChunkSize * v4BootstrapMaxChunksPerRefresh
+            let maxSpan = chunkSize * bootstrapMaxChunksPerRefresh
             return min(b + maxSpan - 1, currentBlock)
         }()
-        let chunkSize = v4LogsChunkSize
         let chunks = stride(from: scanStartBlock, through: scanEndBlock, by: chunkSize).map { start -> (String, String) in
             let end = min(start + chunkSize - 1, scanEndBlock)
             return ("0x" + String(start, radix: 16), "0x" + String(end, radix: 16))
@@ -279,8 +280,8 @@ final class UniswapService: ObservableObject {
 
         var toLogs: [[String: Any]] = []
         var fromLogs: [[String: Any]] = []
-        for batchStart in stride(from: 0, to: chunks.count, by: v4LogsMaxConcurrentRequests) {
-            let batchEnd = min(batchStart + v4LogsMaxConcurrentRequests, chunks.count)
+        for batchStart in stride(from: 0, to: chunks.count, by: maxConcurrentLogs) {
+            let batchEnd = min(batchStart + maxConcurrentLogs, chunks.count)
             let batch = Array(chunks[batchStart..<batchEnd])
 
             do {
@@ -704,6 +705,14 @@ final class UniswapService: ObservableObject {
     private func v4OwnershipCacheKey(wallet: String) -> String {
         let normalized = wallet.lowercased()
         return "v4OwnershipCache.eth-mainnet.\(normalized)"
+    }
+
+    private func configureTimer() {
+        timer?.invalidate()
+        let interval = TimeInterval(AppSettings.shared.refreshIntervalMinutes * 60)
+        timer = .scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            Task { await self?.load() }
+        }
     }
 }
 
