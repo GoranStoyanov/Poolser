@@ -1,5 +1,9 @@
 # DonkeyHorn
 
+<p align="center">
+  <img src="Sources/DonkeyHorn/Resources/donkeyhorn-logo.png" alt="DonkeyHorn logo" width="220" />
+</p>
+
 **DonkeyHorn** — for Uniswap positions.
 
 A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [Uniswap v4](https://uniswap.org) liquidity positions. See unclaimed fees in USD at a glance, check whether positions are in range, and open any position directly in the Uniswap app — all without leaving your desktop.

@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct MenuBarContentView: View {
     @EnvironmentObject var service: UniswapService
@@ -34,24 +37,28 @@ struct MenuBarContentView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("DonkeyHorn")
-                    .font(.system(size: 13, weight: .semibold))
-                Text("for Uniswap positions")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 8) {
+                BrandMark()
 
-                HStack(spacing: 5) {
-                    Image(systemName: "wallet.pass.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text(shortWallet)
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("DonkeyHorn")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("for Uniswap positions")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 5) {
+                        Image(systemName: "wallet.pass.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text(shortWallet)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    }
+                    .foregroundStyle(Color.blue)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.12), in: Capsule())
+                    .overlay(Capsule().stroke(Color.blue.opacity(0.3), lineWidth: 0.7))
                 }
-                .foregroundStyle(Color.blue)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(Color.blue.opacity(0.12), in: Capsule())
-                .overlay(Capsule().stroke(Color.blue.opacity(0.3), lineWidth: 0.7))
             }
             Spacer()
             Button { service.refresh() } label: {
@@ -158,6 +165,55 @@ struct MenuBarContentView: View {
         .padding(.vertical, 8)
     }
 
+}
+
+private struct BrandMark: View {
+    private static let logoURL = Bundle.module.url(forResource: "donkeyhorn-logo", withExtension: "png")
+
+    var body: some View {
+        if let logo = loadLogoImage() {
+            Image(nsImage: logo)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: 26, height: 26)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .stroke(Color.white.opacity(0.28), lineWidth: 0.7)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.96, green: 0.45, blue: 0.16), Color(red: 0.89, green: 0.28, blue: 0.18)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Text("DH")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 24, height: 24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color.white.opacity(0.35), lineWidth: 0.7)
+            )
+            .shadow(color: Color.orange.opacity(0.25), radius: 3, y: 1)
+        }
+    }
+
+    private func loadLogoImage() -> NSImage? {
+#if canImport(AppKit)
+        guard let url = Self.logoURL else { return nil }
+        return NSImage(contentsOf: url)
+#else
+        return nil
+#endif
+    }
 }
 
 // MARK: - Position Card
