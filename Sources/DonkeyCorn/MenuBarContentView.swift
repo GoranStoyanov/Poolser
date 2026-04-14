@@ -189,10 +189,10 @@ struct PositionCard: View {
                         .foregroundStyle(.secondary)
                     Text(pos.versionLabel)
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(pos.isV4 ? Color.pink : Color.secondary)
+                        .foregroundStyle(Color.secondary)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background((pos.isV4 ? Color.pink : Color.secondary).opacity(0.1), in: Capsule())
+                        .background(Color.secondary.opacity(0.1), in: Capsule())
                     Spacer()
                     if let label = pos.positionUSDLabel ?? pos.feesUSDLabel {
                         Text(label)
