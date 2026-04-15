@@ -24,15 +24,20 @@ final class UniswapService: ObservableObject {
 
     private let priceService = PriceService()
     private let poolStatsService = PoolStatsService()
+    private let bootstrapFollowUpSeconds: UInt64 = 75
     private var timer: Timer?
     private var refreshIntervalCancellable: AnyCancellable?
     private var activeLoadTask: Task<Void, Never>?
+    private var bootstrapFollowUpTask: Task<Void, Never>?
     private var loadGeneration: UInt64 = 0
+    private var chainResultsByID: [String: ChainLoadResult] = [:]
 
     private struct ChainLoadResult {
+        let chain: SupportedChain
         let positions: [Position]
         let feesUSD: Double
         let error: String?
+        let bootstrapInProgress: Bool
     }
 
     init() {
@@ -49,6 +54,7 @@ final class UniswapService: ObservableObject {
 
     private func startLoad() {
         activeLoadTask?.cancel()
+        bootstrapFollowUpTask?.cancel()
         loadGeneration &+= 1
         let generation = loadGeneration
         activeLoadTask = Task { [weak self] in
@@ -66,6 +72,8 @@ final class UniswapService: ObservableObject {
         let chains = AppSettings.shared.enabledChains()
         guard !wallet.isEmpty, !key.isEmpty, !chains.isEmpty else {
             guard isCurrentGeneration(generation) else { return }
+            chainResultsByID = [:]
+            positions = []
             titleText = "👀 –"
             lastError = "Configure wallet, Infura API key, and at least one enabled network in Settings (⌘,)"
             return
@@ -88,11 +96,96 @@ final class UniswapService: ObservableObject {
         }
 
         guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-        var all = results.flatMap(\.positions)
+        let enrichedResults = await enrichChainResults(results)
+        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
 
-        // Enrich v3 positions with pool stats from GeckoTerminal (best-effort, fire-and-collect)
-        all = await withTaskGroup(of: Position.self, returning: [Position].self) { group in
-            for pos in all {
+        applyChainResults(enrichedResults, activeChains: chains)
+
+        LogStore.shared.log("refresh done — \(positions.count) positions across \(chains.count) chain(s)", level: .info)
+        scheduleBootstrapFollowUpIfNeeded(
+            chainIDs: enrichedResults.filter(\.bootstrapInProgress).map { $0.chain.id },
+            generation: generation
+        )
+        isLoading = false
+    }
+
+    private func scheduleBootstrapFollowUpIfNeeded(chainIDs: [String], generation: UInt64) {
+        bootstrapFollowUpTask?.cancel()
+        let ids = Array(Set(chainIDs))
+        guard !ids.isEmpty else { return }
+        bootstrapFollowUpTask = Task { [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: self.bootstrapFollowUpSeconds * 1_000_000_000)
+            await self.runBootstrapFollowUp(generation: generation, chainIDs: ids)
+        }
+    }
+
+    private func runBootstrapFollowUp(generation: UInt64, chainIDs: [String]) async {
+        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+        let wallet = AppSettings.shared.walletAddress
+        let key = AppSettings.shared.infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let activeChains = AppSettings.shared.enabledChains()
+        guard !wallet.isEmpty, !key.isEmpty, !activeChains.isEmpty else { return }
+
+        let idSet = Set(chainIDs)
+        let targetChains = activeChains.filter { idSet.contains($0.id) }
+        guard !targetChains.isEmpty else { return }
+
+        LogStore.shared.log(
+            "v4 bootstrap in progress — running accelerated follow-up for \(targetChains.map(\.displayName).joined(separator: ", "))",
+            level: .info
+        )
+
+        let results = await withTaskGroup(of: ChainLoadResult.self, returning: [ChainLoadResult].self) { group in
+            for chain in targetChains {
+                group.addTask { [wallet] in
+                    await self.loadChain(wallet: wallet, chain: chain)
+                }
+            }
+            var collected: [ChainLoadResult] = []
+            for await result in group { collected.append(result) }
+            return collected
+        }
+        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+
+        let enrichedResults = await enrichChainResults(results)
+        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+        applyChainResults(enrichedResults, activeChains: activeChains)
+
+        let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
+        scheduleBootstrapFollowUpIfNeeded(
+            chainIDs: snapshot.filter(\.bootstrapInProgress).map { $0.chain.id },
+            generation: generation
+        )
+        LogStore.shared.log(
+            "accelerated follow-up done — \(positions.count) positions, \(snapshot.filter(\.bootstrapInProgress).count) chain(s) still bootstrapping",
+            level: .info
+        )
+    }
+
+    private func enrichChainResults(_ results: [ChainLoadResult]) async -> [ChainLoadResult] {
+        await withTaskGroup(of: ChainLoadResult.self, returning: [ChainLoadResult].self) { group in
+            for result in results {
+                group.addTask {
+                    let enriched = await self.enrichPositionsWithPoolStats(result.positions)
+                    return ChainLoadResult(
+                        chain: result.chain,
+                        positions: enriched,
+                        feesUSD: result.feesUSD,
+                        error: result.error,
+                        bootstrapInProgress: result.bootstrapInProgress
+                    )
+                }
+            }
+            var collected: [ChainLoadResult] = []
+            for await result in group { collected.append(result) }
+            return collected
+        }
+    }
+
+    private func enrichPositionsWithPoolStats(_ input: [Position]) async -> [Position] {
+        await withTaskGroup(of: Position.self, returning: [Position].self) { group in
+            for pos in input {
                 group.addTask { [pos] in
                     var p = pos
                     guard !p.isV4,
@@ -115,29 +208,42 @@ final class UniswapService: ObservableObject {
             for await p in group { enriched.append(p) }
             return enriched
         }
+    }
 
-        positions = all.sorted { lhs, rhs in
-            (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0)
+    private func applyChainResults(_ results: [ChainLoadResult], activeChains: [SupportedChain]) {
+        let activeIDs = Set(activeChains.map(\.id))
+        for result in results {
+            chainResultsByID[result.chain.id] = result
         }
+        chainResultsByID = chainResultsByID.filter { activeIDs.contains($0.key) }
 
-        let errors = results.compactMap(\.error)
+        let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
+        let all = snapshot
+            .flatMap(\.positions)
+            .sorted { lhs, rhs in (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0) }
+        positions = all
+
+        let errors = snapshot.compactMap(\.error)
         lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
         if let err = lastError { LogStore.shared.log(err, level: .error) }
 
         if all.isEmpty {
             titleText = "👀 $0.00"
         } else {
-            let total = results.reduce(0.0) { $0 + $1.feesUSD }
+            let total = snapshot.reduce(0.0) { $0 + $1.feesUSD }
             titleText = String(format: "👀 $%.2f", total)
         }
-
-        LogStore.shared.log("refresh done — \(all.count) positions across \(chains.count) chain(s)", level: .info)
-        isLoading = false
     }
 
     private func loadChain(wallet: String, chain: SupportedChain) async -> ChainLoadResult {
         guard let rpcURL = AppSettings.shared.infuraRPCURL(for: chain) else {
-            return ChainLoadResult(positions: [], feesUSD: 0, error: "\(chain.displayName): invalid Infura API key")
+            return ChainLoadResult(
+                chain: chain,
+                positions: [],
+                feesUSD: 0,
+                error: "\(chain.displayName): invalid Infura API key",
+                bootstrapInProgress: false
+            )
         }
         let eth = EthereumClient(rpcURL: rpcURL)
 
@@ -145,9 +251,11 @@ final class UniswapService: ObservableObject {
             let probedChainID = try await eth.ethChainId()
             if probedChainID != chain.chainId {
                 return ChainLoadResult(
+                    chain: chain,
                     positions: [],
                     feesUSD: 0,
-                    error: "\(chain.displayName): RPC chain mismatch (expected \(chain.chainId), got \(probedChainID))"
+                    error: "\(chain.displayName): RPC chain mismatch (expected \(chain.chainId), got \(probedChainID))",
+                    bootstrapInProgress: false
                 )
             }
         } catch {
@@ -156,15 +264,19 @@ final class UniswapService: ObservableObject {
                 msg.lowercased().contains("not available for project") {
                 AppSettings.shared.disableChain(chain.id)
                 return ChainLoadResult(
+                    chain: chain,
                     positions: [],
                     feesUSD: 0,
-                    error: "\(chain.displayName): Infura access denied for this API key (network auto-disabled)"
+                    error: "\(chain.displayName): Infura access denied for this API key (network auto-disabled)",
+                    bootstrapInProgress: false
                 )
             }
             return ChainLoadResult(
+                chain: chain,
                 positions: [],
                 feesUSD: 0,
-                error: "\(chain.displayName): RPC unavailable – \(msg)"
+                error: "\(chain.displayName): RPC unavailable – \(msg)",
+                bootstrapInProgress: false
             )
         }
 
@@ -172,16 +284,18 @@ final class UniswapService: ObservableObject {
             guard chain.supportsV3 else { return ([], 0, nil) }
             return await loadV3(wallet: wallet, eth: eth, chain: chain)
         }()
-        let v4: (positions: [Position], feesUSD: Double, error: String?) = await {
-            guard chain.supportsV4 else { return ([], 0, nil) }
+        let v4: (positions: [Position], feesUSD: Double, error: String?, bootstrapInProgress: Bool) = await {
+            guard chain.supportsV4 else { return ([], 0, nil, false) }
             return await loadV4(wallet: wallet, eth: eth, chain: chain)
         }()
 
         let errors = [v3.error, v4.error].compactMap { $0 }.map { "\(chain.displayName): \($0)" }
         return ChainLoadResult(
+            chain: chain,
             positions: v3.positions + v4.positions,
             feesUSD: v3.feesUSD + v4.feesUSD,
-            error: errors.isEmpty ? nil : errors.joined(separator: "\n")
+            error: errors.isEmpty ? nil : errors.joined(separator: "\n"),
+            bootstrapInProgress: v4.bootstrapInProgress
         )
     }
 
@@ -330,13 +444,13 @@ final class UniswapService: ObservableObject {
 
     private func loadV4(
         wallet: String, eth: EthereumClient, chain: SupportedChain
-    ) async -> (positions: [Position], feesUSD: Double, error: String?) {
+    ) async -> (positions: [Position], feesUSD: Double, error: String?, bootstrapInProgress: Bool) {
         guard let v4PM = chain.v4PM, let v4SV = chain.v4SV else {
-            return ([], 0, nil)
+            return ([], 0, nil, false)
         }
         guard let deployHex = chain.v4DeployBlockHex,
               let deployBlock = Int(deployHex.dropFirst(2), radix: 16) else {
-            return ([], 0, nil)
+            return ([], 0, nil, false)
         }
 
         var metaCache: [String: (symbol: String, decimals: Int)] = [:]
@@ -348,14 +462,14 @@ final class UniswapService: ObservableObject {
         let v4Balance: UInt64
         do {
             let numData = try await eth.ethCall(to: v4PM, data: ABI.callBalanceOf(owner: wallet))
-            guard numData.count >= 32 else { return ([], 0, "v4: unexpected balanceOf response") }
+            guard numData.count >= 32 else { return ([], 0, "v4: unexpected balanceOf response", false) }
             v4Balance = numData.readUInt64(wordAt: 0)
         } catch EthereumClient.Err.noResult {
-            return ([], 0, "v4: balanceOf returned no result (RPC did not return a usable payload)")
+            return ([], 0, "v4: balanceOf returned no result (RPC did not return a usable payload)", false)
         } catch {
-            return ([], 0, "v4: balanceOf failed – \(error.localizedDescription)")
+            return ([], 0, "v4: balanceOf failed – \(error.localizedDescription)", false)
         }
-        guard v4Balance > 0 else { return ([], 0, nil) }
+        guard v4Balance > 0 else { return ([], 0, nil, false) }
 
         // 2 · Enumerate owned tokenIds via ERC-721 Transfer events.
         //     The v4 PositionManager does NOT implement ERC-721 Enumerable,
@@ -376,7 +490,7 @@ final class UniswapService: ObservableObject {
         // (with a short reorg lookback).
         let currentBlock: Int
         do { currentBlock = try await eth.ethBlockNumber() }
-        catch { return ([], 0, "v4: eth_blockNumber failed – \(error.localizedDescription)") }
+        catch { return ([], 0, "v4: eth_blockNumber failed – \(error.localizedDescription)", false) }
 
         let previousCache = loadV4OwnershipCache(wallet: wallet, chain: chain)
         let hasCache = previousCache != nil
@@ -444,7 +558,7 @@ final class UniswapService: ObservableObject {
                 fromLogs.append(contentsOf: batchLogs.from)
             } catch {
                 let sampleRange = batch.first.map { "\($0.0)-\($0.1)" } ?? "unknown-range"
-                return ([], 0, "v4: Transfer log query failed near \(sampleRange) – \(error.localizedDescription)")
+                return ([], 0, "v4: Transfer log query failed near \(sampleRange) – \(error.localizedDescription)", false)
             }
         }
 
@@ -481,9 +595,9 @@ final class UniswapService: ObservableObject {
                 chain: chain
             )
             if let next = nextBootstrapFromBlock {
-                return ([], 0, "v4: bootstrap scan in progress (next from 0x\(String(next, radix: 16)))")
+                return ([], 0, "v4: bootstrap scan in progress (next from 0x\(String(next, radix: 16)))", true)
             }
-            return ([], 0, "v4: no Transfer events found for this wallet (balance=\(v4Balance))")
+            return ([], 0, "v4: no Transfer events found for this wallet (balance=\(v4Balance))", false)
         }
 
         // Verify ownership only for tokenIds that changed since the last scan.
@@ -532,7 +646,7 @@ final class UniswapService: ObservableObject {
         }
 
         guard !ownedIds.isEmpty else {
-            return ([], 0, "v4: balance=\(v4Balance), found \(candidateIds.count) candidate tokenIds but none pass ownerOf check")
+            return ([], 0, "v4: balance=\(v4Balance), found \(candidateIds.count) candidate tokenIds but none pass ownerOf check", false)
         }
 
         saveV4OwnershipCache(
@@ -631,7 +745,7 @@ final class UniswapService: ObservableObject {
             }
         }
 
-        guard !rawPositions.isEmpty else { return ([], 0, nil) }
+        guard !rawPositions.isEmpty else { return ([], 0, nil, nextBootstrapFromBlock != nil) }
 
         // 4 · prices
         let priceMap = await priceService.fetchPrices(
@@ -686,7 +800,7 @@ final class UniswapService: ObservableObject {
             finalPositions.append(p)
         }
 
-        return (finalPositions, totalFeesUSD, nil)
+        return (finalPositions, totalFeesUSD, nil, nextBootstrapFromBlock != nil)
     }
 
     // MARK: - v4 fee computation
