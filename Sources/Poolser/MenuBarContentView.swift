@@ -36,29 +36,30 @@ struct MenuBarContentView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
-                BrandMark()
+        HStack(alignment: .center, spacing: 10) {
+            BrandMark()
 
-                VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
                     Text("Poolser")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12.5, weight: .semibold))
                     Text("for Uniswap positions")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-
-                    HStack(spacing: 5) {
-                        Image(systemName: "wallet.pass.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text(shortWallet)
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    }
-                    .foregroundStyle(Color.blue)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(Color.blue.opacity(0.12), in: Capsule())
-                    .overlay(Capsule().stroke(Color.blue.opacity(0.3), lineWidth: 0.7))
                 }
+
+                HStack(spacing: 5) {
+                    Image(systemName: "wallet.pass.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text(shortWallet)
+                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(Color.blue)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.blue.opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(Color.blue.opacity(0.3), lineWidth: 0.7))
             }
             Spacer()
             Button { service.refresh() } label: {
@@ -69,8 +70,8 @@ struct MenuBarContentView: View {
             .buttonStyle(.plain)
             .help("Refresh")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Content
