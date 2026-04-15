@@ -169,23 +169,42 @@ struct MenuBarContentView: View {
 
 private struct BrandMark: View {
     var body: some View {
+        Group {
+            if let image = brandImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(Color.secondary.opacity(0.18))
+                    Text("👀")
+                        .font(.system(size: 18))
+                }
+            }
+        }
+        .frame(width: 32, height: 32)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
+    }
+
+    private var brandImage: NSImage? {
         #if SPM_BUILD
-        let nsImg = Bundle.module.url(forResource: "AppLogo", withExtension: "png")
-            .flatMap { NSImage(contentsOf: $0) } ?? NSImage()
-        Image(nsImage: nsImg)
-            .resizable()
-            .interpolation(.high)
-            .frame(width: 32, height: 32)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
-        #else
-        Image(nsImage: NSApp.applicationIconImage)
-            .resizable()
-            .interpolation(.high)
-            .frame(width: 32, height: 32)
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-            .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
+        if let url = Bundle.module.url(forResource: "AppLogo", withExtension: "png"),
+           let image = NSImage(contentsOf: url),
+           image.size.width > 0, image.size.height > 0 {
+            return image
+        }
         #endif
+        if let named = NSImage(named: "AppLogo"),
+           named.size.width > 0, named.size.height > 0 {
+            return named
+        }
+        if let appIcon = NSApp.applicationIconImage,
+           appIcon.size.width > 0, appIcon.size.height > 0 {
+            return appIcon
+        }
+        return nil
     }
 }
 
