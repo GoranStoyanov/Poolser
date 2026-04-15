@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LogsView: View {
     @ObservedObject private var store = LogStore.shared
+    @State private var hiddenLevels: Set<LogLevel> = []
     var onDismiss: (() -> Void)? = nil
 
     private static let timeFmt: DateFormatter = {
@@ -26,7 +27,7 @@ struct LogsView: View {
                     .font(.system(size: 15, weight: .semibold))
                 Spacer()
                 Button {
-                    let lines = store.entries.map { e in
+                    let lines = filteredEntries.map { e in
                         let lvl = switch e.level {
                             case .info: "INFO"; case .request: "REQ "
                             case .response: "RESP"; case .error: "ERR "
@@ -63,13 +64,20 @@ struct LogsView: View {
                 .keyboardShortcut(.escape, modifiers: [])
             }
             HStack(spacing: 12) {
-                ForEach(legendItems, id: \.label) { item in
-                    HStack(spacing: 4) {
-                        Circle().fill(item.color).frame(width: 6, height: 6)
-                        Text(item.label)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+                ForEach(LogLevel.allCases, id: \.self) { level in
+                    Button {
+                        toggle(level)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Circle().fill(color(for: level)).frame(width: 6, height: 6)
+                            Text(label(for: level))
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                        .opacity(hiddenLevels.contains(level) ? 0.35 : 1.0)
                     }
+                    .buttonStyle(.plain)
+                    .help(hiddenLevels.contains(level) ? "Show \(label(for: level)) logs" : "Hide \(label(for: level)) logs")
                 }
             }
         }
@@ -78,12 +86,32 @@ struct LogsView: View {
         .padding(.bottom, 8)
     }
 
-    private let legendItems: [(label: String, color: Color)] = [
-        ("info",     Color.secondary),
-        ("request",  .blue),
-        ("response", .green),
-        ("error",    .orange),
-    ]
+    private var filteredEntries: [LogEntry] {
+        store.entries.filter { !hiddenLevels.contains($0.level) }
+    }
+
+    private func toggle(_ level: LogLevel) {
+        if hiddenLevels.contains(level) { hiddenLevels.remove(level) }
+        else { hiddenLevels.insert(level) }
+    }
+
+    private func label(for level: LogLevel) -> String {
+        switch level {
+        case .info: return "info"
+        case .request: return "request"
+        case .response: return "response"
+        case .error: return "error"
+        }
+    }
+
+    private func color(for level: LogLevel) -> Color {
+        switch level {
+        case .info: return Color.secondary
+        case .request: return .blue
+        case .response: return .green
+        case .error: return .orange
+        }
+    }
 
     @ViewBuilder
     private var content: some View {
@@ -93,10 +121,16 @@ struct LogsView: View {
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 24)
                 .frame(maxWidth: .infinity)
+        } else if filteredEntries.isEmpty {
+            Text("No logs for selected legend filters")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity)
         } else {
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(store.entries.reversed()) { entry in
+                    ForEach(filteredEntries.reversed()) { entry in
                         LogRow(entry: entry)
                         Divider().opacity(0.15)
                     }

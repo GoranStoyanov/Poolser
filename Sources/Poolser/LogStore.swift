@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-enum LogLevel { case info, request, response, error }
+enum LogLevel: CaseIterable, Hashable { case info, request, response, error }
 
 struct LogEntry: Identifiable {
     let id        = UUID()
