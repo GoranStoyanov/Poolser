@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 enum LogLevel { case info, request, response, error }
 

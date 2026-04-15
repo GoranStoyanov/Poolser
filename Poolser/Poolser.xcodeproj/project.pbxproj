@@ -1,0 +1,436 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1202F8F628F00C82982 /* ChainConfig.swift */; };
+		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
+		53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */; };
+		53FAE1342F8F628F00C82982 /* PoolStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */; };
+		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
+		53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1302F8F628F00C82982 /* UniswapService.swift */; };
+		53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11F2F8F628F00C82982 /* AppSettings.swift */; };
+		53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1232F8F628F00C82982 /* Keccak256.swift */; };
+		53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1212F8F628F00C82982 /* ChainIconView.swift */; };
+		53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11E2F8F628F00C82982 /* AppDelegate.swift */; };
+		53FAE13B2F8F628F00C82982 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12F2F8F628F00C82982 /* SettingsView.swift */; };
+		53FAE13C2F8F628F00C82982 /* EthereumClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1222F8F628F00C82982 /* EthereumClient.swift */; };
+		53FAE13D2F8F628F00C82982 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */; };
+		53FAE13E2F8F628F00C82982 /* ABI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11D2F8F628F00C82982 /* ABI.swift */; };
+		53FAE13F2F8F628F00C82982 /* PriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12C2F8F628F00C82982 /* PriceService.swift */; };
+		53FAE1402F8F628F00C82982 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1242F8F628F00C82982 /* LogStore.swift */; };
+		53FAE1412F8F628F00C82982 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1272F8F628F00C82982 /* Models.swift */; };
+		53FAE1422F8F628F00C82982 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 53FAE12D2F8F628F00C82982 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		53FAE0E92F8ECAC700C82982 /* Poolser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poolser.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		53FAE11D2F8F628F00C82982 /* ABI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ABI.swift; path = ../Sources/Poolser/ABI.swift; sourceTree = SOURCE_ROOT; };
+		53FAE11E2F8F628F00C82982 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ../Sources/Poolser/AppDelegate.swift; sourceTree = SOURCE_ROOT; };
+		53FAE11F2F8F628F00C82982 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppSettings.swift; path = ../Sources/Poolser/AppSettings.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1202F8F628F00C82982 /* ChainConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainConfig.swift; path = ../Sources/Poolser/ChainConfig.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1212F8F628F00C82982 /* ChainIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainIconView.swift; path = ../Sources/Poolser/ChainIconView.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1222F8F628F00C82982 /* EthereumClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EthereumClient.swift; path = ../Sources/Poolser/EthereumClient.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1232F8F628F00C82982 /* Keccak256.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Keccak256.swift; path = ../Sources/Poolser/Keccak256.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1242F8F628F00C82982 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LogStore.swift; path = ../Sources/Poolser/LogStore.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1252F8F628F00C82982 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LogsView.swift; path = ../Sources/Poolser/LogsView.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MenuBarContentView.swift; path = ../Sources/Poolser/MenuBarContentView.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1272F8F628F00C82982 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = ../Sources/Poolser/Models.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NetworkIconStore.swift; path = ../Sources/Poolser/NetworkIconStore.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1292F8F628F00C82982 /* Poolser.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Poolser.entitlements; path = ../Sources/Poolser/Poolser.entitlements; sourceTree = SOURCE_ROOT; };
+		53FAE12A2F8F628F00C82982 /* PoolserApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PoolserApp.swift; path = ../Sources/Poolser/PoolserApp.swift; sourceTree = SOURCE_ROOT; };
+		53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PoolStatsService.swift; path = ../Sources/Poolser/PoolStatsService.swift; sourceTree = SOURCE_ROOT; };
+		53FAE12C2F8F628F00C82982 /* PriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PriceService.swift; path = ../Sources/Poolser/PriceService.swift; sourceTree = SOURCE_ROOT; };
+		53FAE12D2F8F628F00C82982 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		53FAE12F2F8F628F00C82982 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = ../Sources/Poolser/SettingsView.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1302F8F628F00C82982 /* UniswapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapService.swift; path = ../Sources/Poolser/UniswapService.swift; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		53FAE0EB2F8ECAC700C82982 /* Poolser */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Poolser;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		53FAE0E62F8ECAC700C82982 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		53FAE0E02F8ECAC700C82982 = {
+			isa = PBXGroup;
+			children = (
+				53FAE11D2F8F628F00C82982 /* ABI.swift */,
+				53FAE11E2F8F628F00C82982 /* AppDelegate.swift */,
+				53FAE11F2F8F628F00C82982 /* AppSettings.swift */,
+				53FAE1202F8F628F00C82982 /* ChainConfig.swift */,
+				53FAE1212F8F628F00C82982 /* ChainIconView.swift */,
+				53FAE1222F8F628F00C82982 /* EthereumClient.swift */,
+				53FAE1232F8F628F00C82982 /* Keccak256.swift */,
+				53FAE1242F8F628F00C82982 /* LogStore.swift */,
+				53FAE1252F8F628F00C82982 /* LogsView.swift */,
+				53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */,
+				53FAE1272F8F628F00C82982 /* Models.swift */,
+				53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */,
+				53FAE1292F8F628F00C82982 /* Poolser.entitlements */,
+				53FAE12A2F8F628F00C82982 /* PoolserApp.swift */,
+				53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */,
+				53FAE12C2F8F628F00C82982 /* PriceService.swift */,
+				53FAE12E2F8F628F00C82982 /* Resources */,
+				53FAE12F2F8F628F00C82982 /* SettingsView.swift */,
+				53FAE1302F8F628F00C82982 /* UniswapService.swift */,
+				53FAE0EB2F8ECAC700C82982 /* Poolser */,
+				53FAE0EA2F8ECAC700C82982 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		53FAE0EA2F8ECAC700C82982 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				53FAE0E92F8ECAC700C82982 /* Poolser.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		53FAE12E2F8F628F00C82982 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				53FAE12D2F8F628F00C82982 /* Assets.xcassets */,
+			);
+			name = Resources;
+			path = ../Sources/Poolser/Resources;
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		53FAE0E82F8ECAC700C82982 /* Poolser */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 53FAE0F42F8ECAC800C82982 /* Build configuration list for PBXNativeTarget "Poolser" */;
+			buildPhases = (
+				53FAE0E52F8ECAC700C82982 /* Sources */,
+				53FAE0E62F8ECAC700C82982 /* Frameworks */,
+				53FAE0E72F8ECAC700C82982 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				53FAE0EB2F8ECAC700C82982 /* Poolser */,
+			);
+			name = Poolser;
+			packageProductDependencies = (
+			);
+			productName = Poolser;
+			productReference = 53FAE0E92F8ECAC700C82982 /* Poolser.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		53FAE0E12F8ECAC700C82982 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					53FAE0E82F8ECAC700C82982 = {
+						CreatedOnToolsVersion = 26.4;
+						LastSwiftMigration = 2640;
+					};
+				};
+			};
+			buildConfigurationList = 53FAE0E42F8ECAC700C82982 /* Build configuration list for PBXProject "Poolser" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 53FAE0E02F8ECAC700C82982;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 53FAE0EA2F8ECAC700C82982 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				53FAE0E82F8ECAC700C82982 /* Poolser */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		53FAE0E72F8ECAC700C82982 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53FAE1422F8F628F00C82982 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		53FAE0E52F8ECAC700C82982 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */,
+				53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */,
+				53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */,
+				53FAE1342F8F628F00C82982 /* PoolStatsService.swift in Sources */,
+				53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */,
+				53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */,
+				53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */,
+				53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */,
+				53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */,
+				53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */,
+				53FAE13B2F8F628F00C82982 /* SettingsView.swift in Sources */,
+				53FAE13C2F8F628F00C82982 /* EthereumClient.swift in Sources */,
+				53FAE13D2F8F628F00C82982 /* MenuBarContentView.swift in Sources */,
+				53FAE13E2F8F628F00C82982 /* ABI.swift in Sources */,
+				53FAE13F2F8F628F00C82982 /* PriceService.swift in Sources */,
+				53FAE1402F8F628F00C82982 /* LogStore.swift in Sources */,
+				53FAE1412F8F628F00C82982 /* Models.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		53FAE0F22F8ECAC800C82982 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = TV74DGM35Q;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		53FAE0F32F8ECAC800C82982 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = TV74DGM35Q;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		53FAE0F52F8ECAC800C82982 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=*]" = ../Sources/Poolser/Poolser.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TV74DGM35Q;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Poolser;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 goodmorning.dev. All rights reserved.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.goodmorning.Poolser;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		53FAE0F62F8ECAC800C82982 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=*]" = ../Sources/Poolser/Poolser.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TV74DGM35Q;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Poolser;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 goodmorning.dev. All rights reserved.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.goodmorning.Poolser;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		53FAE0E42F8ECAC700C82982 /* Build configuration list for PBXProject "Poolser" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53FAE0F22F8ECAC800C82982 /* Debug */,
+				53FAE0F32F8ECAC800C82982 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		53FAE0F42F8ECAC800C82982 /* Build configuration list for PBXNativeTarget "Poolser" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53FAE0F52F8ECAC800C82982 /* Debug */,
+				53FAE0F62F8ECAC800C82982 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 53FAE0E12F8ECAC700C82982 /* Project object */;
+}
