@@ -8,6 +8,7 @@ private struct V4OwnershipCache: Codable {
     let candidateTokenIds: [UInt64]
     let ownedTokenIds: [UInt64]
     let nextBootstrapFromBlock: Int?
+    let bootstrapPassCounter: Int?
 }
 
 /// Native token in Uniswap v4 is represented as address(0).
@@ -29,6 +30,8 @@ final class UniswapService: ObservableObject {
     private var refreshIntervalCancellable: AnyCancellable?
     private var activeLoadTask: Task<Void, Never>?
     private var bootstrapFollowUpTask: Task<Void, Never>?
+    private var bootstrapCountdownTimer: Timer?
+    private var bootstrapFollowUpDeadlineByChainID: [String: Date] = [:]
     private var loadGeneration: UInt64 = 0
     private var chainResultsByID: [String: ChainLoadResult] = [:]
 
@@ -38,6 +41,7 @@ final class UniswapService: ObservableObject {
         let feesUSD: Double
         let error: String?
         let bootstrapInProgress: Bool
+        let bootstrapNextFromBlock: Int?
     }
 
     init() {
@@ -55,6 +59,8 @@ final class UniswapService: ObservableObject {
     private func startLoad() {
         activeLoadTask?.cancel()
         bootstrapFollowUpTask?.cancel()
+        bootstrapFollowUpDeadlineByChainID = [:]
+        stopBootstrapCountdownTimer()
         loadGeneration &+= 1
         let generation = loadGeneration
         activeLoadTask = Task { [weak self] in
@@ -112,7 +118,17 @@ final class UniswapService: ObservableObject {
     private func scheduleBootstrapFollowUpIfNeeded(chainIDs: [String], generation: UInt64) {
         bootstrapFollowUpTask?.cancel()
         let ids = Array(Set(chainIDs))
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else {
+            bootstrapFollowUpDeadlineByChainID = [:]
+            stopBootstrapCountdownTimer()
+            return
+        }
+        let fireDate = Date().addingTimeInterval(TimeInterval(bootstrapFollowUpSeconds))
+        bootstrapFollowUpDeadlineByChainID = Dictionary(
+            uniqueKeysWithValues: ids.map { ($0, fireDate) }
+        )
+        startBootstrapCountdownTimer()
+        refreshBootstrapCountdownMessage()
         bootstrapFollowUpTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: self.bootstrapFollowUpSeconds * 1_000_000_000)
@@ -173,7 +189,8 @@ final class UniswapService: ObservableObject {
                         positions: enriched,
                         feesUSD: result.feesUSD,
                         error: result.error,
-                        bootstrapInProgress: result.bootstrapInProgress
+                        bootstrapInProgress: result.bootstrapInProgress,
+                        bootstrapNextFromBlock: result.bootstrapNextFromBlock
                     )
                 }
             }
@@ -224,8 +241,9 @@ final class UniswapService: ObservableObject {
         positions = all
 
         let errors = snapshot.compactMap(\.error)
-        lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
-        if let err = lastError { LogStore.shared.log(err, level: .error) }
+        let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
+        lastError = errorText
+        if let err = errorText { LogStore.shared.log(err, level: .error) }
 
         if all.isEmpty {
             titleText = "👀 $0.00"
@@ -242,7 +260,8 @@ final class UniswapService: ObservableObject {
                 positions: [],
                 feesUSD: 0,
                 error: "\(chain.displayName): invalid Infura API key",
-                bootstrapInProgress: false
+                bootstrapInProgress: false,
+                bootstrapNextFromBlock: nil
             )
         }
         let eth = EthereumClient(rpcURL: rpcURL)
@@ -255,7 +274,8 @@ final class UniswapService: ObservableObject {
                     positions: [],
                     feesUSD: 0,
                     error: "\(chain.displayName): RPC chain mismatch (expected \(chain.chainId), got \(probedChainID))",
-                    bootstrapInProgress: false
+                    bootstrapInProgress: false,
+                    bootstrapNextFromBlock: nil
                 )
             }
         } catch {
@@ -268,7 +288,8 @@ final class UniswapService: ObservableObject {
                     positions: [],
                     feesUSD: 0,
                     error: "\(chain.displayName): Infura access denied for this API key (network auto-disabled)",
-                    bootstrapInProgress: false
+                    bootstrapInProgress: false,
+                    bootstrapNextFromBlock: nil
                 )
             }
             return ChainLoadResult(
@@ -276,7 +297,8 @@ final class UniswapService: ObservableObject {
                 positions: [],
                 feesUSD: 0,
                 error: "\(chain.displayName): RPC unavailable – \(msg)",
-                bootstrapInProgress: false
+                bootstrapInProgress: false,
+                bootstrapNextFromBlock: nil
             )
         }
 
@@ -284,8 +306,14 @@ final class UniswapService: ObservableObject {
             guard chain.supportsV3 else { return ([], 0, nil) }
             return await loadV3(wallet: wallet, eth: eth, chain: chain)
         }()
-        let v4: (positions: [Position], feesUSD: Double, error: String?, bootstrapInProgress: Bool) = await {
-            guard chain.supportsV4 else { return ([], 0, nil, false) }
+        let v4: (
+            positions: [Position],
+            feesUSD: Double,
+            error: String?,
+            bootstrapInProgress: Bool,
+            bootstrapNextFromBlock: Int?
+        ) = await {
+            guard chain.supportsV4 else { return ([], 0, nil, false, nil) }
             return await loadV4(wallet: wallet, eth: eth, chain: chain)
         }()
 
@@ -295,7 +323,8 @@ final class UniswapService: ObservableObject {
             positions: v3.positions + v4.positions,
             feesUSD: v3.feesUSD + v4.feesUSD,
             error: errors.isEmpty ? nil : errors.joined(separator: "\n"),
-            bootstrapInProgress: v4.bootstrapInProgress
+            bootstrapInProgress: v4.bootstrapInProgress,
+            bootstrapNextFromBlock: v4.bootstrapNextFromBlock
         )
     }
 
@@ -444,13 +473,19 @@ final class UniswapService: ObservableObject {
 
     private func loadV4(
         wallet: String, eth: EthereumClient, chain: SupportedChain
-    ) async -> (positions: [Position], feesUSD: Double, error: String?, bootstrapInProgress: Bool) {
+    ) async -> (
+        positions: [Position],
+        feesUSD: Double,
+        error: String?,
+        bootstrapInProgress: Bool,
+        bootstrapNextFromBlock: Int?
+    ) {
         guard let v4PM = chain.v4PM, let v4SV = chain.v4SV else {
-            return ([], 0, nil, false)
+            return ([], 0, nil, false, nil)
         }
         guard let deployHex = chain.v4DeployBlockHex,
               let deployBlock = Int(deployHex.dropFirst(2), radix: 16) else {
-            return ([], 0, nil, false)
+            return ([], 0, nil, false, nil)
         }
 
         var metaCache: [String: (symbol: String, decimals: Int)] = [:]
@@ -462,14 +497,14 @@ final class UniswapService: ObservableObject {
         let v4Balance: UInt64
         do {
             let numData = try await eth.ethCall(to: v4PM, data: ABI.callBalanceOf(owner: wallet))
-            guard numData.count >= 32 else { return ([], 0, "v4: unexpected balanceOf response", false) }
+            guard numData.count >= 32 else { return ([], 0, "v4: unexpected balanceOf response", false, nil) }
             v4Balance = numData.readUInt64(wordAt: 0)
         } catch EthereumClient.Err.noResult {
-            return ([], 0, "v4: balanceOf returned no result (RPC did not return a usable payload)", false)
+            return ([], 0, "v4: balanceOf returned no result (RPC did not return a usable payload)", false, nil)
         } catch {
-            return ([], 0, "v4: balanceOf failed – \(error.localizedDescription)", false)
+            return ([], 0, "v4: balanceOf failed – \(error.localizedDescription)", false, nil)
         }
-        guard v4Balance > 0 else { return ([], 0, nil, false) }
+        guard v4Balance > 0 else { return ([], 0, nil, false, nil) }
 
         // 2 · Enumerate owned tokenIds via ERC-721 Transfer events.
         //     The v4 PositionManager does NOT implement ERC-721 Enumerable,
@@ -490,7 +525,7 @@ final class UniswapService: ObservableObject {
         // (with a short reorg lookback).
         let currentBlock: Int
         do { currentBlock = try await eth.ethBlockNumber() }
-        catch { return ([], 0, "v4: eth_blockNumber failed – \(error.localizedDescription)", false) }
+        catch { return ([], 0, "v4: eth_blockNumber failed – \(error.localizedDescription)", false, nil) }
 
         let previousCache = loadV4OwnershipCache(wallet: wallet, chain: chain)
         let hasCache = previousCache != nil
@@ -558,7 +593,7 @@ final class UniswapService: ObservableObject {
                 fromLogs.append(contentsOf: batchLogs.from)
             } catch {
                 let sampleRange = batch.first.map { "\($0.0)-\($0.1)" } ?? "unknown-range"
-                return ([], 0, "v4: Transfer log query failed near \(sampleRange) – \(error.localizedDescription)", false)
+                return ([], 0, "v4: Transfer log query failed near \(sampleRange) – \(error.localizedDescription)", false, nil)
             }
         }
 
@@ -582,6 +617,10 @@ final class UniswapService: ObservableObject {
             if reachedHead { return nil }
             return scanEndBlock + 1
         }()
+        let bootstrapPassCounter: Int? = {
+            guard bootstrapFrom != nil else { return nil }
+            return (previousCache?.bootstrapPassCounter ?? 0) + 1
+        }()
 
         if candidateIds.isEmpty {
             saveV4OwnershipCache(
@@ -589,15 +628,16 @@ final class UniswapService: ObservableObject {
                     lastScannedBlock: scanEndBlock,
                     candidateTokenIds: [],
                     ownedTokenIds: [],
-                    nextBootstrapFromBlock: nextBootstrapFromBlock
+                    nextBootstrapFromBlock: nextBootstrapFromBlock,
+                    bootstrapPassCounter: nextBootstrapFromBlock == nil ? nil : bootstrapPassCounter
                 ),
                 wallet: wallet,
                 chain: chain
             )
             if let next = nextBootstrapFromBlock {
-                return ([], 0, "v4: bootstrap scan in progress (next from 0x\(String(next, radix: 16)))", true)
+                return ([], 0, nil, true, next)
             }
-            return ([], 0, "v4: no Transfer events found for this wallet (balance=\(v4Balance))", false)
+            return ([], 0, "v4: no Transfer events found for this wallet (balance=\(v4Balance))", false, nil)
         }
 
         // Verify ownership only for tokenIds that changed since the last scan.
@@ -646,7 +686,7 @@ final class UniswapService: ObservableObject {
         }
 
         guard !ownedIds.isEmpty else {
-            return ([], 0, "v4: balance=\(v4Balance), found \(candidateIds.count) candidate tokenIds but none pass ownerOf check", false)
+            return ([], 0, "v4: balance=\(v4Balance), found \(candidateIds.count) candidate tokenIds but none pass ownerOf check", false, nil)
         }
 
         saveV4OwnershipCache(
@@ -654,7 +694,8 @@ final class UniswapService: ObservableObject {
                 lastScannedBlock: scanEndBlock,
                 candidateTokenIds: Array(candidateIds).sorted(),
                 ownedTokenIds: Array(ownedIds).sorted(),
-                nextBootstrapFromBlock: nextBootstrapFromBlock
+                nextBootstrapFromBlock: nextBootstrapFromBlock,
+                bootstrapPassCounter: nextBootstrapFromBlock == nil ? nil : bootstrapPassCounter
             ),
             wallet: wallet,
             chain: chain
@@ -745,7 +786,9 @@ final class UniswapService: ObservableObject {
             }
         }
 
-        guard !rawPositions.isEmpty else { return ([], 0, nil, nextBootstrapFromBlock != nil) }
+        guard !rawPositions.isEmpty else {
+            return ([], 0, nil, nextBootstrapFromBlock != nil, nextBootstrapFromBlock)
+        }
 
         // 4 · prices
         let priceMap = await priceService.fetchPrices(
@@ -800,7 +843,63 @@ final class UniswapService: ObservableObject {
             finalPositions.append(p)
         }
 
-        return (finalPositions, totalFeesUSD, nil, nextBootstrapFromBlock != nil)
+        return (finalPositions, totalFeesUSD, nil, nextBootstrapFromBlock != nil, nextBootstrapFromBlock)
+    }
+
+    private func composedErrorText(snapshot: [ChainLoadResult], fallbackErrors: [String]) -> String? {
+        var messages: [String] = []
+        for result in snapshot {
+            if result.bootstrapInProgress, let next = result.bootstrapNextFromBlock {
+                let remaining = bootstrapRemainingSeconds(for: result.chain.id)
+                if remaining <= 0 {
+                    messages.append(
+                        "\(result.chain.displayName): v4: bootstrap refresh in progress (from 0x\(String(next, radix: 16)))"
+                    )
+                } else {
+                    messages.append(
+                        "\(result.chain.displayName): v4: bootstrap scan in progress (auto-refresh in ~\(remaining)s from 0x\(String(next, radix: 16)))"
+                    )
+                }
+            } else if let error = result.error {
+                messages.append(error)
+            }
+        }
+        if messages.isEmpty {
+            return fallbackErrors.isEmpty ? nil : fallbackErrors.joined(separator: "\n")
+        }
+        return messages.joined(separator: "\n")
+    }
+
+    private func bootstrapRemainingSeconds(for chainID: String) -> Int {
+        guard let deadline = bootstrapFollowUpDeadlineByChainID[chainID] else {
+            return Int(bootstrapFollowUpSeconds)
+        }
+        return max(0, Int(ceil(deadline.timeIntervalSinceNow)))
+    }
+
+    private func startBootstrapCountdownTimer() {
+        guard bootstrapCountdownTimer == nil else { return }
+        bootstrapCountdownTimer = .scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshBootstrapCountdownMessage()
+            }
+        }
+    }
+
+    private func stopBootstrapCountdownTimer() {
+        bootstrapCountdownTimer?.invalidate()
+        bootstrapCountdownTimer = nil
+    }
+
+    private func refreshBootstrapCountdownMessage() {
+        let activeChains = AppSettings.shared.enabledChains()
+        let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
+        guard snapshot.contains(where: \.bootstrapInProgress) else {
+            stopBootstrapCountdownTimer()
+            return
+        }
+        let errors = snapshot.compactMap(\.error)
+        lastError = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
     }
 
     // MARK: - v4 fee computation
