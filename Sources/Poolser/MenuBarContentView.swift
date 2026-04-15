@@ -169,24 +169,23 @@ struct MenuBarContentView: View {
 
 private struct BrandMark: View {
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Color(red: 0.25, green: 0.32, blue: 0.62), Color(red: 0.10, green: 0.14, blue: 0.32)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Text("👀")
-                .font(.system(size: 14))
-        }
-        .frame(width: 26, height: 26)
-        .overlay(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke(Color.white.opacity(0.28), lineWidth: 0.7)
-        )
-        .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
+        #if SPM_BUILD
+        let nsImg = Bundle.module.url(forResource: "AppLogo", withExtension: "png")
+            .flatMap { NSImage(contentsOf: $0) } ?? NSImage()
+        Image(nsImage: nsImg)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 32, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
+        #else
+        Image(nsImage: NSApp.applicationIconImage)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: 32, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
+        #endif
     }
 }
 

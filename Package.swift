@@ -10,6 +10,9 @@ let package = Package(
             path: "Sources/Poolser",
             resources: [
                 .process("Resources")
+            ],
+            swiftSettings: [
+                .define("SPM_BUILD")
             ]
         )
     ]
