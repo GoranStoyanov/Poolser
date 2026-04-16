@@ -244,17 +244,16 @@ struct PositionCard: View {
                 cardContent.contentShape(Rectangle())
             }
             .buttonStyle(CardButtonStyle())
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(rangeColor.opacity(0.5), lineWidth: 1)
+            )
         }
     }
 
     private var cardContent: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(rangeColor)
-                .frame(width: 8, height: 8)
-                .padding(.top, 4)
-                .shadow(color: rangeColor.opacity(0.7), radius: 3)
-
+        VStack(spacing: 0) {
+            // — Position section —
             VStack(alignment: .leading, spacing: 5) {
                 // Row 1: pair + fee tier + version + position value
                 HStack(spacing: 5) {
@@ -313,15 +312,6 @@ struct PositionCard: View {
                     }
                     Spacer()
                 }
-                // Row 3b: pool stats (GeckoTerminal)
-                if let stats = pos.poolStatsLabel {
-                    HStack {
-                        Text(stats)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                }
                 // Row 4: fees + token ID
                 HStack(spacing: 6) {
                     Group {
@@ -353,9 +343,24 @@ struct PositionCard: View {
                         .foregroundStyle(.tertiary)
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+
+            // — Pool stats footer strip —
+            if let stats = pos.poolStatsLabel {
+                Divider().opacity(0.3)
+                HStack {
+                    Text(stats)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(rangeColor.opacity(0.15))
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var rangeBadge: some View {
