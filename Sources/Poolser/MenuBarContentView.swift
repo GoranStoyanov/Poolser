@@ -295,16 +295,15 @@ struct PositionCard: View {
                         inRange: pos.inRange
                     )
                 }
-                // Row 3: range badge + distance
-                HStack(spacing: 6) {
-                    rangeBadge
-                    if let distance = rangeDistanceLabel {
+                // Row 3: distance only (badge moved to footer)
+                if let distance = rangeDistanceLabel {
+                    HStack(spacing: 6) {
                         Text(distance)
                             .font(.system(size: 10, weight: .medium, design: .monospaced))
                             .foregroundStyle(rangeColor)
                             .lineLimit(1)
+                        Spacer()
                     }
-                    Spacer()
                 }
                 // Row 3b: current assets (two columns)
                 HStack(spacing: 0) {
@@ -362,19 +361,20 @@ struct PositionCard: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
 
-            // — Pool stats footer strip —
-            if let stats = pos.poolStatsLabel {
-                Divider().opacity(0.3)
-                HStack {
+            // — Footer strip: range badge + pool stats —
+            Divider().opacity(0.3)
+            HStack {
+                rangeBadge
+                Spacer()
+                if let stats = pos.poolStatsLabel {
                     Text(stats)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Spacer()
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(rangeColor.opacity(0.15))
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(rangeColor.opacity(0.15))
         }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
