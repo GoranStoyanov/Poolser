@@ -257,6 +257,16 @@ struct PositionCard: View {
             VStack(alignment: .leading, spacing: 5) {
                 // Row 1: pair + fee tier + version + position value
                 HStack(spacing: 5) {
+                    if let chain = SupportedChain.byID(pos.chainID) {
+                        ChainIconView(chain: chain, size: 14)
+                    } else {
+                        Text(pos.chainLabel)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.blue)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.1), in: Capsule())
+                    }
                     Text("\(pos.sym0)/\(pos.sym1)")
                         .font(.system(size: 13, weight: .semibold))
                     Text("\(pos.feePct)%")
@@ -268,16 +278,6 @@ struct PositionCard: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(Color.secondary.opacity(0.1), in: Capsule())
-                    if let chain = SupportedChain.byID(pos.chainID) {
-                        ChainIconView(chain: chain, size: 14)
-                    } else {
-                        Text(pos.chainLabel)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(Color.blue)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.1), in: Capsule())
-                    }
                     Spacer()
                     if let label = pos.positionUSDLabel ?? pos.feesUSDLabel {
                         Text(label)
