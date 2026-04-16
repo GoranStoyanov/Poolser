@@ -8,14 +8,14 @@
 
 ## App Store Submission Prerequisites
 
-- [ ] Create Xcode project targeting this SPM package
-- [ ] Set `CFBundleIdentifier` in the Xcode target (e.g. `com.yourname.Poolser`)
-- [ ] Set up Apple Developer account and code signing
-- [ ] Configure provisioning profiles in Xcode
-- [ ] Test `SMAppService` (Launch at Login) with a properly bundled `.app` — it requires a bundle ID to work
-- [ ] Create app icons (all required sizes for macOS)
+- [x] Create Xcode project targeting this SPM package
+- [x] Set `CFBundleIdentifier` in the Xcode target (`dev.goodmorning.Poolser`)
+- [x] Set up Apple Developer account and code signing
+- [x] Configure provisioning profiles in Xcode
+- [x] Create app icons (all required sizes for macOS)
+- [x] Test `SMAppService` (Launch at Login) with a properly bundled `.app` — it requires a bundle ID to work
 - [ ] Write App Store listing (description, screenshots, keywords)
-- [ ] Test on a clean Mac (no dev tools) before submitting
+- [x] Test on a clean Mac (no dev tools) before submitting
 
 ## Features Completed
 

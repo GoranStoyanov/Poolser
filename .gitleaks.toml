@@ -3,6 +3,26 @@ title = "Poolser gitleaks config"
 [extend]
 useDefault = true
 
+[[allowlists]]
+description = "Swift UserDefaults forKey labels are not secrets"
+paths = [
+  '''^Sources/Poolser/AppSettings\.swift$''',
+  '''^Sources/DonkeyCorn/AppSettings\.swift$''',
+]
+regexes = [
+  '''forKey:\s*"[A-Za-z0-9._-]+"''',
+]
+
+[[allowlists]]
+description = "Known public wrapped native token contract addresses"
+paths = [
+  '''^Sources/Poolser/ChainConfig\.swift$''',
+  '''^Sources/DonkeyHorn/ChainConfig\.swift$''',
+]
+regexes = [
+  '''wrappedNativeToken:\s*"0x[a-fA-F0-9]{40}"''',
+]
+
 [[rules]]
 id = "infura-project-key"
 description = "Potential hardcoded Infura project key"
