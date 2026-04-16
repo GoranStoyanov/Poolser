@@ -1,0 +1,54 @@
+title = "Poolser gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "infura-project-key"
+description = "Potential hardcoded Infura project key"
+regex = '''(?i)https://[a-z0-9-]+\.infura\.io/v3/([a-z0-9]{20,})'''
+keywords = [
+  "infura.io/v3/",
+]
+
+[[rules]]
+id = "explicit-evm-private-key-assignment"
+description = "Potential hardcoded EVM private key assignment"
+regex = '''(?i)(private[_\s-]*key|wallet[_\s-]*private[_\s-]*key)[^\n]{0,40}[:=][^\n]{0,20}["']?(0x)?[a-f0-9]{64}["']?'''
+keywords = [
+  "private_key",
+  "private key",
+  "wallet_private_key",
+]
+
+[[rules]]
+id = "generic-secret-assignment"
+description = "Potential hardcoded api key/token/secret assignment"
+regex = '''(?i)\b(api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|secret)\b[^\n]{0,20}[:=][^\n]{0,10}["'][A-Za-z0-9._\-/+=]{16,}["']'''
+keywords = [
+  "api_key",
+  "apikey",
+  "access_token",
+  "auth_token",
+  "client_secret",
+  "secret",
+]
+
+[[rules]]
+id = "query-param-secret"
+description = "Potential secret in URL query parameters"
+regex = '''(?i)[?&](api[_-]?key|token|access_token|client_secret)=([A-Za-z0-9._\-/+=]{16,})'''
+keywords = [
+  "api_key=",
+  "token=",
+  "access_token=",
+  "client_secret=",
+]
+
+[[rules]]
+id = "jwt-token"
+description = "Potential JWT token"
+regex = '''\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9._-]{8,}\.[A-Za-z0-9._-]{8,}\b'''
+keywords = [
+  "eyJ",
+]

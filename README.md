@@ -92,6 +92,25 @@ To open in Xcode:
 open Package.swift
 ```
 
+## Pre-Commit Secret Scan (gitleaks)
+
+This repo includes a pre-commit hook that scans staged changes for secrets.
+
+1. Install gitleaks:
+
+```bash
+brew install gitleaks
+```
+
+2. Enable repo-managed hooks once:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit
+```
+
+After setup, each commit runs gitleaks on staged changes and blocks the commit if a secret is detected.
+
 ## Configuration
 
 Open **Settings** (gear icon in the popup, or `⌘,`) and configure:

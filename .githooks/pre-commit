@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+config_file="$repo_root/.gitleaks.toml"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "error: gitleaks is required for pre-commit checks."
+  echo "install: brew install gitleaks"
+  exit 1
+fi
+
+if gitleaks help 2>&1 | grep -q "protect"; then
+  if [ -f "$config_file" ]; then
+    gitleaks protect --staged --redact --config "$config_file"
+  else
+    gitleaks protect --staged --redact
+  fi
+else
+  if [ -f "$config_file" ]; then
+    gitleaks git --staged --redact --config "$config_file"
+  else
+    gitleaks git --staged --redact
+  fi
+fi
