@@ -6,6 +6,7 @@ final class PoolStatsService {
     struct Stats {
         let volumeUSD24h: Double
         let feeAPR: Double
+        let tvlUSD: Double
     }
 
     private struct CacheEntry {
@@ -79,7 +80,7 @@ final class PoolStatsService {
         // fee APR = (volume_24h × fee_pct) / TVL × 365 × 100
         let feeAPR = (volumeUSD24h * feePct) / tvl * 365 * 100
 
-        return Stats(volumeUSD24h: volumeUSD24h, feeAPR: feeAPR)
+        return Stats(volumeUSD24h: volumeUSD24h, feeAPR: feeAPR, tvlUSD: tvl)
     }
 
     private func toDouble(_ value: Any?) -> Double? {

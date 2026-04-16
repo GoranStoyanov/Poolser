@@ -203,12 +203,13 @@ final class UniswapService: ObservableObject {
     private func enrichPositionsWithPoolStats(_ input: [Position]) async -> [Position] {
         await withTaskGroup(of: Position.self, returning: [Position].self) { group in
             for pos in input {
-                group.addTask { [pos] in
+                let resolvedAddr: String? = pos.isV4
+                    ? pos.poolId.map { "0x" + $0.hexString }
+                    : pos.poolAddress
+                group.addTask { [pos, resolvedAddr] in
                     var p = pos
-                    guard !p.isV4,
-                          let addr = p.poolAddress,
-                          let network = SupportedChain.byID(p.chainID)?.geckoterminalNetworkID
-                    else { return p }
+                    guard let addr = resolvedAddr,
+                          let network = SupportedChain.byID(p.chainID)?.geckoterminalNetworkID else { return p }
                     let feePct = Double(p.feeRaw) / 1_000_000
                     if let stats = await self.poolStatsService.stats(
                         network: network,
@@ -217,6 +218,7 @@ final class UniswapService: ObservableObject {
                     ) {
                         p.volumeUSD24h = stats.volumeUSD24h
                         p.feeAPR = stats.feeAPR
+                        p.tvlUSD = stats.tvlUSD
                     }
                     return p
                 }

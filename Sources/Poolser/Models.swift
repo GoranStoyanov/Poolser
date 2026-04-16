@@ -32,6 +32,7 @@ struct Position: Identifiable {
     var poolAddress: String? = nil  // v3 pool contract address
     var volumeUSD24h: Double? = nil
     var feeAPR: Double? = nil
+    var tvlUSD: Double? = nil
 
     var isFullRange: Bool {
         tickLower <= -887200 && tickUpper >= 887200
@@ -69,12 +70,13 @@ struct Position: Identifiable {
         return String(format: "$%.2f", positionUSD)
     }
 
-    /// Pool stats line, e.g. "Vol 24h: $1.2M · APR: 8.4%"
+    /// Pool stats line, e.g. "Vol(24h): $1.2M · APR(24h): 8.4% · TVL: $500K"
     var poolStatsLabel: String? {
-        guard volumeUSD24h != nil || feeAPR != nil else { return nil }
+        guard volumeUSD24h != nil || feeAPR != nil || tvlUSD != nil else { return nil }
         var parts: [String] = []
-        if let vol = volumeUSD24h { parts.append("Vol 24h: \(formatCompact(vol))") }
-        if let apr = feeAPR       { parts.append(String(format: "APR: %.1f%%", apr)) }
+        if let vol = volumeUSD24h { parts.append("Vol(24h): \(formatCompact(vol))") }
+        if let apr = feeAPR       { parts.append(String(format: "APR(24h): %.1f%%", apr)) }
+        if let tvl = tvlUSD       { parts.append("TVL: \(formatCompact(tvl))") }
         return parts.joined(separator: " · ")
     }
 
