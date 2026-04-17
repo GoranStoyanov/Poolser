@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 #if canImport(AppKit)
 import AppKit
 #endif
@@ -8,6 +9,8 @@ struct MenuBarContentView: View {
     @ObservedObject private var settings = AppSettings.shared
     @State private var showSettings = false
     @State private var showLogs     = false
+    @State private var now = Date()
+    private let clockTick = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
         if showSettings {
@@ -24,7 +27,15 @@ struct MenuBarContentView: View {
                 footer
             }
             .frame(width: 420)
+            .onReceive(clockTick) { now = $0 }
         }
+    }
+
+    private func relativeTime(_ date: Date) -> String {
+        let seconds = Int(now.timeIntervalSince(date))
+        if seconds < 60  { return "just now" }
+        if seconds < 3600 { return "\(seconds / 60)m ago" }
+        return "\(seconds / 3600)h ago"
     }
 
     // MARK: - Header
@@ -74,7 +85,7 @@ struct MenuBarContentView: View {
                 }
             }
             .buttonStyle(.plain)
-            .help("Refresh")
+            .help(service.lastUpdated.map { "Updated \(relativeTime($0))" } ?? "Refresh")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

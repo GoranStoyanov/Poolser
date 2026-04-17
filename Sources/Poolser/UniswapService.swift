@@ -18,10 +18,11 @@ private let nativeTokenAddress = "0x0000000000000000000000000000000000000000"
 
 @MainActor
 final class UniswapService: ObservableObject {
-    @Published var titleText  = "👀 …"
-    @Published var positions: [Position] = []
-    @Published var isLoading  = false
-    @Published var lastError: String?
+    @Published var titleText   = "👀 …"
+    @Published var positions:  [Position] = []
+    @Published var isLoading   = false
+    @Published var lastError:  String?
+    @Published var lastUpdated: Date? = nil
 
     private let priceService = PriceService()
     private let poolStatsService = PoolStatsService()
@@ -113,6 +114,7 @@ final class UniswapService: ObservableObject {
             generation: generation
         )
         isLoading = false
+        lastUpdated = Date()
     }
 
     private func scheduleBootstrapFollowUpIfNeeded(chainIDs: [String], generation: UInt64) {
