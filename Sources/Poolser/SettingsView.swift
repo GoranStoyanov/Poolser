@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var draftV4LogMaxConcurrentRequests: Int
     @State private var draftV4BootstrapMaxChunksPerRefresh: Int
     @State private var draftLaunchAtLogin: Bool
+    @State private var draftFlashOnValueChange: Bool
 
     init(onDismiss: (() -> Void)? = nil) {
         self.onDismiss = onDismiss
@@ -26,6 +27,7 @@ struct SettingsView: View {
         _draftV4LogMaxConcurrentRequests = State(initialValue: s.v4LogMaxConcurrentRequests)
         _draftV4BootstrapMaxChunksPerRefresh = State(initialValue: s.v4BootstrapMaxChunksPerRefresh)
         _draftLaunchAtLogin = State(initialValue: s.launchAtLogin)
+        _draftFlashOnValueChange = State(initialValue: s.flashOnValueChange)
     }
 
     var body: some View {
@@ -190,6 +192,23 @@ struct SettingsView: View {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
 
+                            Divider().opacity(0.35).padding(.leading, 14)
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Flash on Value Change")
+                                        .font(.system(size: 13))
+                                    Text("Briefly animates the menu bar icon when your total unclaimed fees change after a refresh")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $draftFlashOnValueChange)
+                                    .labelsHidden()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+
                             if let err = settings.loginItemError {
                                 Divider().opacity(0.35).padding(.leading, 14)
                                 Label(err, systemImage: "exclamationmark.triangle.fill")
@@ -220,6 +239,7 @@ struct SettingsView: View {
                     settings.v4LogChunkSize = draftV4LogChunkSize
                     settings.v4LogMaxConcurrentRequests = draftV4LogMaxConcurrentRequests
                     settings.v4BootstrapMaxChunksPerRefresh = draftV4BootstrapMaxChunksPerRefresh
+                    settings.flashOnValueChange = draftFlashOnValueChange
                     if settings.launchAtLogin != draftLaunchAtLogin {
                         Task { await settings.setLaunchAtLogin(draftLaunchAtLogin) }
                     }

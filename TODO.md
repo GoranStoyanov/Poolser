@@ -2,6 +2,8 @@
 
 ## Features Pending
 
+- [ ] Menu bar value flash (green/up, red/down) should reset baseline on wallet switch — currently flashes incorrectly when switching wallets
+
 - [ ] Sorting / filtering positions (by value, in-range only, v3/v4, chain)
 - [ ] Notifications when a position goes out of range
 - [ ] Show pool fee APR or 24h volume (requires subgraph/API)

@@ -82,6 +82,9 @@ final class AppSettings: ObservableObject {
     @Published var launchAtLogin: Bool {
         didSet { UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin") }
     }
+    @Published var flashOnValueChange: Bool {
+        didSet { UserDefaults.standard.set(flashOnValueChange, forKey: "flashOnValueChange") }
+    }
     @Published var loginItemError: String?
 
     private init() {
@@ -109,6 +112,8 @@ final class AppSettings: ObservableObject {
         v4LogMaxConcurrentRequests = Self.clamp(concurrentRaw, min: 1, max: 8)
         let bootstrapRaw = ud.object(forKey: "v4BootstrapMaxChunksPerRefresh") as? Int ?? Defaults.v4BootstrapMaxChunksPerRefresh
         v4BootstrapMaxChunksPerRefresh = Self.clamp(bootstrapRaw, min: 5, max: 200)
+
+        flashOnValueChange = ud.object(forKey: "flashOnValueChange") as? Bool ?? true
 
         // Sync stored preference with the actual service status on launch
         let actuallyEnabled = SMAppService.mainApp.status == .enabled

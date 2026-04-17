@@ -18,11 +18,13 @@ private let nativeTokenAddress = "0x0000000000000000000000000000000000000000"
 
 @MainActor
 final class UniswapService: ObservableObject {
-    @Published var titleText   = "👀 …"
-    @Published var positions:  [Position] = []
-    @Published var isLoading   = false
-    @Published var lastError:  String?
-    @Published var lastUpdated: Date? = nil
+    @Published var titleText      = "👀 …"
+    @Published var positions:     [Position] = []
+    @Published var isLoading      = false
+    @Published var lastError:     String?
+    @Published var lastUpdated:   Date? = nil
+    private var previousTotal: Double = -1
+    private var flashTask: Task<Void, Never>?
 
     private let priceService = PriceService()
     private let poolStatsService = PoolStatsService()
@@ -253,7 +255,22 @@ final class UniswapService: ObservableObject {
             titleText = "👀 $0.00"
         } else {
             let total = snapshot.reduce(0.0) { $0 + $1.feesUSD }
-            titleText = String(format: "👀 $%.2f", total)
+            let baseTitle = String(format: "👀 $%.2f", total)
+            titleText = baseTitle
+            if previousTotal >= 0, total != previousTotal, AppSettings.shared.flashOnValueChange {
+                let flashEmoji = total > previousTotal ? "🔼" : "🔽"
+                let flashTitle = String(format: "\(flashEmoji) $%.2f", total)
+                flashTask?.cancel()
+                flashTask = Task {
+                    for i in 0..<10 {
+                        guard !Task.isCancelled else { return }
+                        titleText = i % 2 == 0 ? flashTitle : baseTitle
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    }
+                    titleText = baseTitle
+                }
+            }
+            previousTotal = total
         }
     }
 

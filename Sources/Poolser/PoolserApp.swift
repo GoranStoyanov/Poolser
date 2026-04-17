@@ -14,10 +14,18 @@ struct PoolserApp: App {
             if service.isLoading && service.positions.isEmpty {
                 LoadingMenuBarLabel()
             } else {
-                Text(service.titleText)
+                ValueLabel(service: service)
             }
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+private struct ValueLabel: View {
+    @ObservedObject var service: UniswapService
+
+    var body: some View {
+        Text(service.titleText)
     }
 }
 
