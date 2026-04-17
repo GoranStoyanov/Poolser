@@ -57,6 +57,14 @@ final class UniswapService: ObservableObject {
 
     func refresh() { startLoad() }
 
+    func refreshForWalletChange() {
+        positions = []
+        titleText = "👀 …"
+        previousTotal = -1
+        chainResultsByID = [:]
+        startLoad()
+    }
+
     // MARK: - Orchestrator
 
     private func startLoad() {

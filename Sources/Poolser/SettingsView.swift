@@ -231,6 +231,7 @@ struct SettingsView: View {
             HStack {
                 Spacer()
                 Button("Save & Refresh") {
+                    let walletChanged = draftWalletAddress != settings.walletAddress
                     settings.walletAddress = draftWalletAddress
                     settings.infuraAPIKey = draftInfuraAPIKey
                     settings.enabledChainIDs = draftEnabledChainIDs
@@ -243,7 +244,11 @@ struct SettingsView: View {
                     if settings.launchAtLogin != draftLaunchAtLogin {
                         Task { await settings.setLaunchAtLogin(draftLaunchAtLogin) }
                     }
-                    service.refresh()
+                    if walletChanged {
+                        service.refreshForWalletChange()
+                    } else {
+                        service.refresh()
+                    }
                     onDismiss?()
                 }
                 .keyboardShortcut(.return)
