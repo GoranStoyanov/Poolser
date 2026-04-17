@@ -265,7 +265,8 @@ final class UniswapService: ObservableObject {
             let total = snapshot.reduce(0.0) { $0 + $1.feesUSD }
             let baseTitle = String(format: "👀 $%.2f", total)
             titleText = baseTitle
-            if previousTotal >= 0, total != previousTotal, AppSettings.shared.flashOnValueChange {
+            let displayChanged = String(format: "%.2f", total) != String(format: "%.2f", previousTotal)
+            if previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
                 let flashEmoji = total > previousTotal ? "🔼" : "🔽"
                 let flashTitle = String(format: "\(flashEmoji) $%.2f", total)
                 flashTask?.cancel()
