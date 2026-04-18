@@ -1,13 +1,5 @@
 # Poolser — TODO
 
-## Features Pending
-
-- [ ] Menu bar value flash (green/up, red/down) should reset baseline on wallet switch — currently flashes incorrectly when switching wallets
-
-- [ ] Sorting / filtering positions (by value, in-range only, v3/v4, chain)
-- [ ] Notifications when a position goes out of range
-- [ ] Show pool fee APR or 24h volume (requires subgraph/API)
-
 ## App Store Submission Prerequisites
 
 - [x] Create Xcode project targeting this SPM package
@@ -37,3 +29,4 @@
 - [x] Rate limiting + retry logic in EthereumClient (credit-based limiter, exponential backoff)
 - [x] Launch at Login toggle (uses `SMAppService`, App Store safe)
 - [x] Click on position opens Uniswap app URL (v3 and v4)
+- [x] Menu bar value flash — animates on fee change, resets baseline on wallet switch, optional toggle in Settings
