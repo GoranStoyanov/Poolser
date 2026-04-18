@@ -167,7 +167,7 @@ struct MenuBarContentView: View {
                         }
                         .padding(10)
                     }
-                    .frame(height: min(CGFloat(service.positions.count) * 210, 560))
+                    .frame(height: max(220, min(CGFloat(service.positions.count) * 150 + 14, 620)))
                 }
             }
         }
