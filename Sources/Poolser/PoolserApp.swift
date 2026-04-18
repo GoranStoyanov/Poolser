@@ -32,7 +32,7 @@ private struct ValueLabel: View {
 private struct LoadingMenuBarLabel: View {
     @State private var frame = 0
     private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
-    private let frames = ["👀 ·", "👀 ··", "👀 ···", "👀 ··"]
+    private let frames = ["· 👀", "·· 👀", "··· 👀", "·· 👀"]
 
     var body: some View {
         Text(frames[frame])

@@ -18,7 +18,7 @@ private let nativeTokenAddress = "0x0000000000000000000000000000000000000000"
 
 @MainActor
 final class UniswapService: ObservableObject {
-    @Published var titleText      = "👀 …"
+    @Published var titleText      = "… 👀"
     @Published var positions:     [Position] = []
     @Published var isLoading      = false
     @Published var lastError:     String?
@@ -59,7 +59,7 @@ final class UniswapService: ObservableObject {
 
     func refreshForWalletChange() {
         positions = []
-        titleText = "👀 …"
+        titleText = "… 👀"
         previousTotal = -1
         chainResultsByID = [:]
         startLoad()
@@ -91,7 +91,7 @@ final class UniswapService: ObservableObject {
             guard isCurrentGeneration(generation) else { return }
             chainResultsByID = [:]
             positions = []
-            titleText = "👀 –"
+            titleText = "– 👀"
             lastError = "Configure wallet, Infura API key, and at least one enabled network in Settings (⌘,)"
             return
         }
@@ -260,15 +260,15 @@ final class UniswapService: ObservableObject {
         if let err = errorText { LogStore.shared.log(err, level: .error) }
 
         if all.isEmpty {
-            titleText = "👀 $0.00"
+            titleText = "$0.00 👀"
         } else {
             let total = snapshot.reduce(0.0) { $0 + $1.feesUSD }
-            let baseTitle = String(format: "👀 $%.2f", total)
+            let baseTitle = String(format: "$%.2f 👀", total)
             titleText = baseTitle
             let displayChanged = String(format: "%.2f", total) != String(format: "%.2f", previousTotal)
             if previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
                 let flashEmoji = total > previousTotal ? "🔼" : "🔽"
-                let flashTitle = String(format: "\(flashEmoji) $%.2f", total)
+                let flashTitle = String(format: "$%.2f \(flashEmoji)", total)
                 flashTask?.cancel()
                 flashTask = Task {
                     for i in 0..<10 {
