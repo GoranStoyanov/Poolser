@@ -70,15 +70,16 @@ struct Position: Identifiable {
         return String(format: "$%.2f", positionUSD)
     }
 
-    /// Pool stats line, e.g. "Vol(24h): $1.2M · APR(24h): 8.4% · TVL: $500K"
-    var poolStatsLabel: String? {
-        guard volumeUSD24h != nil || feeAPR != nil || tvlUSD != nil else { return nil }
-        var parts: [String] = []
-        if let vol = volumeUSD24h { parts.append("Vol(24h): \(formatCompact(vol))") }
-        if let apr = feeAPR       { parts.append(String(format: "APR(24h): %.1f%%", apr)) }
-        if let tvl = tvlUSD       { parts.append("TVL: \(formatCompact(tvl))") }
-        return parts.joined(separator: " · ")
+    var volumeLabel: String? {
+        volumeUSD24h.map { "Vol(24h): \(formatCompact($0))" }
     }
+    var yieldLabel: String? {
+        feeAPR.map { String(format: "Yield (24h): %.1f%%", $0) }
+    }
+    var tvlLabel: String? {
+        tvlUSD.map { "TVL: \(formatCompact($0))" }
+    }
+    var hasPoolStats: Bool { volumeUSD24h != nil || feeAPR != nil || tvlUSD != nil }
 
     /// Current token amounts held in the position, e.g. "0.05 WBTC + 1,200 USDC".
     var distributionLabel: String {

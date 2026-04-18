@@ -398,10 +398,23 @@ struct PositionCard: View {
             HStack {
                 rangeBadge
                 Spacer()
-                if let stats = pos.poolStatsLabel {
-                    Text(stats)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if pos.hasPoolStats {
+                    HStack(spacing: 4) {
+                        if let vol = pos.volumeLabel {
+                            Text(vol)
+                        }
+                        if let yield = pos.yieldLabel {
+                            if pos.volumeLabel != nil { Text("·").foregroundStyle(.tertiary) }
+                            Text(yield)
+                                .help("If the last 24h repeated for a year, this is the estimated return.\nCalculated from 24h trading volume × fee rate, divided by total pool liquidity (TVL).")
+                        }
+                        if let tvl = pos.tvlLabel {
+                            if pos.volumeLabel != nil || pos.yieldLabel != nil { Text("·").foregroundStyle(.tertiary) }
+                            Text(tvl)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 12)
