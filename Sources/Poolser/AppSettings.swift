@@ -23,9 +23,6 @@ final class AppSettings: ObservableObject {
     @Published var infuraAPIKey: String {
         didSet { UserDefaults.standard.set(infuraAPIKey, forKey: "infuraAPIKey") }
     }
-    @Published var graphAPIKey: String {
-        didSet { UserDefaults.standard.set(graphAPIKey, forKey: "graphAPIKey") }
-    }
     @Published var enabledChainIDs: Set<String> {
         didSet {
             let persisted = Array(enabledChainIDs).sorted().joined(separator: ",")
@@ -101,7 +98,6 @@ final class AppSettings: ObservableObject {
             migratedInfuraKey = savedInfuraKey
         }
         infuraAPIKey = migratedInfuraKey
-        graphAPIKey = ud.string(forKey: "graphAPIKey") ?? ""
         let enabledRaw = ud.string(forKey: "enabledChainIDs") ?? Defaults.enabledChainIDs.joined(separator: ",")
         let enabled = Set(enabledRaw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
             .intersection(Set(SupportedChain.all.map(\.id)))

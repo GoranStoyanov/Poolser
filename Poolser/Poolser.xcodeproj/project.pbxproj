@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		539897952F94F27D00679111 /* SubgraphService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539897942F94F27D00679111 /* SubgraphService.swift */; };
 		53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1202F8F628F00C82982 /* ChainConfig.swift */; };
 		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
 		53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */; };
@@ -28,6 +29,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		539897942F94F27D00679111 /* SubgraphService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SubgraphService.swift; path = ../Sources/Poolser/SubgraphService.swift; sourceTree = SOURCE_ROOT; };
 		53FAE0E92F8ECAC700C82982 /* Poolser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poolser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FAE11D2F8F628F00C82982 /* ABI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ABI.swift; path = ../Sources/Poolser/ABI.swift; sourceTree = SOURCE_ROOT; };
 		53FAE11E2F8F628F00C82982 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ../Sources/Poolser/AppDelegate.swift; sourceTree = SOURCE_ROOT; };
@@ -72,6 +74,7 @@
 		53FAE0E02F8ECAC700C82982 = {
 			isa = PBXGroup;
 			children = (
+				539897942F94F27D00679111 /* SubgraphService.swift */,
 				53FAE11D2F8F628F00C82982 /* ABI.swift */,
 				53FAE11E2F8F628F00C82982 /* AppDelegate.swift */,
 				53FAE11F2F8F628F00C82982 /* AppSettings.swift */,
@@ -202,6 +205,7 @@
 				53FAE13B2F8F628F00C82982 /* SettingsView.swift in Sources */,
 				53FAE13C2F8F628F00C82982 /* EthereumClient.swift in Sources */,
 				53FAE13D2F8F628F00C82982 /* MenuBarContentView.swift in Sources */,
+				539897952F94F27D00679111 /* SubgraphService.swift in Sources */,
 				53FAE13E2F8F628F00C82982 /* ABI.swift in Sources */,
 				53FAE13F2F8F628F00C82982 /* PriceService.swift in Sources */,
 				53FAE1402F8F628F00C82982 /* LogStore.swift in Sources */,

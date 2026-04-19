@@ -19,12 +19,8 @@ struct Position: Identifiable {
     let liquidity: Double
     var amount0: Double = 0   // current token0 in position (decimal-adjusted)
     var amount1: Double = 0   // current token1 in position
-    var usd: Double?          // unclaimed fees value in USD
+    var usd: Double?          // fees value in USD
     var positionUSD: Double?  // total position liquidity value in USD
-    var price0: Double? = nil // token0 price in USD (used to compute all-time fees USD)
-    var price1: Double? = nil // token1 price in USD
-    var collectedFees0: Double? = nil  // all-time collected token0 (from subgraph; nil = unavailable)
-    var collectedFees1: Double? = nil  // all-time collected token1 (from subgraph; nil = unavailable)
     var currentTick: Int?
     var inRange: Bool?
     var error: String?
@@ -65,17 +61,6 @@ struct Position: Identifiable {
         return String(format: "$%.2f", usd)
     }
 
-    /// USD value of all-time earned fees (collected + unclaimed), formatted.
-    /// Only available for v3 positions on chains with a subgraph configured.
-    var allTimeFeesUSDLabel: String? {
-        guard let cf0 = collectedFees0, let cf1 = collectedFees1 else { return nil }
-        var total = 0.0
-        var hasPrice = false
-        if let p = price0 { total += (cf0 + fees0) * p; hasPrice = true }
-        if let p = price1 { total += (cf1 + fees1) * p; hasPrice = true }
-        guard hasPrice else { return nil }
-        return String(format: "$%.2f", total)
-    }
 
     var versionLabel: String { isV4 ? "v4" : "v3" }
     var chainLabel: String { chainName }

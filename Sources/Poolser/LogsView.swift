@@ -150,6 +150,8 @@ private struct LogRow: View {
         return f
     }()
 
+    @State private var copied = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 7) {
             Circle()
@@ -168,6 +170,29 @@ private struct LogRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(entry.message, forType: .string)
+            withAnimation(.easeInOut(duration: 0.15)) { copied = true }
+            Task {
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                withAnimation(.easeInOut(duration: 0.2)) { copied = false }
+            }
+        }
+        .help("Click to copy")
+        .overlay(alignment: .center) {
+            if copied {
+                Text("Copied")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 6))
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .allowsHitTesting(false)
+            }
+        }
     }
 
     private var dotColor: Color {

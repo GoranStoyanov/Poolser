@@ -6,7 +6,6 @@ struct SettingsView: View {
     var onDismiss: (() -> Void)? = nil
     @State private var draftWalletAddress: String
     @State private var draftInfuraAPIKey: String
-    @State private var draftGraphAPIKey: String
     @State private var draftEnabledChainIDs: Set<String>
     @State private var draftRefreshIntervalMinutes: Int
     @State private var draftRPCCreditsPerSecondBudget: Int
@@ -21,7 +20,6 @@ struct SettingsView: View {
         let s = AppSettings.shared
         _draftWalletAddress = State(initialValue: s.walletAddress)
         _draftInfuraAPIKey = State(initialValue: s.infuraAPIKey)
-        _draftGraphAPIKey = State(initialValue: s.graphAPIKey)
         _draftEnabledChainIDs = State(initialValue: s.enabledChainIDs)
         _draftRefreshIntervalMinutes = State(initialValue: s.refreshIntervalMinutes)
         _draftRPCCreditsPerSecondBudget = State(initialValue: s.rpcCreditsPerSecondBudget)
@@ -94,19 +92,6 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .glassCard(cornerRadius: 12)
-                    }
-
-                    settingsSection("The Graph") {
-                        VStack(spacing: 0) {
-                            fieldRow(
-                                label: "Graph API Key",
-                                info: "Used to fetch all-time collected fees for v3 positions. Get a free key at thegraph.com. Leave empty to skip.",
-                                placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                                text: $draftGraphAPIKey
-                            )
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .glassCard(cornerRadius: 12)
@@ -248,7 +233,6 @@ struct SettingsView: View {
                 Button("Save & Refresh") {
                     settings.walletAddress = draftWalletAddress
                     settings.infuraAPIKey = draftInfuraAPIKey
-                    settings.graphAPIKey = draftGraphAPIKey
                     settings.enabledChainIDs = draftEnabledChainIDs
                     settings.refreshIntervalMinutes = draftRefreshIntervalMinutes
                     settings.rpcCreditsPerSecondBudget = draftRPCCreditsPerSecondBudget

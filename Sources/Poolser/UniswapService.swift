@@ -28,7 +28,6 @@ final class UniswapService: ObservableObject {
 
     private let priceService = PriceService()
     private let poolStatsService = PoolStatsService()
-    private let subgraphService = SubgraphService()
     private let bootstrapFollowUpSeconds: UInt64 = 75
     private var timer: Timer?
     private var refreshIntervalCancellable: AnyCancellable?
@@ -196,13 +195,10 @@ final class UniswapService: ObservableObject {
         await withTaskGroup(of: ChainLoadResult.self, returning: [ChainLoadResult].self) { group in
             for result in results {
                 group.addTask {
-                    async let poolStatsPositions = self.enrichPositionsWithPoolStats(result.positions)
-                    async let collectedFeesMap = self.fetchSubgraphCollectedFees(for: result)
-                    let (enriched, feesMap) = await (poolStatsPositions, collectedFeesMap)
-                    let final = self.applyCollectedFees(enriched, feesMap: feesMap)
+                    let enriched = await self.enrichPositionsWithPoolStats(result.positions)
                     return ChainLoadResult(
                         chain: result.chain,
-                        positions: final,
+                        positions: enriched,
                         feesUSD: result.feesUSD,
                         error: result.error,
                         bootstrapInProgress: result.bootstrapInProgress,
@@ -213,30 +209,6 @@ final class UniswapService: ObservableObject {
             var collected: [ChainLoadResult] = []
             for await result in group { collected.append(result) }
             return collected
-        }
-    }
-
-    private func fetchSubgraphCollectedFees(for result: ChainLoadResult) async -> [String: (Double, Double)] {
-        let apiKey = AppSettings.shared.graphAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !apiKey.isEmpty,
-              let subgraphID = result.chain.v3SubgraphID else { return [:] }
-        let v3TokenIds = result.positions.filter { !$0.isV4 }.map(\.tokenId)
-        guard !v3TokenIds.isEmpty else { return [:] }
-        return await subgraphService.fetchCollectedFees(
-            tokenIds: v3TokenIds,
-            subgraphID: subgraphID,
-            apiKey: apiKey
-        )
-    }
-
-    nonisolated private func applyCollectedFees(_ positions: [Position], feesMap: [String: (Double, Double)]) -> [Position] {
-        guard !feesMap.isEmpty else { return positions }
-        return positions.map { pos in
-            guard let (cf0, cf1) = feesMap[pos.tokenId] else { return pos }
-            var p = pos
-            p.collectedFees0 = cf0
-            p.collectedFees1 = cf1
-            return p
         }
     }
 
@@ -494,11 +466,9 @@ final class UniswapService: ObservableObject {
         for var p in rawPositions {
             guard p.error == nil else { finalPositions.append(p); continue }
 
-            p.price0 = priceMap[p.token0.lowercased()]
-            p.price1 = priceMap[p.token1.lowercased()]
             var usd = 0.0; var hasUsd = false
-            if let px = p.price0, p.fees0 > 0 { usd += p.fees0 * px; hasUsd = true }
-            if let px = p.price1, p.fees1 > 0 { usd += p.fees1 * px; hasUsd = true }
+            if let px = priceMap[p.token0.lowercased()], p.fees0 > 0 { usd += p.fees0 * px; hasUsd = true }
+            if let px = priceMap[p.token1.lowercased()], p.fees1 > 0 { usd += p.fees1 * px; hasUsd = true }
             if hasUsd { p.usd = usd; totalFeesUSD += usd }
 
             do {
@@ -891,11 +861,9 @@ final class UniswapService: ObservableObject {
                     let dec1 = metaCache[p.token1.lowercased()]?.decimals ?? 18
                     p.fees0 = fees.fees0 / pow(10.0, Double(dec0))
                     p.fees1 = fees.fees1 / pow(10.0, Double(dec1))
-                    p.price0 = priceMap[p.token0.lowercased()]
-                    p.price1 = priceMap[p.token1.lowercased()]
                     var feeUSD = 0.0; var hasFeeUSD = false
-                    if let px = p.price0, p.fees0 > 0 { feeUSD += p.fees0 * px; hasFeeUSD = true }
-                    if let px = p.price1, p.fees1 > 0 { feeUSD += p.fees1 * px; hasFeeUSD = true }
+                    if let px = priceMap[p.token0.lowercased()], p.fees0 > 0 { feeUSD += p.fees0 * px; hasFeeUSD = true }
+                    if let px = priceMap[p.token1.lowercased()], p.fees1 > 0 { feeUSD += p.fees1 * px; hasFeeUSD = true }
                     if hasFeeUSD { p.usd = feeUSD; totalFeesUSD += feeUSD }
                 } catch {
                     p.feesError = error.localizedDescription
