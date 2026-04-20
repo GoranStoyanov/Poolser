@@ -568,7 +568,7 @@ final class UniswapService: ObservableObject {
         }
 
         // Mark v3 positions as pending fee history scan (background task will fill in claimed amounts).
-        if chain.v3DeployBlock != nil {
+        if chain.v3DeployBlock != nil && AppSettings.shared.trackClaimedFees {
             for i in finalPositions.indices where finalPositions[i].error == nil {
                 finalPositions[i].feeHistoryBootstrapping = true
             }
