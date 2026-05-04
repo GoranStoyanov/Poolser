@@ -52,19 +52,19 @@ A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [
 
 Main menu bar popup:
 
-![Poolser main popup](docs/screenshots/positions.png)
+<img src="docs/screenshots/positions.png" width="403" alt="Poolser main popup">
 
 Menu bar overview:
 
-![Poolser menu bar overview](docs/screenshots/menubar-overview.png)
+<img src="docs/screenshots/menubar-overview.png" width="417" alt="Poolser menu bar overview">
 
 Settings:
 
-![Poolser settings](docs/screenshots/settings.png)
+<img src="docs/screenshots/settings.png" width="432" alt="Poolser settings">
 
 Logs:
 
-![Poolser logs](docs/screenshots/logs.png)
+<img src="docs/screenshots/logs.png" width="406" alt="Poolser logs">
 
 ## Requirements
 
