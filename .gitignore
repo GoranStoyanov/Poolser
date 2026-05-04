@@ -24,6 +24,9 @@ DerivedData/
 # CocoaPods (not used, but just in case)
 Pods/
 
+# Local signing config (copy CodeSigning.xcconfig.sample → CodeSigning.xcconfig)
+Poolser/CodeSigning.xcconfig
+
 # Environment / secrets
 .env
 *.pem
