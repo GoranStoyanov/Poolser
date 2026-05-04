@@ -92,6 +92,9 @@ final class AppSettings: ObservableObject {
     @Published var trackClaimedFees: Bool {
         didSet { UserDefaults.standard.set(trackClaimedFees, forKey: "trackClaimedFees") }
     }
+    @Published var notifyOnRangeChange: Bool {
+        didSet { UserDefaults.standard.set(notifyOnRangeChange, forKey: "notifyOnRangeChange") }
+    }
     @Published var loginItemError: String?
 
     private init() {
@@ -122,6 +125,7 @@ final class AppSettings: ObservableObject {
 
         flashOnValueChange = ud.object(forKey: "flashOnValueChange") as? Bool ?? true
         trackClaimedFees = ud.object(forKey: "trackClaimedFees") as? Bool ?? false
+        notifyOnRangeChange = ud.object(forKey: "notifyOnRangeChange") as? Bool ?? false
 
         // Sync stored preference with the actual service status on launch
         let actuallyEnabled = SMAppService.mainApp.status == .enabled

@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var draftLaunchAtLogin: Bool
     @State private var draftFlashOnValueChange: Bool
     @State private var draftTrackClaimedFees: Bool
+    @State private var draftNotifyOnRangeChange: Bool
 
     init(onDismiss: (() -> Void)? = nil) {
         self.onDismiss = onDismiss
@@ -30,6 +31,7 @@ struct SettingsView: View {
         _draftLaunchAtLogin = State(initialValue: s.launchAtLogin)
         _draftFlashOnValueChange = State(initialValue: s.flashOnValueChange)
         _draftTrackClaimedFees = State(initialValue: s.trackClaimedFees)
+        _draftNotifyOnRangeChange = State(initialValue: s.notifyOnRangeChange)
     }
 
     var body: some View {
@@ -197,6 +199,23 @@ struct SettingsView: View {
                             Divider().opacity(0.35).padding(.leading, 14)
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
+                                    Text("Range Change Notifications")
+                                        .font(.system(size: 13))
+                                    Text("Send a notification when a position moves in or out of range.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $draftNotifyOnRangeChange)
+                                    .labelsHidden()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+
+                            Divider().opacity(0.35).padding(.leading, 14)
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text("Track Claimed Fees")
                                         .font(.system(size: 13))
                                     Text("Scans on-chain Collect events to show historical claimed fees per v3 position. Makes additional eth_getLogs requests — can be request-heavy on fast-block chains (Base, Arbitrum).")
@@ -264,6 +283,7 @@ struct SettingsView: View {
                     settings.v4LogMaxConcurrentRequests = draftV4LogMaxConcurrentRequests
                     settings.v4BootstrapMaxChunksPerRefresh = draftV4BootstrapMaxChunksPerRefresh
                     settings.flashOnValueChange = draftFlashOnValueChange
+                    settings.notifyOnRangeChange = draftNotifyOnRangeChange
                     settings.trackClaimedFees = draftTrackClaimedFees
                     if settings.launchAtLogin != draftLaunchAtLogin {
                         Task { await settings.setLaunchAtLogin(draftLaunchAtLogin) }
