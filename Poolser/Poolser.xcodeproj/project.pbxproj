@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5351F34A2F992BDB0013F91C /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5351F3492F992BDB0013F91C /* NotificationService.swift */; };
 		539897972F950BA300679111 /* FeeHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539897962F950BA300679111 /* FeeHistoryService.swift */; };
 		53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1202F8F628F00C82982 /* ChainConfig.swift */; };
 		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
@@ -29,6 +30,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5351F3492F992BDB0013F91C /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationService.swift; path = ../Sources/Poolser/NotificationService.swift; sourceTree = SOURCE_ROOT; };
 		539897962F950BA300679111 /* FeeHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeeHistoryService.swift; path = ../Sources/Poolser/FeeHistoryService.swift; sourceTree = SOURCE_ROOT; };
 		53FAE0E92F8ECAC700C82982 /* Poolser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poolser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FAE11D2F8F628F00C82982 /* ABI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ABI.swift; path = ../Sources/Poolser/ABI.swift; sourceTree = SOURCE_ROOT; };
@@ -74,6 +76,7 @@
 		53FAE0E02F8ECAC700C82982 = {
 			isa = PBXGroup;
 			children = (
+				5351F3492F992BDB0013F91C /* NotificationService.swift */,
 				539897962F950BA300679111 /* FeeHistoryService.swift */,
 				53FAE11D2F8F628F00C82982 /* ABI.swift */,
 				53FAE11E2F8F628F00C82982 /* AppDelegate.swift */,
@@ -199,6 +202,7 @@
 				53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */,
 				53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */,
 				53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */,
+				5351F34A2F992BDB0013F91C /* NotificationService.swift in Sources */,
 				53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */,
 				53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */,
 				539897972F950BA300679111 /* FeeHistoryService.swift in Sources */,

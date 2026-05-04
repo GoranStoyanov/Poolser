@@ -128,6 +128,8 @@ final class UniswapService: ObservableObject {
         isLoading = false
         lastUpdated = Date()
 
+        NotificationService.fireRangeChangeNotificationsIfNeeded(for: positions)
+
         // Launch fee history scan in background — positions are already displayed.
         let v3Positions = positions.filter { !$0.isV4 && $0.error == nil }
         if !v3Positions.isEmpty && AppSettings.shared.trackClaimedFees {
@@ -187,6 +189,7 @@ final class UniswapService: ObservableObject {
         let enrichedResults = await enrichChainResults(results)
         guard isCurrentGeneration(generation), !Task.isCancelled else { return }
         applyChainResults(enrichedResults, activeChains: activeChains)
+        NotificationService.fireRangeChangeNotificationsIfNeeded(for: positions)
 
         let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
         scheduleBootstrapFollowUpIfNeeded(
