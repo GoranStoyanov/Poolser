@@ -317,4 +317,14 @@ struct SupportedChain: Identifiable, Hashable {
     static func byID(_ id: String) -> SupportedChain? {
         all.first(where: { $0.id == id })
     }
+
+    var nativeCurrencySymbol: String {
+        switch id {
+        case "polygon": return "POL"
+        case "bsc": return "BNB"
+        case "avalanche": return "AVAX"
+        case "celo": return "CELO"
+        default: return "ETH"
+        }
+    }
 }
