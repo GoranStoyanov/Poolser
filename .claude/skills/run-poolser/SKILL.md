@@ -31,7 +31,7 @@ swift run
 
 - The app has no Dock icon and no window: it appears as an item in the menu bar. Nothing
   "opens" — say so instead of waiting for a window.
-- Running under the Claude sandbox, GUI launch may be blocked; give the user the command to run.
+- In a sandboxed shell, GUI launch may be blocked; give the user the command to run.
 - Features that need a real app bundle — `UNUserNotificationCenter` (range-change
   notifications in `NotificationService`) and `SMAppService` (Launch at Login in `AppSettings`) —
   are only reliable from the Xcode-built `.app`, not from `swift run`. Test them there.
