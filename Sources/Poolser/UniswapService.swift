@@ -647,23 +647,26 @@ final class UniswapService: ObservableObject {
         catch { return ([], 0, "v4: eth_blockNumber failed – \(error.localizedDescription)", false, nil) }
 
         let previousCache = loadV4OwnershipCache(wallet: wallet, chain: chain)
-        let hasCache = previousCache != nil
         let chunkSize = AppSettings.shared.v4LogChunkSize
         let maxConcurrentLogs = AppSettings.shared.v4LogMaxConcurrentRequests
-        let bootstrapMaxChunksPerRefresh = AppSettings.shared.v4BootstrapMaxChunksPerRefresh
-        let bootstrapFrom = previousCache?.nextBootstrapFromBlock ?? (hasCache ? nil : deployBlock)
-        let scanStartBlock = bootstrapFrom ?? max(
-            deployBlock,
-            (previousCache?.lastScannedBlock ?? deployBlock) - v4ReorgLookbackBlocks
+        let plan = planV4LogScan(
+            deployBlock: deployBlock,
+            currentBlock: currentBlock,
+            lastScannedBlock: previousCache?.lastScannedBlock,
+            nextBootstrapFromBlock: previousCache?.nextBootstrapFromBlock,
+            chunkSize: chunkSize,
+            maxChunks: AppSettings.shared.v4BootstrapMaxChunksPerRefresh,
+            reorgLookbackBlocks: v4ReorgLookbackBlocks
         )
-        let scanEndBlock: Int = {
-            guard let b = bootstrapFrom else { return currentBlock }
-            let maxSpan = chunkSize * bootstrapMaxChunksPerRefresh
-            return min(b + maxSpan - 1, currentBlock)
-        }()
-        let chunks = stride(from: scanStartBlock, through: scanEndBlock, by: chunkSize).map { start -> (String, String) in
-            let end = min(start + chunkSize - 1, scanEndBlock)
-            return ("0x" + String(start, radix: 16), "0x" + String(end, radix: 16))
+        let scanEndBlock = plan.scanEndBlock
+        if !plan.isBootstrap, let next = plan.nextFromBlock {
+            LogStore.shared.log(
+                "v4 [\(chain.displayName)]: catching up Transfer logs, \(currentBlock - next + 1) blocks behind head",
+                level: .info
+            )
+        }
+        let chunks = plan.chunks.map { range -> (String, String) in
+            ("0x" + String(range.lowerBound, radix: 16), "0x" + String(range.upperBound, radix: 16))
         }
 
         var toLogs: [[String: Any]] = []
@@ -684,7 +687,7 @@ final class UniswapService: ObservableObject {
                                 context: "[to]"
                             )
                             let outgoing: [[String: Any]]
-                            if hasCache && bootstrapFrom == nil {
+                            if !plan.isBootstrap {
                                 outgoing = try await eth.ethGetLogs(
                                     address: v4PM,
                                     topics: [transferSig, walletPadded, nil],
@@ -730,14 +733,12 @@ final class UniswapService: ObservableObject {
 
         var ownedIds = Set(previousCache?.ownedTokenIds ?? [])
 
-        let nextBootstrapFromBlock: Int? = {
-            guard bootstrapFrom != nil else { return nil }
-            let reachedHead = scanEndBlock >= currentBlock
-            if reachedHead { return nil }
-            return scanEndBlock + 1
-        }()
+        // Bootstrap progress is persisted explicitly; incremental catch-up resumes from
+        // lastScannedBlock. Both report nextFromBlock so the accelerated follow-up continues.
+        let nextFromBlock = plan.nextFromBlock
+        let nextBootstrapFromBlock = plan.isBootstrap ? nextFromBlock : nil
         let bootstrapPassCounter: Int? = {
-            guard bootstrapFrom != nil else { return nil }
+            guard plan.isBootstrap else { return nil }
             return (previousCache?.bootstrapPassCounter ?? 0) + 1
         }()
 
@@ -805,8 +806,8 @@ final class UniswapService: ObservableObject {
         )
 
         guard !ownedIds.isEmpty else {
-            // Still bootstrapping: owned positions may be in a later block window.
-            if let next = nextBootstrapFromBlock {
+            // Still scanning: owned positions may be in a later block window.
+            if let next = nextFromBlock {
                 return ([], 0, nil, true, next)
             }
             if candidateIds.isEmpty {
@@ -898,7 +899,7 @@ final class UniswapService: ObservableObject {
         }
 
         guard !rawPositions.isEmpty else {
-            return ([], 0, nil, nextBootstrapFromBlock != nil, nextBootstrapFromBlock)
+            return ([], 0, nil, nextFromBlock != nil, nextFromBlock)
         }
 
         // 4 · prices
@@ -954,7 +955,7 @@ final class UniswapService: ObservableObject {
             finalPositions.append(p)
         }
 
-        return (finalPositions, totalFeesUSD, nil, nextBootstrapFromBlock != nil, nextBootstrapFromBlock)
+        return (finalPositions, totalFeesUSD, nil, nextFromBlock != nil, nextFromBlock)
     }
 
     private func composedErrorText(snapshot: [ChainLoadResult], fallbackErrors: [String]) -> String? {
@@ -1221,6 +1222,55 @@ func v4OwnerCheck(_ result: Result<Data, Error>, wallet: String) -> Bool? {
     case .failure:
         return nil
     }
+}
+
+/// Block range one refresh scans for v4 Transfer logs.
+struct V4LogScanPlan: Equatable {
+    let chunks: [ClosedRange<Int>]
+    /// Persisted as the cache's `lastScannedBlock`.
+    let scanEndBlock: Int
+    /// Initial bootstrap from the deploy block only needs incoming (`[to]`) logs.
+    let isBootstrap: Bool
+    /// First unscanned block when the head was not reached; a follow-up continues from here.
+    let nextFromBlock: Int?
+}
+
+/// Plans the v4 Transfer log scan for one refresh. Both the initial bootstrap and the
+/// incremental scan are capped at `maxChunks` chunks, so catching up after long downtime
+/// spreads over several follow-ups instead of one large burst of `eth_getLogs`.
+/// Catch-up passes are stateless: each starts from the persisted `lastScannedBlock`
+/// minus the reorg lookback, so consecutive passes leave no gap between them.
+func planV4LogScan(
+    deployBlock: Int,
+    currentBlock: Int,
+    lastScannedBlock: Int?,
+    nextBootstrapFromBlock: Int?,
+    chunkSize: Int,
+    maxChunks: Int,
+    reorgLookbackBlocks: Int
+) -> V4LogScanPlan {
+    let bootstrapFrom = nextBootstrapFromBlock ?? (lastScannedBlock == nil ? deployBlock : nil)
+    let isBootstrap = bootstrapFrom != nil
+    let start = bootstrapFrom ?? max(deployBlock, (lastScannedBlock ?? deployBlock) - reorgLookbackBlocks)
+    let end = min(start + chunkSize * maxChunks - 1, currentBlock)
+
+    guard end >= start else {
+        // Head is behind our progress (lagging RPC node): scan nothing and keep progress.
+        return V4LogScanPlan(
+            chunks: [],
+            scanEndBlock: lastScannedBlock ?? start - 1,
+            isBootstrap: isBootstrap,
+            nextFromBlock: bootstrapFrom
+        )
+    }
+
+    let chunks = stride(from: start, through: end, by: chunkSize).map { $0...min($0 + chunkSize - 1, end) }
+    return V4LogScanPlan(
+        chunks: chunks,
+        scanEndBlock: end,
+        isBootstrap: isBootstrap,
+        nextFromBlock: end < currentBlock ? end + 1 : nil
+    )
 }
 
 private func shortenAddr(_ addr: String) -> String {
