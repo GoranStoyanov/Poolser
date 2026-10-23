@@ -2,6 +2,9 @@ import Foundation
 import Combine
 import ServiceManagement
 
+/// Main-actor isolated: SwiftUI writes these values on the main thread. Network code must not
+/// read them directly; callers snapshot what a load needs and pass the values down.
+@MainActor
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
@@ -138,7 +141,6 @@ final class AppSettings: ObservableObject {
         ud.set(actuallyEnabled, forKey: "launchAtLogin")
     }
 
-    @MainActor
     func setLaunchAtLogin(_ enabled: Bool) async {
         loginItemError = nil
         do {

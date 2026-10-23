@@ -18,6 +18,13 @@ struct EthereumClient {
     private let blockNumberMaxRetries = 2
     private let chainIdMaxRetries = 2
 
+    /// Shared by every client. Called with a value read on the main actor at the start of a
+    /// load, so request code never touches `AppSettings`.
+    static func setCreditBudget(perSecond credits: Int) async {
+        let cps = Double(credits)
+        await limiter.configure(creditsPerSecond: cps, maxBurstCredits: cps)
+    }
+
     enum Err: Error, LocalizedError {
         case rpc(String)
         /// The contract call itself reverted (e.g. ownerOf on a burned token) — deterministic, not retried.
@@ -45,8 +52,7 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...blockNumberMaxRetries {
             do {
-                await configureLimiterFromSettings()
-                await Self.limiter.acquire(credits: costEthBlockNumber)
+                try await Self.limiter.acquire(credits: costEthBlockNumber)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
                 ] as [String: Any])
@@ -90,8 +96,7 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...chainIdMaxRetries {
             do {
-                await configureLimiterFromSettings()
-                await Self.limiter.acquire(credits: costEthChainId)
+                try await Self.limiter.acquire(credits: costEthChainId)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1
                 ] as [String: Any])
@@ -143,12 +148,11 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...logsMaxRetries {
             do {
-                await configureLimiterFromSettings()
                 let jsonTopics: [Any] = topics.map { t -> Any in
                     guard let t = t else { return NSNull() }
                     return t
                 }
-                await Self.limiter.acquire(credits: costEthGetLogs)
+                try await Self.limiter.acquire(credits: costEthGetLogs)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0",
                     "method":  "eth_getLogs",
@@ -211,12 +215,11 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...logsMaxRetries {
             do {
-                await configureLimiterFromSettings()
                 let jsonTopics: [Any] = topics.map { t -> Any in
                     guard let t = t else { return NSNull() }
                     return t.count == 1 ? t[0] : t
                 }
-                await Self.limiter.acquire(credits: costEthGetLogs)
+                try await Self.limiter.acquire(credits: costEthGetLogs)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0",
                     "method":  "eth_getLogs",
@@ -268,8 +271,7 @@ struct EthereumClient {
 
         for attempt in 0...callMaxRetries {
             do {
-                await configureLimiterFromSettings()
-                await Self.limiter.acquire(credits: costEthCall)
+                try await Self.limiter.acquire(credits: costEthCall)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0",
                     "method":  "eth_call",
@@ -331,8 +333,9 @@ struct EthereumClient {
         Task { @MainActor in LogStore.shared.log(message, level: level) }
     }
 
-    private func shouldRetry(_ error: Error) -> Bool {
-        if error is URLError { return true }
+    func shouldRetry(_ error: Error) -> Bool {
+        if error is CancellationError { return false }
+        if let urlError = error as? URLError { return urlError.code != .cancelled }
         guard let rpcErr = error as? Err else { return false }
         switch rpcErr {
         case .noResult, .badJSON:
@@ -370,17 +373,12 @@ struct EthereumClient {
             .replacingOccurrences(of: "\n", with: " ")
             ?? "non-utf8 \(prefix.count)B"
     }
-
-    private func configureLimiterFromSettings() async {
-        let cps = Double(AppSettings.shared.rpcCreditsPerSecondBudget)
-        await Self.limiter.configure(creditsPerSecond: cps, maxBurstCredits: cps)
-    }
 }
 
-private actor RPCCreditLimiter {
+actor RPCCreditLimiter {
     private var creditsPerSecond: Double
     private var maxBurstCredits: Double
-    private var availableCredits: Double
+    private(set) var availableCredits: Double
     private var lastRefill: TimeInterval
 
     init(creditsPerSecond: Double, maxBurstCredits: Double) {
@@ -397,9 +395,12 @@ private actor RPCCreditLimiter {
         availableCredits = min(availableCredits, self.maxBurstCredits)
     }
 
-    func acquire(credits: Int) async {
+    /// Throws `CancellationError` without taking credits once the caller is cancelled, so a
+    /// superseded refresh neither spins here nor spends budget the next one needs.
+    func acquire(credits: Int) async throws {
         let needed = Double(max(1, credits))
         while true {
+            try Task.checkCancellation()
             refill()
             if availableCredits >= needed {
                 availableCredits -= needed
@@ -408,7 +409,7 @@ private actor RPCCreditLimiter {
             let deficit = needed - availableCredits
             let seconds = max(0.05, deficit / creditsPerSecond)
             let nanos = UInt64(seconds * 1_000_000_000)
-            try? await Task.sleep(nanoseconds: nanos)
+            try await Task.sleep(nanoseconds: nanos)
         }
     }
 

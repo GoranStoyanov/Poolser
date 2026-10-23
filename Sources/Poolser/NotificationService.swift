@@ -35,6 +35,7 @@ struct NotificationService {
 
     /// Compares current positions against last known range state and fires
     /// notifications for any that changed. Persists new state for next call.
+    @MainActor
     static func fireRangeChangeNotificationsIfNeeded(for positions: [Position]) {
         guard AppSettings.shared.notifyOnRangeChange else { return }
 
