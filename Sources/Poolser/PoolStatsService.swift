@@ -2,8 +2,9 @@ import Foundation
 
 /// Fetches pool stats (24h volume, fee APR) from GeckoTerminal.
 /// Results are cached per pool address for 5 minutes to avoid hammering the free API.
-final class PoolStatsService {
-    struct Stats {
+/// An actor because `stats` is called concurrently from task-group children.
+actor PoolStatsService {
+    struct Stats: Sendable {
         let volumeUSD24h: Double
         let feeAPR: Double
         let tvlUSD: Double
@@ -15,6 +16,8 @@ final class PoolStatsService {
     }
 
     private var cache: [String: CacheEntry] = [:]
+    /// Requests currently in progress, so concurrent callers for the same pool share one fetch.
+    private var inFlight: [String: Task<Stats?, Never>] = [:]
     private let ttl: TimeInterval = 5 * 60  // 5 minutes
 
     /// Returns cached stats if fresh, otherwise fetches from GeckoTerminal.
@@ -28,16 +31,21 @@ final class PoolStatsService {
         if let entry = cache[key], Date().timeIntervalSince(entry.fetchedAt) < ttl {
             return entry.stats
         }
-        guard let stats = await fetch(network: network, poolAddress: poolAddress, feePct: feePct) else {
-            return nil
+        if let pending = inFlight[key] {
+            return await pending.value
         }
+        let task = Task { await fetch(network: network, poolAddress: poolAddress, feePct: feePct) }
+        inFlight[key] = task
+        let stats = await task.value
+        inFlight[key] = nil
+        guard let stats else { return nil }
         cache[key] = CacheEntry(stats: stats, fetchedAt: Date())
         return stats
     }
 
     // MARK: - Private
 
-    private func fetch(
+    private nonisolated func fetch(
         network: String,
         poolAddress: String,
         feePct: Double
@@ -59,7 +67,7 @@ final class PoolStatsService {
         }
     }
 
-    private func parse(data: Data, feePct: Double) -> Stats? {
+    private nonisolated func parse(data: Data, feePct: Double) -> Stats? {
         guard
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let dataObj = json["data"] as? [String: Any],
@@ -83,7 +91,7 @@ final class PoolStatsService {
         return Stats(volumeUSD24h: volumeUSD24h, feeAPR: feeAPR, tvlUSD: tvl)
     }
 
-    private func toDouble(_ value: Any?) -> Double? {
+    private nonisolated func toDouble(_ value: Any?) -> Double? {
         switch value {
         case let d as Double: return d
         case let s as String: return Double(s)
