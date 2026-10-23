@@ -10,8 +10,15 @@ struct FeeHistoryCache: Codable {
     var knownMintBlocks: [String: Int]
 
     struct PositionFees: Codable {
-        var amount0: Double
-        var amount1: Double
+        /// Σ Collect — principal and fees, since decreaseLiquidity() principal leaves via collect().
+        var amount0: Double = 0
+        var amount1: Double = 0
+        /// Σ DecreaseLiquidity — principal moved into tokensOwed.
+        var withdrawn0: Double = 0
+        var withdrawn1: Double = 0
+
+        var claimed0: Double { max(0, amount0 - withdrawn0) }
+        var claimed1: Double { max(0, amount1 - withdrawn1) }
     }
 
     // Custom decode so old caches without knownMintBlocks don't fail.
@@ -35,16 +42,20 @@ struct FeeHistoryCache: Codable {
 private let collectEventTopic = "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01"
 // keccak256("IncreaseLiquidity(uint256,uint128,uint256,uint256)") — verified known value
 private let increaseLiquidityTopic = "0x3067048beee31b25b2f1681f88dac838c8bba36af25bfb2b7cf7473a5847e35f"
+// keccak256("DecreaseLiquidity(uint256,uint128,uint256,uint256)") — verified with cast keccak
+private let decreaseLiquidityTopic = "0x26f6a048ee9138f2c0ce266f322cb99228e8d619ae2bff30c67f8dcf9d2377b4"
 
 private let tokenIdBatchSize = 50
 
 /// Bump when the cache format or scan semantics change; older caches are discarded once.
 /// v2: cursors only advance over successfully scanned ranges (v1 caches may have gaps).
-private let cacheKeyPrefix = "v3FeeHistory.v2."
+/// v3: DecreaseLiquidity principal tracked separately (v2 caches count it as claimed fees).
+private let cacheKeyPrefix = "v3FeeHistory.v3."
 
 struct FeeHistoryService {
 
     struct Result {
+        /// Claimed fees per tokenId: collected amounts minus withdrawn principal.
         var fees: [String: (amount0: Double, amount1: Double)]
         var bootstrapInProgress: Bool
     }
@@ -262,7 +273,7 @@ struct FeeHistoryService {
         do {
             for batch in context.tokenTopicBatches {
                 try Task.checkCancellation()
-                logs += try await context.fetchLogs([[collectEventTopic, increaseLiquidityTopic], batch], from, to)
+                logs += try await context.fetchLogs([[collectEventTopic, increaseLiquidityTopic, decreaseLiquidityTopic], batch], from, to)
             }
             try Task.checkCancellation()
             return logs
@@ -302,16 +313,22 @@ struct FeeHistoryService {
                 continue
             }
 
-            guard topic0 == collectEventTopic else { continue }
+            guard topic0 == collectEventTopic || topic0 == decreaseLiquidityTopic else { continue }
             guard let decs = decMap[tokenIdStr] else { continue }
             let dataHex = entry["data"] as? String ?? ""
             guard let logData = Data(hexString: dataHex), logData.count >= 96 else { continue }
-            // Collect data: recipient (32B) | amount0 (32B) | amount1 (32B)
+            // Collect data:           recipient (32B) | amount0 (32B) | amount1 (32B)
+            // DecreaseLiquidity data: liquidity (32B) | amount0 (32B) | amount1 (32B)
             let a0 = logData.readAmount(wordAt: 32, decimals: decs.dec0)
             let a1 = logData.readAmount(wordAt: 64, decimals: decs.dec1)
-            var existing = cache.fees[tokenIdStr] ?? FeeHistoryCache.PositionFees(amount0: 0, amount1: 0)
-            existing.amount0 += a0
-            existing.amount1 += a1
+            var existing = cache.fees[tokenIdStr] ?? FeeHistoryCache.PositionFees()
+            if topic0 == collectEventTopic {
+                existing.amount0 += a0
+                existing.amount1 += a1
+            } else {
+                existing.withdrawn0 += a0
+                existing.withdrawn1 += a1
+            }
             cache.fees[tokenIdStr] = existing
         }
     }
@@ -328,7 +345,7 @@ struct FeeHistoryService {
     }
 
     private static func feeDict(from cache: FeeHistoryCache) -> [String: (amount0: Double, amount1: Double)] {
-        cache.fees.mapValues { ($0.amount0, $0.amount1) }
+        cache.fees.mapValues { ($0.claimed0, $0.claimed1) }
     }
 
     /// Clears ALL cached fee history (call when scan logic changes to force a fresh scan).
