@@ -3,18 +3,25 @@ import Testing
 @testable import Poolser
 
 private let collectTopic = "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01"
+private let decreaseLiquidityTopic = "0x26f6a048ee9138f2c0ce266f322cb99228e8d619ae2bff30c67f8dcf9d2377b4"
 private let chainID = "test"
 
 /// In-memory NFPM log source with scriptable failures.
 private final class FakeRPC: @unchecked Sendable {
-    struct Collect {
+    struct Event {
         let block: Int
         let tokenId: String
         let amount0: Int
+        var amount1 = 0
+        var topic = collectTopic
+
+        static func decrease(block: Int, tokenId: String, amount0: Int, amount1: Int = 0) -> Event {
+            Event(block: block, tokenId: tokenId, amount0: amount0, amount1: amount1, topic: decreaseLiquidityTopic)
+        }
     }
 
     private let lock = NSLock()
-    private var collects: [Collect]
+    private var events: [Event]
     private var calls: [(from: Int, to: Int, tokenIds: [String])] = []
     private var hook: (_ from: Int, _ to: Int, _ tokenIds: [String]) async throws -> Void = { _, _, _ in }
 
@@ -24,8 +31,8 @@ private final class FakeRPC: @unchecked Sendable {
         set { lock.withLock { hook = newValue } }
     }
 
-    init(_ collects: [Collect]) {
-        self.collects = collects
+    init(_ events: [Event]) {
+        self.events = events
     }
 
     var requestedRanges: [ClosedRange<Int>] {
@@ -33,22 +40,23 @@ private final class FakeRPC: @unchecked Sendable {
     }
 
     func fetch(topics: [[String]?], from: Int, to: Int) async throws -> [[String: Any]] {
+        let eventTopics = topics[0] ?? []
         let tokenIds = (topics[1] ?? []).compactMap { UInt64($0.dropFirst(2), radix: 16) }.map(String.init)
         lock.withLock { calls.append((from, to, tokenIds)) }
         try await beforeRequest(from, to, tokenIds)
         return lock.withLock {
-            collects
-                .filter { (from...to).contains($0.block) && tokenIds.contains($0.tokenId) }
+            events
+                .filter { (from...to).contains($0.block) && tokenIds.contains($0.tokenId) && eventTopics.contains($0.topic) }
                 .map(Self.encode)
         }
     }
 
-    private static func encode(_ c: Collect) -> [String: Any] {
+    private static func encode(_ e: Event) -> [String: Any] {
         let word = { (v: Int) in String(format: "%064x", v) }
         return [
-            "topics": [collectTopic, "0x" + word(Int(c.tokenId)!)],
-            "data": "0x" + word(0) + word(c.amount0) + word(0),
-            "blockNumber": "0x" + String(c.block, radix: 16),
+            "topics": [e.topic, "0x" + word(Int(e.tokenId)!)],
+            "data": "0x" + word(0) + word(e.amount0) + word(e.amount1),
+            "blockNumber": "0x" + String(e.block, radix: 16),
         ]
     }
 }
@@ -93,9 +101,9 @@ private final class Harness {
     var chunkSize = 10
     var maxChunks = 100
 
-    init(_ collects: [FakeRPC.Collect] = []) {
+    init(_ events: [FakeRPC.Event] = []) {
         store = UserDefaults(suiteName: suiteName)!
-        rpc = FakeRPC(collects)
+        rpc = FakeRPC(events)
     }
 
     deinit {
@@ -265,5 +273,61 @@ private final class Harness {
 
         #expect(h.cache?.lastSeenBlock == 120)
         #expect(resultB.fees["1"]?.amount0 == 1)
+    }
+
+    // MARK: - Claimed fees exclude withdrawn principal
+
+    @Test func eventTopicsMatchSignatures() {
+        let hex = { (sig: String) in "0x" + keccak256(Data(sig.utf8)).map { String(format: "%02x", $0) }.joined() }
+        #expect(hex("Collect(uint256,address,uint256,uint256)") == collectTopic)
+        #expect(hex("DecreaseLiquidity(uint256,uint128,uint256,uint256)") == decreaseLiquidityTopic)
+    }
+
+    @Test func collectOnlyCountsAsClaimed() async {
+        let h = Harness([.init(block: 50, tokenId: "1", amount0: 2, amount1: 600)])
+
+        let result = await h.scan(currentBlock: 100, deployBlock: 1)
+
+        #expect(result.fees["1"]?.amount0 == 2)
+        #expect(result.fees["1"]?.amount1 == 600)
+    }
+
+    @Test func withdrawalInSameBlockIsNotClaimed() async {
+        let h = Harness([
+            .init(block: 40, tokenId: "1", amount0: 2, amount1: 600),
+            .decrease(block: 70, tokenId: "1", amount0: 50, amount1: 15_000),
+            .init(block: 70, tokenId: "1", amount0: 51, amount1: 15_030),
+        ])
+
+        let result = await h.scan(currentBlock: 100, deployBlock: 1)
+
+        #expect(result.fees["1"]?.amount0 == 3)
+        #expect(result.fees["1"]?.amount1 == 630)
+        #expect(h.cache?.fees["1"]?.withdrawn0 == 50)
+    }
+
+    @Test func multiplePartialWithdrawalsAcrossScans() async {
+        let h = Harness([
+            .decrease(block: 30, tokenId: "1", amount0: 10),
+            .init(block: 30, tokenId: "1", amount0: 11),
+            .decrease(block: 130, tokenId: "1", amount0: 20),
+            .init(block: 130, tokenId: "1", amount0: 22),
+        ])
+        await h.scan(currentBlock: 100, deployBlock: 1)
+
+        let result = await h.scan(currentBlock: 150, deployBlock: 1)
+
+        #expect(result.fees["1"]?.amount0 == 3)
+    }
+
+    @Test func uncollectedWithdrawalNeverGoesNegative() async {
+        let h = Harness([
+            .init(block: 20, tokenId: "1", amount0: 1),
+            .decrease(block: 60, tokenId: "1", amount0: 10),
+        ])
+
+        let result = await h.scan(currentBlock: 100, deployBlock: 1)
+
+        #expect(result.fees["1"]?.amount0 == 0)
     }
 }
