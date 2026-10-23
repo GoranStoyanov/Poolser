@@ -4,6 +4,12 @@ struct NotificationService {
 
     private static let stateKey = "rangeNotificationState"
 
+    /// A position whose in-range status flipped since the last refresh.
+    struct RangeChange {
+        let position: Position
+        let inRange: Bool
+    }
+
     /// Requests macOS notification permission. Safe to call multiple times.
     static func requestAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -14,18 +20,13 @@ struct NotificationService {
     static func fireRangeChangeNotificationsIfNeeded(for positions: [Position]) {
         guard AppSettings.shared.notifyOnRangeChange else { return }
 
-        let previous = loadState()
-        var next: [String: Bool] = [:]
-        var notifications: [UNNotificationRequest] = []
+        let (next, changes) = rangeChanges(for: positions, previous: loadState())
 
-        for position in positions {
-            guard position.error == nil, let inRange = position.inRange else { continue }
-            next[position.id] = inRange
-            guard let wasInRange = previous[position.id], wasInRange != inRange else { continue }
-
+        for change in changes {
+            let position = change.position
             let content = UNMutableNotificationContent()
             let pair = "\(position.sym0)/\(position.sym1)"
-            if inRange {
+            if change.inRange {
                 content.title = "🟢 \(pair) back in range"
                 content.body = "Your \(position.chainName) position is now in range."
             } else {
@@ -34,18 +35,44 @@ struct NotificationService {
             }
             content.sound = .default
             let request = UNNotificationRequest(
-                identifier: "range-\(position.id)-\(inRange)-\(Date().timeIntervalSince1970)",
+                identifier: "range-\(position.id)-\(change.inRange)-\(Date().timeIntervalSince1970)",
                 content: content,
                 trigger: nil
             )
-            notifications.append(request)
-        }
-
-        for request in notifications {
             UNUserNotificationCenter.current().add(request) { _ in }
         }
 
         saveState(next)
+    }
+
+    /// Pure state transition: returns the state to persist (keyed by `Position.id`)
+    /// and the positions whose range status changed relative to `previous`.
+    ///
+    /// `previous` may still hold keys in the old `<chain>-<tokenId>` format. Those are
+    /// used as a fallback so upgrading neither drops nor invents transitions — except
+    /// when a v3 and a v4 position share that legacy key, since its stored value was
+    /// written by whichever of the two came last and can't be attributed.
+    static func rangeChanges(
+        for positions: [Position],
+        previous: [String: Bool]
+    ) -> (next: [String: Bool], changes: [RangeChange]) {
+        let tracked = positions.filter { $0.error == nil && $0.inRange != nil }
+        let legacyCounts = Dictionary(tracked.map { ($0.legacyID, 1) }, uniquingKeysWith: +)
+
+        var next: [String: Bool] = [:]
+        var changes: [RangeChange] = []
+
+        for position in tracked {
+            guard let inRange = position.inRange else { continue }
+            next[position.id] = inRange
+
+            let wasInRange = previous[position.id]
+                ?? (legacyCounts[position.legacyID] == 1 ? previous[position.legacyID] : nil)
+            guard let wasInRange, wasInRange != inRange else { continue }
+            changes.append(RangeChange(position: position, inRange: inRange))
+        }
+
+        return (next, changes)
     }
 
     // MARK: - Persistence

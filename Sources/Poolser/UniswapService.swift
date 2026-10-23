@@ -882,7 +882,8 @@ final class UniswapService: ObservableObject {
                     sym0: "", sym1: "", feePct: "", feeRaw: 0,
                     fees0: 0, fees1: 0, tickLower: 0, tickUpper: 0,
                     liquidity: 0,
-                    error: "v4 #\(tokenId): \(error.localizedDescription)"
+                    error: "v4 #\(tokenId): \(error.localizedDescription)",
+                    isV4: true
                 ))
             }
         }
