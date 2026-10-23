@@ -738,10 +738,10 @@ final class UniswapService: ObservableObject {
             await withTaskGroup(of: (UInt64, Bool?).self) { group -> [(tokenId: UInt64, isOwner: Bool?)] in
                 for tokenId in ids {
                     group.addTask {
-                        guard let data = try? await eth.ethCall(
-                            to: v4PM, data: ABI.callOwnerOf(tokenId: tokenId)
-                        ) else { return (tokenId, nil) }
-                        return (tokenId, data.readAddress(wordAt: 0).lowercased() == wallet.lowercased())
+                        let result: Result<Data, Error>
+                        do { result = .success(try await eth.ethCall(to: v4PM, data: ABI.callOwnerOf(tokenId: tokenId))) }
+                        catch { result = .failure(error) }
+                        return (tokenId, v4OwnerCheck(result, wallet: wallet))
                     }
                 }
                 var result: [(tokenId: UInt64, isOwner: Bool?)] = []
@@ -1202,6 +1202,20 @@ private struct V4FeesError: LocalizedError {
 
 private func isNativeToken(_ addr: String) -> Bool {
     addr.lowercased() == nativeTokenAddress
+}
+
+/// Interprets a v4 `ownerOf` call: true/false when the answer is known, nil when the
+/// call failed transiently and should be retried. A revert means the token no longer
+/// exists (burned), so it is definitely not owned.
+func v4OwnerCheck(_ result: Result<Data, Error>, wallet: String) -> Bool? {
+    switch result {
+    case .success(let data):
+        return data.readAddress(wordAt: 0).lowercased() == wallet.lowercased()
+    case .failure(EthereumClient.Err.reverted):
+        return false
+    case .failure:
+        return nil
+    }
 }
 
 private func shortenAddr(_ addr: String) -> String {
