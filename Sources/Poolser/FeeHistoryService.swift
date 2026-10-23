@@ -80,12 +80,12 @@ struct FeeHistoryService {
         currentBlock: Int,
         eth: EthereumClient,
         chainID: String,
-        wallet: String
+        wallet: String,
+        chunkSize: Int,
+        baseMaxChunks: Int
     ) async -> Result {
         _ = legacyCachesRemoved
 
-        let chunkSize = AppSettings.shared.v4LogChunkSize
-        let baseMaxChunks = AppSettings.shared.v4BootstrapMaxChunksPerRefresh
         // Scale maxChunks so each refresh covers roughly the same calendar time on all chains.
         // Capped at 10× to avoid excessive RPC calls on very fast chains (Arbitrum, MegaETH).
         let blockTimeFactor = max(1, Int((12.0 / (SupportedChain.byID(chainID)?.blockTimeSeconds ?? 12)).rounded()))

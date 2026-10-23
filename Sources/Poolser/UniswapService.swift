@@ -106,6 +106,7 @@ final class UniswapService: ObservableObject {
         isLoading = true
         lastError = nil
         LogStore.shared.log("refresh started", level: .info)
+        await EthereumClient.setCreditBudget(perSecond: AppSettings.shared.rpcCreditsPerSecondBudget)
 
         let results = await withTaskGroup(of: ChainLoadResult.self, returning: [ChainLoadResult].self) { group in
             for chain in chains {
@@ -171,6 +172,7 @@ final class UniswapService: ObservableObject {
         let idSet = Set(chainIDs)
         let targetChains = activeChains.filter { idSet.contains($0.id) }
         guard !targetChains.isEmpty else { return }
+        await EthereumClient.setCreditBudget(perSecond: AppSettings.shared.rpcCreditsPerSecondBudget)
 
         LogStore.shared.log(
             "v4 bootstrap in progress — running accelerated follow-up for \(targetChains.map(\.displayName).joined(separator: ", "))",
@@ -300,6 +302,8 @@ final class UniswapService: ObservableObject {
 
     private func startFeeHistoryLoad(v3Positions: [Position], wallet: String, generation: UInt64) {
         feeHistoryTask?.cancel()
+        let chunkSize = AppSettings.shared.v4LogChunkSize
+        let baseMaxChunks = AppSettings.shared.v4BootstrapMaxChunksPerRefresh
         feeHistoryTask = Task { [weak self] in
             guard let self else { return }
             let byChain = Dictionary(grouping: v3Positions, by: \.chainID)
@@ -319,7 +323,9 @@ final class UniswapService: ObservableObject {
                     currentBlock: currentBlock,
                     eth: eth,
                     chainID: chainID,
-                    wallet: wallet
+                    wallet: wallet,
+                    chunkSize: chunkSize,
+                    baseMaxChunks: baseMaxChunks
                 )
                 guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
                 let tokenAddrs = Array(Set(chainPositions.flatMap { [$0.token0.lowercased(), $0.token1.lowercased()] }))
