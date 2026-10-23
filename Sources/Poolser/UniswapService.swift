@@ -86,6 +86,10 @@ final class UniswapService: ObservableObject {
     }
 
     private func load(generation: UInt64) async {
+        // The current generation owns isLoading: every exit (config error, cancellation,
+        // success) clears it, while a superseded load leaves it to the newer one.
+        defer { if isCurrentGeneration(generation) { isLoading = false } }
+
         let wallet = AppSettings.shared.walletAddress
         let key = AppSettings.shared.infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let chains = AppSettings.shared.enabledChains()
@@ -125,7 +129,6 @@ final class UniswapService: ObservableObject {
             chainIDs: enrichedResults.filter(\.bootstrapInProgress).map { $0.chain.id },
             generation: generation
         )
-        isLoading = false
         lastUpdated = Date()
 
         NotificationService.fireRangeChangeNotificationsIfNeeded(for: positions)
