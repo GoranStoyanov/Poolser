@@ -849,10 +849,10 @@ final class UniswapService: ObservableObject {
                 let priceAddr1 = isNativeToken(currency1) ? chain.wrappedNativeToken : currency1
 
                 let m0 = isNativeToken(currency0)
-                    ? (symbol: "ETH", decimals: 18)
+                    ? (symbol: chain.nativeCurrencySymbol, decimals: 18)
                     : await resolve(addr: currency0, eth: eth, cache: &metaCache)
                 let m1 = isNativeToken(currency1)
-                    ? (symbol: "ETH", decimals: 18)
+                    ? (symbol: chain.nativeCurrencySymbol, decimals: 18)
                     : await resolve(addr: currency1, eth: eth, cache: &metaCache)
 
                 tokenAddrs.insert(priceAddr0.lowercased())
