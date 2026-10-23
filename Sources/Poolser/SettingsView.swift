@@ -60,7 +60,8 @@ struct SettingsView: View {
                                 label: "Wallet Address",
                                 info: "Address to inspect for Uniswap v3/v4 NFT liquidity positions.",
                                 placeholder: "0x…",
-                                text: $draftWalletAddress
+                                text: $draftWalletAddress,
+                                error: walletAddressError
                             )
                             Divider().opacity(0.35).padding(.leading, 14)
                             fieldRow(
@@ -161,11 +162,11 @@ struct SettingsView: View {
                             HStack {
                                 Spacer()
                                 Button("Reset Performance Defaults") {
-                                    draftRefreshIntervalMinutes = 10
-                                    draftRPCCreditsPerSecondBudget = 400
-                                    draftV4LogChunkSize = 12_000
-                                    draftV4LogMaxConcurrentRequests = 2
-                                    draftV4BootstrapMaxChunksPerRefresh = 80
+                                    draftRefreshIntervalMinutes = AppSettings.Defaults.refreshIntervalMinutes
+                                    draftRPCCreditsPerSecondBudget = AppSettings.Defaults.rpcCreditsPerSecondBudget
+                                    draftV4LogChunkSize = AppSettings.Defaults.v4LogChunkSize
+                                    draftV4LogMaxConcurrentRequests = AppSettings.Defaults.v4LogMaxConcurrentRequests
+                                    draftV4BootstrapMaxChunksPerRefresh = AppSettings.Defaults.v4BootstrapMaxChunksPerRefresh
                                 }
                                 .buttonStyle(.borderless)
                                 .font(.caption)
@@ -274,7 +275,7 @@ struct SettingsView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Save & Refresh") {
-                    settings.walletAddress = draftWalletAddress
+                    settings.walletAddress = WalletAddress.normalize(draftWalletAddress) ?? ""
                     settings.infuraAPIKey = draftInfuraAPIKey
                     settings.enabledChainIDs = draftEnabledChainIDs
                     settings.refreshIntervalMinutes = draftRefreshIntervalMinutes
@@ -293,10 +294,15 @@ struct SettingsView: View {
                 }
                 .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
+                .disabled(walletAddressError != nil)
             }
         }
         .padding(20)
         .frame(width: 460, height: 640)
+    }
+
+    private var walletAddressError: String? {
+        WalletAddress.validationError(for: draftWalletAddress)
     }
 
     @ViewBuilder
@@ -313,12 +319,17 @@ struct SettingsView: View {
         }
     }
 
-    private func fieldRow(label: String, info: String, placeholder: String, text: Binding<String>) -> some View {
+    private func fieldRow(label: String, info: String, placeholder: String, text: Binding<String>, error: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             infoTitle(label, info: info)
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, design: .monospaced))
+            if let error {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
