@@ -10,8 +10,26 @@ struct NotificationService {
         let inRange: Bool
     }
 
+    /// `UNUserNotificationCenter.current()` raises when the process has no `.app` bundle,
+    /// which is the case for the bare executable produced by `swift build` / `swift run`.
+    /// Evaluated once, so the unavailability is logged once per launch.
+    private static let isAvailable: Bool = {
+        let available = Bundle.main.bundleIdentifier != nil
+            && Bundle.main.bundleURL.pathExtension == "app"
+        if !available {
+            Task { @MainActor in
+                LogStore.shared.log(
+                    "notifications unavailable: not running from an .app bundle (SPM build)",
+                    level: .info
+                )
+            }
+        }
+        return available
+    }()
+
     /// Requests macOS notification permission. Safe to call multiple times.
     static func requestAuthorization() {
+        guard isAvailable else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
@@ -22,7 +40,7 @@ struct NotificationService {
 
         let (next, changes) = rangeChanges(for: positions, previous: loadState())
 
-        for change in changes {
+        for change in changes where isAvailable {
             let position = change.position
             let content = UNMutableNotificationContent()
             let pair = "\(position.sym0)/\(position.sym1)"
