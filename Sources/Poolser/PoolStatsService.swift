@@ -6,7 +6,8 @@ import Foundation
 actor PoolStatsService {
     struct Stats: Sendable {
         let volumeUSD24h: Double
-        let feeAPR: Double
+        /// nil when the pool's fee is unknown (v4 dynamic-fee pools).
+        let feeAPR: Double?
         let tvlUSD: Double
     }
 
@@ -22,10 +23,11 @@ actor PoolStatsService {
 
     /// Returns cached stats if fresh, otherwise fetches from GeckoTerminal.
     /// Returns nil if the network is unsupported or the request fails.
+    /// Pass a nil `feePct` when the fee is unknown; volume and TVL are still returned.
     func stats(
         network: String,
         poolAddress: String,
-        feePct: Double
+        feePct: Double?
     ) async -> Stats? {
         let key = "\(network)/\(poolAddress.lowercased())"
         if let entry = cache[key], Date().timeIntervalSince(entry.fetchedAt) < ttl {
@@ -48,7 +50,7 @@ actor PoolStatsService {
     private nonisolated func fetch(
         network: String,
         poolAddress: String,
-        feePct: Double
+        feePct: Double?
     ) async -> Stats? {
         let urlString = "https://api.geckoterminal.com/api/v2/networks/\(network)/pools/\(poolAddress.lowercased())"
         guard let url = URL(string: urlString) else { return nil }
@@ -67,7 +69,7 @@ actor PoolStatsService {
         }
     }
 
-    private nonisolated func parse(data: Data, feePct: Double) -> Stats? {
+    nonisolated func parse(data: Data, feePct: Double?) -> Stats? {
         guard
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let dataObj = json["data"] as? [String: Any],
@@ -86,7 +88,7 @@ actor PoolStatsService {
         guard tvl > 0, volumeUSD24h > 0 else { return nil }
 
         // fee APR = (volume_24h × fee_pct) / TVL × 365 × 100
-        let feeAPR = (volumeUSD24h * feePct) / tvl * 365 * 100
+        let feeAPR = feePct.map { (volumeUSD24h * $0) / tvl * 365 * 100 }
 
         return Stats(volumeUSD24h: volumeUSD24h, feeAPR: feeAPR, tvlUSD: tvl)
     }
