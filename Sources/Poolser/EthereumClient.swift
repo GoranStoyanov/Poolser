@@ -20,15 +20,24 @@ struct EthereumClient {
 
     enum Err: Error, LocalizedError {
         case rpc(String)
+        /// The contract call itself reverted (e.g. ownerOf on a burned token) — deterministic, not retried.
+        case reverted(String)
         case noResult
         case badJSON
 
         var errorDescription: String? {
             switch self {
-            case .rpc(let m): return "RPC: \(m)"
-            case .noResult:   return "No result in RPC response"
-            case .badJSON:    return "Invalid JSON from RPC"
+            case .rpc(let m):      return "RPC: \(m)"
+            case .reverted(let m): return "RPC: \(m)"
+            case .noResult:        return "No result in RPC response"
+            case .badJSON:         return "Invalid JSON from RPC"
             }
+        }
+
+        /// JSON-RPC error code 3 is geth's "execution reverted"; some providers only say so in the message.
+        static func isRevert(code: Any?, message: String) -> Bool {
+            if let code = code as? Int, code == 3 { return true }
+            return message.lowercased().contains("execution reverted")
         }
     }
 
@@ -288,7 +297,7 @@ struct EthereumClient {
                 if let err = json["error"] as? [String: Any] {
                     let msg = err["message"] as? String ?? "unknown error"
                     log("eth_call ← error: \(msg)", level: .error)
-                    throw Err.rpc(msg)
+                    throw Err.isRevert(code: err["code"], message: msg) ? Err.reverted(msg) : Err.rpc(msg)
                 }
                 guard let result = json["result"] as? String else {
                     log("eth_call ← no result: \(short(to)) \(selector)", level: .error)
@@ -328,6 +337,8 @@ struct EthereumClient {
         switch rpcErr {
         case .noResult, .badJSON:
             return true
+        case .reverted:
+            return false
         case .rpc(let message):
             let m = message.lowercased()
             let retryableHints = [
