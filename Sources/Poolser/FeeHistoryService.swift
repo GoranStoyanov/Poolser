@@ -1,6 +1,6 @@
 import Foundation
 
-private struct FeeHistoryCache: Codable {
+struct FeeHistoryCache: Codable {
     /// Top of the next historical chunk to scan (going backward). nil = fully bootstrapped.
     var nextScanCeiling: Int?
     /// Highest block already scanned — used to pick up new blocks each refresh.
@@ -38,12 +38,29 @@ private let increaseLiquidityTopic = "0x3067048beee31b25b2f1681f88dac838c8bba36a
 
 private let tokenIdBatchSize = 50
 
+/// Bump when the cache format or scan semantics change; older caches are discarded once.
+/// v2: cursors only advance over successfully scanned ranges (v1 caches may have gaps).
+private let cacheKeyPrefix = "v3FeeHistory.v2."
+
 struct FeeHistoryService {
 
     struct Result {
         var fees: [String: (amount0: Double, amount1: Double)]
         var bootstrapInProgress: Bool
     }
+
+    /// eth_getLogs for the NFPM over an inclusive block range.
+    typealias LogFetcher = (_ topics: [[String]?], _ fromBlock: Int, _ toBlock: Int) async throws -> [[String: Any]]
+
+    private static let scanQueue = ScanQueue()
+
+    private static let legacyCachesRemoved: Void = {
+        let ud = UserDefaults.standard
+        for key in ud.dictionaryRepresentation().keys
+        where key.hasPrefix("v3FeeHistory.") && !key.hasPrefix(cacheKeyPrefix) {
+            ud.removeObject(forKey: key)
+        }
+    }()
 
     static func scan(
         positions: [Position],
@@ -54,13 +71,7 @@ struct FeeHistoryService {
         chainID: String,
         wallet: String
     ) async -> Result {
-        guard !positions.isEmpty else {
-            return Result(fees: [:], bootstrapInProgress: false)
-        }
-
-        let cacheKey = "v3FeeHistory.\(chainID).\(wallet.lowercased())"
-        var cache: FeeHistoryCache = loadCache(forKey: cacheKey)
-            ?? FeeHistoryCache(nextScanCeiling: currentBlock, lastSeenBlock: currentBlock, fees: [:])
+        _ = legacyCachesRemoved
 
         let chunkSize = AppSettings.shared.v4LogChunkSize
         let baseMaxChunks = AppSettings.shared.v4BootstrapMaxChunksPerRefresh
@@ -69,58 +80,126 @@ struct FeeHistoryService {
         let blockTimeFactor = max(1, Int((12.0 / (SupportedChain.byID(chainID)?.blockTimeSeconds ?? 12)).rounded()))
         let maxChunks = baseMaxChunks * min(blockTimeFactor, 10)
 
-        let decMap: [String: (dec0: Int, dec1: Int)] = Dictionary(
-            uniqueKeysWithValues: positions.map { ($0.tokenId, ($0.dec0, $0.dec1)) }
-        )
-        let tokenIds = positions.map(\.tokenId)
-
-        // 1. Fresh scan: always pick up new blocks since last refresh.
-        if currentBlock > cache.lastSeenBlock {
-            await scanRange(
-                from: cache.lastSeenBlock + 1,
-                to: currentBlock,
-                chunkSize: chunkSize,
-                maxChunks: maxChunks,
-                nfpm: nfpm,
-                tokenIds: tokenIds,
-                decMap: decMap,
-                eth: eth,
-                chainID: chainID,
-                cache: &cache
+        return await scan(
+            positions: positions,
+            deployBlock: deployBlock,
+            currentBlock: currentBlock,
+            chainID: chainID,
+            wallet: wallet,
+            chunkSize: chunkSize,
+            maxChunks: maxChunks,
+            store: .standard
+        ) { topics, fromBlock, toBlock in
+            try await eth.ethGetLogsOR(
+                address: nfpm,
+                topics: topics,
+                fromBlock: "0x" + String(fromBlock, radix: 16),
+                toBlock: "0x" + String(toBlock, radix: 16),
+                context: "feeHist[\(chainID)]"
             )
-            cache.lastSeenBlock = currentBlock
+        }
+    }
+
+    /// Scans for one wallet/chain are serialized: a scan starts only after the previous one
+    /// for the same cache key has saved, so a cancelled scan still unwinding can never
+    /// overwrite newer progress with older cursors.
+    static func scan(
+        positions: [Position],
+        deployBlock: Int,
+        currentBlock: Int,
+        chainID: String,
+        wallet: String,
+        chunkSize: Int,
+        maxChunks: Int,
+        store: UserDefaults,
+        fetchLogs: @escaping LogFetcher
+    ) async -> Result {
+        guard !positions.isEmpty else {
+            return Result(fees: [:], bootstrapInProgress: false)
+        }
+        let cacheKey = cacheKey(chainID: chainID, wallet: wallet)
+        let context = ScanContext(
+            positions: positions,
+            chunkSize: max(1, chunkSize),
+            maxChunks: max(1, maxChunks),
+            chainID: chainID,
+            fetchLogs: fetchLogs
+        )
+        return await scanQueue.run(key: cacheKey) {
+            await performScan(
+                context: context,
+                deployBlock: deployBlock,
+                currentBlock: currentBlock,
+                cacheKey: cacheKey,
+                store: store
+            )
+        }
+    }
+
+    static func cacheKey(chainID: String, wallet: String) -> String {
+        "\(cacheKeyPrefix)\(chainID).\(wallet.lowercased())"
+    }
+
+    // MARK: - Private
+
+    private struct ScanContext {
+        let tokenIds: [String]
+        let decMap: [String: (dec0: Int, dec1: Int)]
+        let tokenTopicBatches: [[String]]
+        let chunkSize: Int
+        let maxChunks: Int
+        let chainID: String
+        let fetchLogs: LogFetcher
+
+        init(positions: [Position], chunkSize: Int, maxChunks: Int, chainID: String, fetchLogs: @escaping LogFetcher) {
+            tokenIds = positions.map(\.tokenId)
+            decMap = Dictionary(positions.map { ($0.tokenId, ($0.dec0, $0.dec1)) }, uniquingKeysWith: { first, _ in first })
+            let topics = Array(Set(tokenIds)).sorted().map { "0x" + String(format: "%064x", UInt64($0) ?? 0) }
+            tokenTopicBatches = stride(from: 0, to: topics.count, by: tokenIdBatchSize).map {
+                Array(topics[$0..<min($0 + tokenIdBatchSize, topics.count)])
+            }
+            self.chunkSize = chunkSize
+            self.maxChunks = maxChunks
+            self.chainID = chainID
+            self.fetchLogs = fetchLogs
+        }
+    }
+
+    private static func performScan(
+        context: ScanContext,
+        deployBlock: Int,
+        currentBlock: Int,
+        cacheKey: String,
+        store: UserDefaults
+    ) async -> Result {
+        var cache: FeeHistoryCache = loadCache(forKey: cacheKey, store: store)
+            ?? FeeHistoryCache(nextScanCeiling: currentBlock, lastSeenBlock: currentBlock, fees: [:])
+
+        // 1. Fresh scan: pick up new blocks since last refresh. lastSeenBlock advances
+        // chunk by chunk, so a failure or the maxChunks cap leaves the rest for next time.
+        var interrupted = false
+        if currentBlock > cache.lastSeenBlock {
+            interrupted = !(await scanForward(to: currentBlock, context: context, cache: &cache))
         }
 
         // 2. Historical bootstrap: scan backward from nextScanCeiling.
         // Stop at the earliest known position creation block rather than deployBlock,
         // so we don't scan blocks that predate the wallet.
-        var bootstrapInProgress = false
-        let lowerBound = effectiveLowerBound(cache: cache, tokenIds: tokenIds, deployBlock: deployBlock)
-        if let ceiling = cache.nextScanCeiling, ceiling >= lowerBound {
-            let scanFrom = max(ceiling - chunkSize * maxChunks + 1, lowerBound)
-            await scanRange(
-                from: scanFrom,
-                to: ceiling,
-                chunkSize: chunkSize,
-                maxChunks: maxChunks,
-                nfpm: nfpm,
-                tokenIds: tokenIds,
-                decMap: decMap,
-                eth: eth,
-                chainID: chainID,
-                cache: &cache
-            )
-            // Recompute after scan — knownMintBlocks may have been updated.
-            let newLower = effectiveLowerBound(cache: cache, tokenIds: tokenIds, deployBlock: deployBlock)
-            cache.nextScanCeiling = scanFrom > newLower ? scanFrom - 1 : nil
-            bootstrapInProgress = cache.nextScanCeiling != nil
+        let lowerBound = effectiveLowerBound(cache: cache, tokenIds: context.tokenIds, deployBlock: deployBlock)
+        if !interrupted, let ceiling = cache.nextScanCeiling, ceiling >= lowerBound {
+            interrupted = !(await scanBackward(from: ceiling, downTo: lowerBound, context: context, cache: &cache))
+        }
+        // Recompute after scan — knownMintBlocks may have been updated.
+        let newLower = effectiveLowerBound(cache: cache, tokenIds: context.tokenIds, deployBlock: deployBlock)
+        if let ceiling = cache.nextScanCeiling, ceiling < newLower {
+            cache.nextScanCeiling = nil
         }
 
-        saveCache(cache, forKey: cacheKey)
+        // Cursors only cover completed chunks, so saving after a failure or cancellation is safe.
+        saveCache(cache, forKey: cacheKey, store: store)
+        let bootstrapInProgress = cache.nextScanCeiling != nil || cache.lastSeenBlock < currentBlock
         return Result(fees: feeDict(from: cache), bootstrapInProgress: bootstrapInProgress)
     }
-
-    // MARK: - Private
 
     /// Returns the block we can safely stop scanning at.
     /// Once we know when every tracked position was created, we stop at the earliest
@@ -137,46 +216,64 @@ struct FeeHistoryService {
         return max(deployBlock, earliest)
     }
 
-    private static func scanRange(
-        from: Int,
-        to: Int,
-        chunkSize: Int,
-        maxChunks: Int,
-        nfpm: String,
-        tokenIds: [String],
-        decMap: [String: (dec0: Int, dec1: Int)],
-        eth: EthereumClient,
-        chainID: String,
+    /// Scans ascending chunks after `lastSeenBlock`. Returns false if stopped by an error or cancellation.
+    private static func scanForward(
+        to upper: Int,
+        context: ScanContext,
         cache: inout FeeHistoryCache
-    ) async {
-        guard from <= to else { return }
-        var chunk = from
+    ) async -> Bool {
         var chunksScanned = 0
-        while chunk <= to && chunksScanned < maxChunks {
-            let chunkEnd = min(chunk + chunkSize - 1, to)
-            let fromHex = "0x" + String(chunk, radix: 16)
-            let toHex   = "0x" + String(chunkEnd, radix: 16)
+        while cache.lastSeenBlock < upper && chunksScanned < context.maxChunks {
+            let from = cache.lastSeenBlock + 1
+            let to = min(from + context.chunkSize - 1, upper)
+            guard let logs = await fetchChunk(from: from, to: to, context: context) else { return false }
+            parseLogs(logs, decMap: context.decMap, into: &cache)
+            cache.lastSeenBlock = to
+            chunksScanned += 1
+        }
+        return true
+    }
 
-            for batchStart in stride(from: 0, to: tokenIds.count, by: tokenIdBatchSize) {
-                let batch = Array(tokenIds[batchStart..<min(batchStart + tokenIdBatchSize, tokenIds.count)])
-                let tokenTopics = batch.map { "0x" + String(format: "%064x", UInt64($0) ?? 0) }
-                do {
-                    let logs = try await eth.ethGetLogsOR(
-                        address: nfpm,
-                        topics: [[collectEventTopic, increaseLiquidityTopic], tokenTopics],
-                        fromBlock: fromHex,
-                        toBlock: toHex,
-                        context: "feeHist[\(chainID)]"
-                    )
-                    parseLogs(logs, decMap: decMap, into: &cache)
-                } catch {
-                    Task { @MainActor in
-                        LogStore.shared.log("feeHistory[\(chainID)]: \(error.localizedDescription)", level: .error)
-                    }
+    /// Scans descending chunks from `ceiling`, so completed blocks always form one contiguous
+    /// range ending at the old ceiling. Returns false if stopped by an error or cancellation.
+    private static func scanBackward(
+        from ceiling: Int,
+        downTo lowerBound: Int,
+        context: ScanContext,
+        cache: inout FeeHistoryCache
+    ) async -> Bool {
+        var top = ceiling
+        var chunksScanned = 0
+        while top >= lowerBound && chunksScanned < context.maxChunks {
+            let bottom = max(top - context.chunkSize + 1, lowerBound)
+            guard let logs = await fetchChunk(from: bottom, to: top, context: context) else { return false }
+            parseLogs(logs, decMap: context.decMap, into: &cache)
+            top = bottom - 1
+            cache.nextScanCeiling = top
+            chunksScanned += 1
+        }
+        return true
+    }
+
+    /// Fetches every tokenId batch for one chunk. Returns nil unless all batches succeed,
+    /// so a chunk is applied to the cache all at once or not at all.
+    private static func fetchChunk(from: Int, to: Int, context: ScanContext) async -> [[String: Any]]? {
+        var logs: [[String: Any]] = []
+        do {
+            for batch in context.tokenTopicBatches {
+                try Task.checkCancellation()
+                logs += try await context.fetchLogs([[collectEventTopic, increaseLiquidityTopic], batch], from, to)
+            }
+            try Task.checkCancellation()
+            return logs
+        } catch {
+            if !Task.isCancelled {
+                let chainID = context.chainID
+                Task { @MainActor in
+                    LogStore.shared.log("feeHistory[\(chainID)] \(from)–\(to): \(error.localizedDescription)", level: .error)
                 }
             }
-            chunk = chunkEnd + 1
-            chunksScanned += 1
+            return nil
         }
     }
 
@@ -219,14 +316,14 @@ struct FeeHistoryService {
         }
     }
 
-    private static func loadCache(forKey key: String) -> FeeHistoryCache? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+    static func loadCache(forKey key: String, store: UserDefaults = .standard) -> FeeHistoryCache? {
+        guard let data = store.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(FeeHistoryCache.self, from: data)
     }
 
-    private static func saveCache(_ cache: FeeHistoryCache, forKey key: String) {
+    private static func saveCache(_ cache: FeeHistoryCache, forKey key: String, store: UserDefaults) {
         if let data = try? JSONEncoder().encode(cache) {
-            UserDefaults.standard.set(data, forKey: key)
+            store.set(data, forKey: key)
         }
     }
 
@@ -244,11 +341,31 @@ struct FeeHistoryService {
 
     /// Clears cached fee history for a wallet across all chains (call on wallet change).
     static func clearCache(wallet: String) {
-        let prefix = "v3FeeHistory."
+        let prefix = cacheKeyPrefix
         let suffix = ".\(wallet.lowercased())"
         let ud = UserDefaults.standard
         for key in ud.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key.hasSuffix(suffix) {
             ud.removeObject(forKey: key)
+        }
+    }
+}
+
+/// Runs operations for the same key one after another, in call order.
+private actor ScanQueue {
+    private var tails: [String: Task<Void, Never>] = [:]
+
+    func run<T>(key: String, _ operation: @escaping () async -> T) async -> T {
+        let previous = tails[key]
+        let task = Task<T, Never> {
+            await previous?.value
+            return await operation()
+        }
+        tails[key] = Task { _ = await task.value }
+        // The queued task is unstructured, so forward the caller's cancellation to it.
+        return await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
         }
     }
 }
