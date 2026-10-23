@@ -14,6 +14,11 @@ let package = Package(
             swiftSettings: [
                 .define("SPM_BUILD")
             ]
+        ),
+        .testTarget(
+            name: "PoolserTests",
+            dependencies: ["Poolser"],
+            path: "Tests/PoolserTests"
         )
     ]
 )
