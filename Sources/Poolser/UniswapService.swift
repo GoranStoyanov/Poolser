@@ -566,7 +566,7 @@ final class UniswapService: ObservableObject {
                 p.currentTick = tick
                 p.inRange = tick >= p.tickLower && tick <= p.tickUpper
                 p.poolAddress = pool.lowercased()
-                computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
+                Self.computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
             } catch { /* inRange stays nil */ }
 
             finalPositions.append(p)
@@ -923,7 +923,7 @@ final class UniswapService: ObservableObject {
 
             p.currentTick = tick
             p.inRange = tick >= p.tickLower && tick <= p.tickUpper
-            computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
+            Self.computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
 
             // Unclaimed fees via StateView feeGrowth math (4 concurrent RPC calls)
             if let tokenId = UInt64(p.tokenId) {
@@ -1090,7 +1090,7 @@ final class UniswapService: ObservableObject {
     // MARK: - Shared helpers
 
     /// Standard Uniswap v3/v4 amount calculation from sqrtPrice and liquidity.
-    private func computeAmounts(
+    static func computeAmounts(
         position p: inout Position,
         sqrtPrice: Double,
         metaCache: [String: (symbol: String, decimals: Int)],
@@ -1171,7 +1171,7 @@ final class UniswapService: ObservableObject {
 // MARK: - Exact uint256 arithmetic (for feeGrowth accumulators)
 
 /// Wrapping 256-bit subtraction (mod 2^256), matching Solidity `unchecked { a - b }`.
-private func u256Sub(_ a: Data, _ b: Data) -> Data {
+func u256Sub(_ a: Data, _ b: Data) -> Data {
     var r = [UInt8](repeating: 0, count: 32)
     var borrow: Int = 0
     for i in stride(from: 31, through: 0, by: -1) {
@@ -1184,7 +1184,7 @@ private func u256Sub(_ a: Data, _ b: Data) -> Data {
 
 /// Convert a 32-byte big-endian uint256 to Double.
 /// Only call this on values known to be small (e.g. feeGrowth deltas), where precision loss is acceptable.
-private func u256ToDouble(_ d: Data) -> Double {
+func u256ToDouble(_ d: Data) -> Double {
     var v = 0.0
     for byte in d { v = v * 256.0 + Double(byte) }
     return v

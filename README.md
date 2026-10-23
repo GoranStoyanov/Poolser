@@ -88,6 +88,12 @@ To run directly:
 swift run
 ```
 
+To run the unit tests:
+
+```bash
+swift test
+```
+
 To open in Xcode:
 
 ```bash
