@@ -1,6 +1,6 @@
 # Project skills
 
-Skills Claude Code loads automatically for this repo. Each folder has a `SKILL.md`.
+Project skills loaded automatically for this repo. Each folder has a `SKILL.md`.
 
 ## Project-specific (written for Poolser)
 

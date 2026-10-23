@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Rejects commit messages that carry AI attribution trailers or mention AI tooling.
+
+msg_file="$1"
+body="$(grep -v '^#' "$msg_file" || true)"
+
+fail() {
+  echo "error: commit message rejected — $1"
+  echo "remove AI attribution / mentions and describe the change itself."
+  exit 1
+}
+
+if printf '%s\n' "$body" | grep -iqE '^(co-authored-by|generated-by|assisted-by|signed-off-by):.*(claude|anthropic|openai|chatgpt|gpt|copilot|codex|gemini|cursor|bot|noreply@anthropic)'; then
+  fail "AI attribution trailer"
+fi
+
+if printf '%s\n' "$body" | grep -iqE 'claude|anthropic|openai|chatgpt|copilot|codex|gemini|generated (with|by)|🤖|(^|[^[:alnum:]])llm([^[:alnum:]]|$)'; then
+  fail "mentions AI tooling"
+fi
+
+if printf '%s\n' "$body" | grep -qE '(^|[^[:alnum:]])AI([^[:alnum:]-]|$)|AI-(generated|assisted|written)'; then
+  fail "mentions AI"
+fi
