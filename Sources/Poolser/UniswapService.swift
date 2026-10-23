@@ -733,22 +733,33 @@ final class UniswapService: ObservableObject {
             return (previousCache?.bootstrapPassCounter ?? 0) + 1
         }()
 
-        if candidateIds.isEmpty {
-            saveV4OwnershipCache(
-                V4OwnershipCache(
-                    lastScannedBlock: scanEndBlock,
-                    candidateTokenIds: [],
-                    ownedTokenIds: [],
-                    nextBootstrapFromBlock: nextBootstrapFromBlock,
-                    bootstrapPassCounter: nextBootstrapFromBlock == nil ? nil : bootstrapPassCounter
-                ),
-                wallet: wallet,
-                chain: chain
-            )
-            if let next = nextBootstrapFromBlock {
-                return ([], 0, nil, true, next)
+        // ownerOf for each id; nil means the call failed (e.g. HTTP 429), not "not owned".
+        func checkOwnership(_ ids: some Sequence<UInt64>) async -> [(tokenId: UInt64, isOwner: Bool?)] {
+            await withTaskGroup(of: (UInt64, Bool?).self) { group -> [(tokenId: UInt64, isOwner: Bool?)] in
+                for tokenId in ids {
+                    group.addTask {
+                        guard let data = try? await eth.ethCall(
+                            to: v4PM, data: ABI.callOwnerOf(tokenId: tokenId)
+                        ) else { return (tokenId, nil) }
+                        return (tokenId, data.readAddress(wordAt: 0).lowercased() == wallet.lowercased())
+                    }
+                }
+                var result: [(tokenId: UInt64, isOwner: Bool?)] = []
+                for await update in group { result.append(update) }
+                return result
             }
-            return ([], 0, "v4: no Transfer events found for this wallet (balance=\(v4Balance))", false, nil)
+        }
+        // Failed checks leave the id's current ownership untouched so it is retried
+        // later (via the balance reconciliation below) instead of being dropped.
+        var failedOwnerChecks = Set<UInt64>()
+        func apply(_ updates: [(tokenId: UInt64, isOwner: Bool?)]) {
+            for (tokenId, isOwner) in updates {
+                switch isOwner {
+                case true?:  ownedIds.insert(tokenId); failedOwnerChecks.remove(tokenId)
+                case false?: ownedIds.remove(tokenId); failedOwnerChecks.remove(tokenId)
+                case nil:    failedOwnerChecks.insert(tokenId)
+                }
+            }
         }
 
         // Verify ownership only for tokenIds that changed since the last scan.
@@ -757,49 +768,22 @@ final class UniswapService: ObservableObject {
             if previousCache == nil { return Array(candidateIds) }
             return Array(toIds.union(fromIds))
         }()
-
-        let ownershipUpdates = await withTaskGroup(of: (UInt64, Bool)?.self) { group -> [(UInt64, Bool)] in
-            for tokenId in idsToVerify {
-                group.addTask {
-                    guard let data = try? await eth.ethCall(
-                        to: v4PM, data: ABI.callOwnerOf(tokenId: tokenId)
-                    ) else { return nil }
-                    let isOwner = data.readAddress(wordAt: 0).lowercased() == wallet.lowercased()
-                    return (tokenId, isOwner)
-                }
-            }
-            var result: [(UInt64, Bool)] = []
-            for await update in group { if let update { result.append(update) } }
-            return result
-        }
-        for (tokenId, isOwner) in ownershipUpdates {
-            if isOwner { ownedIds.insert(tokenId) }
-            else { ownedIds.remove(tokenId) }
-        }
+        apply(await checkOwnership(idsToVerify))
 
         // Safety net: if cache and live balance diverge, do one full ownership reconciliation.
         if Int(v4Balance) != ownedIds.count {
-            let fullOwned = await withTaskGroup(of: Optional<UInt64>.self) { group -> [UInt64] in
-                for tokenId in candidateIds {
-                    group.addTask {
-                        guard let data = try? await eth.ethCall(
-                            to: v4PM, data: ABI.callOwnerOf(tokenId: tokenId)
-                        ) else { return nil }
-                        return data.readAddress(wordAt: 0).lowercased() == wallet.lowercased()
-                            ? tokenId : nil
-                    }
-                }
-                var result: [UInt64] = []
-                for await id in group { if let id { result.append(id) } }
-                return result
-            }
-            ownedIds = Set(fullOwned)
+            apply(await checkOwnership(candidateIds))
         }
 
-        guard !ownedIds.isEmpty else {
-            return ([], 0, "v4: balance=\(v4Balance), found \(candidateIds.count) candidate tokenIds but none pass ownerOf check", false, nil)
+        if !failedOwnerChecks.isEmpty {
+            LogStore.shared.log(
+                "v4 [\(chain.displayName)]: ownerOf failed for \(failedOwnerChecks.count) tokenId(s), will retry next refresh",
+                level: .error
+            )
         }
 
+        // Persist scan progress on every path that completed the log scan, so an
+        // empty owned set mid-bootstrap does not restart the scan at the deploy block.
         saveV4OwnershipCache(
             V4OwnershipCache(
                 lastScannedBlock: scanEndBlock,
@@ -811,6 +795,17 @@ final class UniswapService: ObservableObject {
             wallet: wallet,
             chain: chain
         )
+
+        guard !ownedIds.isEmpty else {
+            // Still bootstrapping: owned positions may be in a later block window.
+            if let next = nextBootstrapFromBlock {
+                return ([], 0, nil, true, next)
+            }
+            if candidateIds.isEmpty {
+                return ([], 0, "v4: no Transfer events found for this wallet (balance=\(v4Balance))", false, nil)
+            }
+            return ([], 0, "v4: balance=\(v4Balance), found \(candidateIds.count) candidate tokenIds but none pass ownerOf check", false, nil)
+        }
 
         // 3 · per-position
         for tokenId in ownedIds.sorted() {
