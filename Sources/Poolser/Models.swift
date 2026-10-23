@@ -1,7 +1,10 @@
 import Foundation
 
 struct Position: Identifiable {
-    var id: String { "\(chainID)-\(tokenId)" }
+    /// v3 and v4 token IDs are independent sequences, so the version is part of the identity.
+    var id: String { "\(chainID)-\(versionLabel)-\(tokenId)" }
+    /// Pre-version id format, still present in persisted notification state.
+    var legacyID: String { "\(chainID)-\(tokenId)" }
     let chainID: String
     let chainName: String
     let chainNumericID: Int
