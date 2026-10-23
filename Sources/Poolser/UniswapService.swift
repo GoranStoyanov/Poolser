@@ -93,7 +93,7 @@ final class UniswapService: ObservableObject {
         let wallet = AppSettings.shared.walletAddress
         let key = AppSettings.shared.infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let chains = AppSettings.shared.enabledChains()
-        guard !wallet.isEmpty, !key.isEmpty, !chains.isEmpty else {
+        guard WalletAddress.normalize(wallet) != nil, !key.isEmpty, !chains.isEmpty else {
             guard isCurrentGeneration(generation) else { return }
             chainResultsByID = [:]
             positions = []
@@ -166,7 +166,7 @@ final class UniswapService: ObservableObject {
         let wallet = AppSettings.shared.walletAddress
         let key = AppSettings.shared.infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let activeChains = AppSettings.shared.enabledChains()
-        guard !wallet.isEmpty, !key.isEmpty, !activeChains.isEmpty else { return }
+        guard WalletAddress.normalize(wallet) != nil, !key.isEmpty, !activeChains.isEmpty else { return }
 
         let idSet = Set(chainIDs)
         let targetChains = activeChains.filter { idSet.contains($0.id) }

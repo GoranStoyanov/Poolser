@@ -5,7 +5,7 @@ import ServiceManagement
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
-    private enum Defaults {
+    enum Defaults {
         static let refreshIntervalMinutes = 10
         static let enabledChainIDs = ["ethereum"]
         static let rpcCreditsPerSecondBudget = 400
@@ -99,7 +99,12 @@ final class AppSettings: ObservableObject {
 
     private init() {
         let ud = UserDefaults.standard
-        walletAddress = ud.string(forKey: "walletAddress") ?? ""
+        // Older builds saved the field verbatim, so a pasted newline or space could be stored.
+        let storedWallet = ud.string(forKey: "walletAddress") ?? ""
+        let wallet = WalletAddress.normalize(storedWallet)
+            ?? storedWallet.trimmingCharacters(in: .whitespacesAndNewlines)
+        if wallet != storedWallet { ud.set(wallet, forKey: "walletAddress") }
+        walletAddress = wallet
         let savedInfuraKey = ud.string(forKey: "infuraAPIKey") ?? ""
         let migratedInfuraKey: String
         if savedInfuraKey.isEmpty, let oldRPC = ud.string(forKey: "rpcURL") {
@@ -149,14 +154,6 @@ final class AppSettings: ObservableObject {
         }
     }
 
-    func resetPerformanceDefaults() {
-        refreshIntervalMinutes = Defaults.refreshIntervalMinutes
-        rpcCreditsPerSecondBudget = Defaults.rpcCreditsPerSecondBudget
-        v4LogChunkSize = Defaults.v4LogChunkSize
-        v4LogMaxConcurrentRequests = Defaults.v4LogMaxConcurrentRequests
-        v4BootstrapMaxChunksPerRefresh = Defaults.v4BootstrapMaxChunksPerRefresh
-    }
-
     func isChainEnabled(_ chainID: String) -> Bool {
         enabledChainIDs.contains(chainID)
     }
@@ -191,5 +188,23 @@ final class AppSettings: ObservableObject {
         guard let idx = parts.firstIndex(of: "v3"), idx + 1 < parts.count else { return nil }
         let key = parts[idx + 1].trimmingCharacters(in: .whitespacesAndNewlines)
         return key.isEmpty ? nil : key
+    }
+}
+
+enum WalletAddress {
+    /// Returns the address as `0x` + 40 hex digits, without surrounding whitespace, or nil if
+    /// the input is not an address. `ABI.encodeAddress` turns anything else into the zero address.
+    static func normalize(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hex = trimmed.hasPrefix("0x") || trimmed.hasPrefix("0X") ? trimmed.dropFirst(2) : Substring(trimmed)
+        // isHexDigit alone also accepts fullwidth digits and letters.
+        guard hex.count == 40, hex.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { return nil }
+        return "0x" + hex
+    }
+
+    /// Message for the Settings field, or nil when the input can be saved (an empty field is allowed).
+    static func validationError(for raw: String) -> String? {
+        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
+        return normalize(raw) == nil ? "Enter a valid address: 0x followed by 40 hex characters." : nil
     }
 }
