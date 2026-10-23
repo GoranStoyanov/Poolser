@@ -233,11 +233,10 @@ final class UniswapService: ObservableObject {
                     var p = pos
                     guard let addr = resolvedAddr,
                           let network = SupportedChain.byID(p.chainID)?.geckoterminalNetworkID else { return p }
-                    let feePct = Double(p.feeRaw) / 1_000_000
                     if let stats = await self.poolStatsService.stats(
                         network: network,
                         poolAddress: addr,
-                        feePct: feePct
+                        feePct: p.feeFraction
                     ) {
                         p.volumeUSD24h = stats.volumeUSD24h
                         p.feeAPR = stats.feeAPR
@@ -858,10 +857,6 @@ final class UniswapService: ObservableObject {
                     fee: fee, tickSpacing: tickSpacing, hooks: hooks
                 )
 
-                let feePct = fee == 0
-                    ? "dyn"
-                    : String(format: "%.4g", Double(fee) / 10_000)
-
                 rawPositions.append(Position(
                     chainID: chain.id,
                     chainName: chain.displayName,
@@ -869,7 +864,7 @@ final class UniswapService: ObservableObject {
                     tokenId:   String(tokenId),
                     token0:    priceAddr0, token1:    priceAddr1,
                     sym0:      m0.symbol,  sym1:      m1.symbol,
-                    feePct:    feePct,     feeRaw:    fee,
+                    feePct:    V4Fee.label(fee), feeRaw: fee,
                     fees0:     0,          fees1:     0,
                     tickLower: tickLower,  tickUpper: tickUpper,
                     liquidity: liquidity,

@@ -1,5 +1,18 @@
 import Foundation
 
+/// Uniswap v4 `PoolKey.fee` helpers.
+enum V4Fee {
+    /// `LPFeeLibrary.DYNAMIC_FEE_FLAG`: the pool's LP fee is set by its hook, not by `PoolKey.fee`.
+    static let dynamicFlag = 0x800000
+
+    static func isDynamic(_ fee: Int) -> Bool { fee == dynamicFlag }
+
+    /// Fee tier label in percent, e.g. "0.3" for 3000, or "dyn" for a dynamic-fee pool.
+    static func label(_ fee: Int) -> String {
+        isDynamic(fee) ? "dyn" : String(format: "%.4g", Double(fee) / 10_000)
+    }
+}
+
 struct Position: Identifiable {
     var id: String { "\(chainID)-\(tokenId)" }
     let chainID: String
@@ -78,6 +91,12 @@ struct Position: Identifiable {
         if claimedFees0 > 0 { parts.append(trimNum(claimedFees0) + " " + sym0) }
         if claimedFees1 > 0 { parts.append(trimNum(claimedFees1) + " " + sym1) }
         return parts.isEmpty ? nil : parts.joined(separator: " + ")
+    }
+
+    /// Pool fee as a fraction (0.003 for 0.3%), or nil for a v4 dynamic-fee pool whose
+    /// `feeRaw` is the dynamic flag rather than a fee.
+    var feeFraction: Double? {
+        isV4 && V4Fee.isDynamic(feeRaw) ? nil : Double(feeRaw) / 1_000_000
     }
 
     var versionLabel: String { isV4 ? "v4" : "v3" }
