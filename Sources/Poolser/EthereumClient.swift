@@ -1,7 +1,11 @@
 import Foundation
 
 struct EthereumClient {
+    /// Sends one HTTP request and returns the raw response; injectable so tests can replace the network.
+    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
     let rpcURL: URL
+    private let transport: Transport
     // Infura free tier nominal throughput is 500 credits/sec.
     // App default keeps a safety margin to reduce bursty 429s.
     private static let defaultBudgetCreditsPerSecond = 400
@@ -17,6 +21,11 @@ struct EthereumClient {
     private let logsMaxRetries = 4
     private let blockNumberMaxRetries = 2
     private let chainIdMaxRetries = 2
+
+    init(rpcURL: URL, transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }) {
+        self.rpcURL = rpcURL
+        self.transport = transport
+    }
 
     /// Shared by every client. Called with a value read on the main actor at the start of a
     /// load, so request code never touches `AppSettings`.
@@ -49,91 +58,17 @@ struct EthereumClient {
     }
 
     func ethBlockNumber() async throws -> Int {
-        var lastError: Error?
-        for attempt in 0...blockNumberMaxRetries {
-            do {
-                try await Self.limiter.acquire(credits: costEthBlockNumber)
-                let body = try JSONSerialization.data(withJSONObject: [
-                    "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
-                ] as [String: Any])
-                var req = URLRequest(url: rpcURL)
-                req.httpMethod = "POST"
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.httpBody = body
-                req.timeoutInterval = 15
-
-                let (data, response) = try await URLSession.shared.data(for: req)
-                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    throw Err.rpc("HTTP \(http.statusCode)")
-                }
-
-                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    log("eth_blockNumber ← bad JSON (\(debugBody(data)))", level: .error)
-                    throw Err.badJSON
-                }
-                if let err = json["error"] as? [String: Any] {
-                    throw Err.rpc(err["message"] as? String ?? "unknown")
-                }
-                guard let result = json["result"] as? String else {
-                    log("eth_blockNumber ← no result", level: .error)
-                    throw Err.noResult
-                }
-                let hex = result.hasPrefix("0x") ? String(result.dropFirst(2)) : result
-                guard let n = Int(hex, radix: 16) else { throw Err.badJSON }
-                return n
-            } catch {
-                lastError = error
-                guard shouldRetry(error), attempt < blockNumberMaxRetries else { throw error }
-                let next = attempt + 1
-                log("eth_blockNumber retry \(next)/\(blockNumberMaxRetries)", level: .info)
-                try await sleepBeforeRetry(attempt: attempt, error: error)
-            }
-        }
-        throw lastError ?? Err.rpc("unknown")
+        try await rpc(RPCSpec(
+            method: "eth_blockNumber", params: [], cost: costEthBlockNumber,
+            maxRetries: blockNumberMaxRetries, timeout: 15, label: "eth_blockNumber", logsErrors: false
+        ), decode: decodeQuantity)
     }
 
     func ethChainId() async throws -> Int {
-        var lastError: Error?
-        for attempt in 0...chainIdMaxRetries {
-            do {
-                try await Self.limiter.acquire(credits: costEthChainId)
-                let body = try JSONSerialization.data(withJSONObject: [
-                    "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1
-                ] as [String: Any])
-                var req = URLRequest(url: rpcURL)
-                req.httpMethod = "POST"
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.httpBody = body
-                req.timeoutInterval = 15
-
-                let (data, response) = try await URLSession.shared.data(for: req)
-                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    throw Err.rpc("HTTP \(http.statusCode)")
-                }
-
-                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    log("eth_chainId ← bad JSON (\(debugBody(data)))", level: .error)
-                    throw Err.badJSON
-                }
-                if let err = json["error"] as? [String: Any] {
-                    throw Err.rpc(err["message"] as? String ?? "unknown")
-                }
-                guard let result = json["result"] as? String else {
-                    log("eth_chainId ← no result", level: .error)
-                    throw Err.noResult
-                }
-                let hex = result.hasPrefix("0x") ? String(result.dropFirst(2)) : result
-                guard let n = Int(hex, radix: 16) else { throw Err.badJSON }
-                return n
-            } catch {
-                lastError = error
-                guard shouldRetry(error), attempt < chainIdMaxRetries else { throw error }
-                let next = attempt + 1
-                log("eth_chainId retry \(next)/\(chainIdMaxRetries)", level: .info)
-                try await sleepBeforeRetry(attempt: attempt, error: error)
-            }
-        }
-        throw lastError ?? Err.rpc("unknown")
+        try await rpc(RPCSpec(
+            method: "eth_chainId", params: [], cost: costEthChainId,
+            maxRetries: chainIdMaxRetries, timeout: 15, label: "eth_chainId", logsErrors: false
+        ), decode: decodeQuantity)
     }
 
     /// eth_getLogs query. Pass `nil` in `topics` to match any value at that position.
@@ -144,62 +79,15 @@ struct EthereumClient {
         toBlock: String = "latest",
         context: String? = nil
     ) async throws -> [[String: Any]] {
-        let ctx = context.map { " \($0)" } ?? ""
-        var lastError: Error?
-        for attempt in 0...logsMaxRetries {
-            do {
-                let jsonTopics: [Any] = topics.map { t -> Any in
-                    guard let t = t else { return NSNull() }
-                    return t
-                }
-                try await Self.limiter.acquire(credits: costEthGetLogs)
-                let body = try JSONSerialization.data(withJSONObject: [
-                    "jsonrpc": "2.0",
-                    "method":  "eth_getLogs",
-                    "params":  [["address":   address,
-                                 "topics":    jsonTopics,
-                                 "fromBlock": fromBlock,
-                                 "toBlock":   toBlock]],
-                    "id":      1
-                ] as [String: Any])
-
-                var req = URLRequest(url: rpcURL)
-                req.httpMethod = "POST"
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.httpBody = body
-                req.timeoutInterval = 30
-
-                log("getLogs\(ctx) → \(short(address)) \(fromBlock)–\(toBlock)", level: .request)
-
-                let (responseData, response) = try await URLSession.shared.data(for: req)
-                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    throw Err.rpc("HTTP \(http.statusCode)")
-                }
-
-                guard let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
-                    log("getLogs\(ctx) ← bad JSON (\(debugBody(responseData)))", level: .error)
-                    throw Err.badJSON
-                }
-                if let err = json["error"] as? [String: Any] {
-                    let msg = err["message"] as? String ?? "unknown error"
-                    log("getLogs\(ctx) ← error: \(msg)", level: .error)
-                    throw Err.rpc(msg)
-                }
-                guard let result = json["result"] as? [[String: Any]] else {
-                    log("getLogs\(ctx) ← no result (null response from RPC) \(short(address)) \(fromBlock)–\(toBlock)", level: .error)
-                    throw Err.noResult
-                }
-                log("getLogs\(ctx) ← \(result.count) events", level: .response)
-                return result
-            } catch {
-                lastError = error
-                guard shouldRetry(error), attempt < logsMaxRetries else { throw error }
-                let next = attempt + 1
-                log("getLogs\(ctx) retry \(next)/\(logsMaxRetries) \(fromBlock)–\(toBlock)", level: .info)
-                try await sleepBeforeRetry(attempt: attempt, error: error)
-            }
+        let jsonTopics: [Any] = topics.map { t -> Any in
+            guard let t = t else { return NSNull() }
+            return t
         }
-        throw lastError ?? Err.rpc("unknown")
+        return try await getLogs(
+            address: address, jsonTopics: jsonTopics, fromBlock: fromBlock, toBlock: toBlock,
+            label: "getLogs" + (context.map { " \($0)" } ?? ""),
+            noResultNote: " (null response from RPC)"
+        )
     }
 
     /// eth_getLogs with OR semantics per topic position.
@@ -211,114 +99,147 @@ struct EthereumClient {
         toBlock: String = "latest",
         context: String? = nil
     ) async throws -> [[String: Any]] {
-        let ctx = context.map { " \($0)" } ?? ""
+        let jsonTopics: [Any] = topics.map { t -> Any in
+            guard let t = t else { return NSNull() }
+            return t.count == 1 ? t[0] : t
+        }
+        return try await getLogs(
+            address: address, jsonTopics: jsonTopics, fromBlock: fromBlock, toBlock: toBlock,
+            label: "getLogs(OR)" + (context.map { " \($0)" } ?? ""),
+            noResultNote: ""
+        )
+    }
+
+    private func getLogs(
+        address: String,
+        jsonTopics: [Any],
+        fromBlock: String,
+        toBlock: String,
+        label: String,
+        noResultNote: String
+    ) async throws -> [[String: Any]] {
+        let range = "\(fromBlock)–\(toBlock)"
+        let logs = try await rpc(RPCSpec(
+            method: "eth_getLogs",
+            params: [["address":   address,
+                      "topics":    jsonTopics,
+                      "fromBlock": fromBlock,
+                      "toBlock":   toBlock]],
+            cost: costEthGetLogs, maxRetries: logsMaxRetries, timeout: 30, label: label,
+            requestDetail: "\(short(address)) \(range)",
+            noResultDetail: "\(noResultNote) \(short(address)) \(range)",
+            retryDetail: " \(range)"
+        )) { $0 as? [[String: Any]] }
+        log("\(label) ← \(logs.count) events", level: .response)
+        return logs
+    }
+
+    func ethCall(to: String, data: Data) async throws -> Data {
+        let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
+        let target = "\(short(to)) \(selector)"
+        let resultData = try await rpc(RPCSpec(
+            method: "eth_call",
+            params: [["to": to, "data": "0x" + data.hexString], "latest"],
+            cost: costEthCall, maxRetries: callMaxRetries, timeout: 15, label: "eth_call",
+            requestDetail: target,
+            noResultDetail: ": \(target)",
+            retryDetail: " \(target)",
+            detectsRevert: true
+        )) { raw in
+            (raw as? String).map { Data(hexString: Self.stripHexPrefix($0)) ?? Data() }
+        }
+        log("eth_call ← \(resultData.count)B", level: .response)
+        return resultData
+    }
+
+    // MARK: - Request path
+
+    /// What differs between RPC methods; everything else goes through `rpc(_:decode:)`.
+    private struct RPCSpec {
+        let method: String
+        let params: [Any]
+        let cost: Int
+        let maxRetries: Int
+        let timeout: TimeInterval
+        /// Leads every log line of this call, e.g. "eth_call" or "getLogs v4".
+        let label: String
+        /// Logged as "<label> → <detail>" before each attempt; nil logs nothing.
+        var requestDetail: String? = nil
+        /// Appended to "<label> ← no result".
+        var noResultDetail = ""
+        /// Appended to "<label> retry n/max".
+        var retryDetail = ""
+        var logsErrors = true
+        /// Map execution-reverted errors to `Err.reverted` so they are not retried.
+        var detectsRevert = false
+    }
+
+    /// Limiter, request, HTTP/JSON-RPC error handling and the retry loop for every method.
+    /// `decode` runs inside the loop: returning nil means the result has the wrong shape
+    /// (`noResult`), throwing means it could not be parsed; both are retried like transport errors.
+    private func rpc<T>(_ spec: RPCSpec, decode: (Any) throws -> T?) async throws -> T {
         var lastError: Error?
-        for attempt in 0...logsMaxRetries {
+        for attempt in 0...spec.maxRetries {
             do {
-                let jsonTopics: [Any] = topics.map { t -> Any in
-                    guard let t = t else { return NSNull() }
-                    return t.count == 1 ? t[0] : t
-                }
-                try await Self.limiter.acquire(credits: costEthGetLogs)
+                try await Self.limiter.acquire(credits: spec.cost)
                 let body = try JSONSerialization.data(withJSONObject: [
-                    "jsonrpc": "2.0",
-                    "method":  "eth_getLogs",
-                    "params":  [["address":   address,
-                                 "topics":    jsonTopics,
-                                 "fromBlock": fromBlock,
-                                 "toBlock":   toBlock]],
-                    "id":      1
+                    "jsonrpc": "2.0", "method": spec.method, "params": spec.params, "id": 1
                 ] as [String: Any])
                 var req = URLRequest(url: rpcURL)
                 req.httpMethod = "POST"
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 req.httpBody = body
-                req.timeoutInterval = 30
-                log("getLogs(OR)\(ctx) → \(short(address)) \(fromBlock)–\(toBlock)", level: .request)
-                let (responseData, response) = try await URLSession.shared.data(for: req)
+                req.timeoutInterval = spec.timeout
+
+                if let detail = spec.requestDetail {
+                    log("\(spec.label) → \(detail)", level: .request)
+                }
+
+                let (data, response) = try await transport(req)
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     throw Err.rpc("HTTP \(http.statusCode)")
                 }
-                guard let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
-                    log("getLogs(OR)\(ctx) ← bad JSON (\(debugBody(responseData)))", level: .error)
+
+                guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    log("\(spec.label) ← bad JSON (\(debugBody(data)))", level: .error)
                     throw Err.badJSON
                 }
                 if let err = json["error"] as? [String: Any] {
                     let msg = err["message"] as? String ?? "unknown error"
-                    log("getLogs(OR)\(ctx) ← error: \(msg)", level: .error)
+                    if spec.logsErrors {
+                        log("\(spec.label) ← error: \(msg)", level: .error)
+                    }
+                    if spec.detectsRevert, Err.isRevert(code: err["code"], message: msg) {
+                        throw Err.reverted(msg)
+                    }
                     throw Err.rpc(msg)
                 }
-                guard let result = json["result"] as? [[String: Any]] else {
-                    log("getLogs(OR)\(ctx) ← no result \(short(address)) \(fromBlock)–\(toBlock)", level: .error)
+                guard let raw = json["result"], let result = try decode(raw) else {
+                    log("\(spec.label) ← no result\(spec.noResultDetail)", level: .error)
                     throw Err.noResult
                 }
-                log("getLogs(OR)\(ctx) ← \(result.count) events", level: .response)
                 return result
             } catch {
                 lastError = error
-                guard shouldRetry(error), attempt < logsMaxRetries else { throw error }
+                guard shouldRetry(error), attempt < spec.maxRetries else { throw error }
                 let next = attempt + 1
-                log("getLogs(OR)\(ctx) retry \(next)/\(logsMaxRetries) \(fromBlock)–\(toBlock)", level: .info)
+                log("\(spec.label) retry \(next)/\(spec.maxRetries)\(spec.retryDetail)", level: .info)
                 try await sleepBeforeRetry(attempt: attempt, error: error)
             }
         }
         throw lastError ?? Err.rpc("unknown")
     }
 
-    func ethCall(to: String, data: Data) async throws -> Data {
-        let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
-        var lastError: Error?
+    /// Hex quantity result (eth_blockNumber, eth_chainId). A non-string is `noResult`;
+    /// a string that is not hex is `badJSON`.
+    private func decodeQuantity(_ raw: Any) throws -> Int? {
+        guard let result = raw as? String else { return nil }
+        guard let n = Int(Self.stripHexPrefix(result), radix: 16) else { throw Err.badJSON }
+        return n
+    }
 
-        for attempt in 0...callMaxRetries {
-            do {
-                try await Self.limiter.acquire(credits: costEthCall)
-                let body = try JSONSerialization.data(withJSONObject: [
-                    "jsonrpc": "2.0",
-                    "method":  "eth_call",
-                    "params":  [["to": to, "data": "0x" + data.hexString], "latest"],
-                    "id":      1
-                ] as [String: Any])
-
-                var req = URLRequest(url: rpcURL)
-                req.httpMethod = "POST"
-                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                req.httpBody = body
-                req.timeoutInterval = 15
-
-                log("eth_call → \(short(to)) \(selector)", level: .request)
-
-                let (responseData, response) = try await URLSession.shared.data(for: req)
-                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    throw Err.rpc("HTTP \(http.statusCode)")
-                }
-
-                guard let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
-                    log("eth_call ← bad JSON (\(debugBody(responseData)))", level: .error)
-                    throw Err.badJSON
-                }
-                if let err = json["error"] as? [String: Any] {
-                    let msg = err["message"] as? String ?? "unknown error"
-                    log("eth_call ← error: \(msg)", level: .error)
-                    throw Err.isRevert(code: err["code"], message: msg) ? Err.reverted(msg) : Err.rpc(msg)
-                }
-                guard let result = json["result"] as? String else {
-                    log("eth_call ← no result: \(short(to)) \(selector)", level: .error)
-                    throw Err.noResult
-                }
-
-                let hex = result.hasPrefix("0x") ? String(result.dropFirst(2)) : result
-                let resultData = Data(hexString: hex) ?? Data()
-                log("eth_call ← \(resultData.count)B", level: .response)
-                return resultData
-            } catch {
-                lastError = error
-                guard shouldRetry(error), attempt < callMaxRetries else { throw error }
-                let next = attempt + 1
-                log("eth_call retry \(next)/\(callMaxRetries) \(short(to)) \(selector)", level: .info)
-                try await sleepBeforeRetry(attempt: attempt, error: error)
-            }
-        }
-        throw lastError ?? Err.rpc("unknown")
+    private static func stripHexPrefix(_ hex: String) -> String {
+        hex.hasPrefix("0x") ? String(hex.dropFirst(2)) : hex
     }
 
     // MARK: - Helpers
