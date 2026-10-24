@@ -680,6 +680,23 @@ struct TickRangeBar: View {
         }
     }
 
+    enum LabelSlot { case lower, current, upper }
+
+    static func labelOrder(tick: Int, lower: Int, upper: Int) -> [LabelSlot] {
+        if tick < lower { return [.current, .lower, .upper] }
+        if Position.isInRange(tick: tick, lower: lower, upper: upper) { return [.lower, .current, .upper] }
+        return [.lower, .upper, .current]
+    }
+
+    @ViewBuilder
+    private func anchorLabel(_ slot: LabelSlot) -> some View {
+        switch slot {
+        case .lower:   Text(String(tickLower))
+        case .upper:   Text(String(tickUpper))
+        case .current: Text(String(Int(animatedTick.rounded()))).foregroundStyle(accent)
+        }
+    }
+
     init(tickLower: Int, tickUpper: Int, currentTick: Int, inRange: Bool?) {
         self.tickLower = tickLower
         self.tickUpper = tickUpper
@@ -773,14 +790,15 @@ struct TickRangeBar: View {
             }
             .frame(height: 14)
 
-            // Numeric anchors for quick orientation.
+            // Numeric anchors in tick order, so an out-of-range current tick sits on the
+            // needle's side instead of between the bounds.
+            let slots = Self.labelOrder(tick: currentTick, lower: tickLower, upper: tickUpper)
             HStack {
-                Text(String(tickLower))
+                anchorLabel(slots[0])
                 Spacer()
-                Text(String(Int(animatedTick.rounded())))
-                    .foregroundStyle(accent)
+                anchorLabel(slots[1])
                 Spacer()
-                Text(String(tickUpper))
+                anchorLabel(slots[2])
             }
             .font(.system(size: 9, weight: .regular, design: .monospaced))
             .foregroundStyle(.tertiary)
