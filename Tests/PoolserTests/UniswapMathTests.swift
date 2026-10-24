@@ -145,7 +145,7 @@ struct ComputeAmountsTests {
             feePct: "0.05", feeRaw: 500,
             fees0: 0, fees1: 0, tickLower: 0, tickUpper: Self.tickUpper, liquidity: liquidity
         )
-        UniswapService.computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: meta, priceMap: prices)
+        computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: meta, priceMap: prices)
         return p
     }
 
