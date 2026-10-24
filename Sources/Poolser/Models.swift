@@ -60,6 +60,12 @@ struct Position: Identifiable {
         tickLower <= -887200 && tickUpper >= 887200
     }
 
+    /// Uniswap semantics: a position is active iff `tickLower <= tick < tickUpper`.
+    /// At `tick == tickUpper` it holds only token1 and earns no fees.
+    static func isInRange(tick: Int, lower: Int, upper: Int) -> Bool {
+        tick >= lower && tick < upper
+    }
+
     var rangeLabel: String {
         if error != nil { return "ERROR" }
         if isFullRange   { return "FULL RANGE" }

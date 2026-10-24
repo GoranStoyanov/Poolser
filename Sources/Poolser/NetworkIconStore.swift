@@ -15,6 +15,9 @@ final class NetworkIconStore: ObservableObject {
     private var platformIconURLByPlatformID: [String: URL] = [:]
     private var didLoadPlatformIndex = false
     private var isLoadingPlatformIndex = false
+    /// Every icon view triggers a prefetch, so a failed index load must not be retried on each one.
+    private var lastPlatformIndexAttempt: Date?
+    private let platformIndexRetryInterval: TimeInterval = 60 * 60
     private var inFlightChainIDs: Set<String> = []
     private let iconFolderURL: URL
 
@@ -43,13 +46,17 @@ final class NetworkIconStore: ObservableObject {
 
     private func ensurePlatformIndexLoaded() async {
         if didLoadPlatformIndex || isLoadingPlatformIndex { return }
+        if let last = lastPlatformIndexAttempt,
+           Date().timeIntervalSince(last) < platformIndexRetryInterval { return }
+        lastPlatformIndexAttempt = Date()
         isLoadingPlatformIndex = true
         defer { isLoadingPlatformIndex = false }
 
         guard let url = URL(string: "https://api.coingecko.com/api/v3/asset_platforms") else { return }
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  let rows = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return }
             var map: [String: URL] = [:]
             for row in rows {
                 let imageStrFromObject: String? = {
