@@ -123,10 +123,10 @@ struct SettingsView: View {
                             }
                             Divider().opacity(0.35).padding(.leading, 14)
                             settingRow(
-                                label: "v4 Log Chunk Size",
-                                info: "Blocks per eth_getLogs request during v4 ownership discovery."
+                                label: "Log Chunk Size",
+                                info: "Blocks per eth_getLogs request (v4 ownership and claimed fees). Infura allows at most 10,000."
                             ) {
-                                Stepper(value: $draftV4LogChunkSize, in: 1_000...50_000, step: 1_000) {
+                                Stepper(value: $draftV4LogChunkSize, in: AppSettings.Defaults.v4LogChunkSizeRange, step: 1_000) {
                                     Text("\(draftV4LogChunkSize)")
                                         .font(.system(size: 12, design: .monospaced))
                                 }
