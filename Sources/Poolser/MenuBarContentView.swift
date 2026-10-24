@@ -151,26 +151,51 @@ struct MenuBarContentView: View {
                             .padding(.vertical, 24)
                             .frame(maxWidth: .infinity)
                     }
-                } else if service.positions.count == 1 {
-                    VStack(spacing: 6) {
-                        ForEach(service.positions) { pos in
-                            PositionCard(pos: pos)
-                        }
-                    }
-                    .padding(10)
                 } else {
-                    ScrollView {
+                    let visible = settings.positionListOptions.apply(to: service.positions)
+                    if service.positions.count > 1 || settings.positionListOptions.isFiltering {
+                        PositionListToolbar(
+                            options: $settings.positionListOptions,
+                            positions: service.positions,
+                            visibleCount: visible.count
+                        )
+                        Divider().opacity(0.4)
+                    }
+                    if visible.isEmpty {
+                        noMatchingPositions
+                    } else if visible.count == 1 {
                         VStack(spacing: 6) {
-                            ForEach(service.positions) { pos in
+                            ForEach(visible) { pos in
                                 PositionCard(pos: pos)
                             }
                         }
                         .padding(10)
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 6) {
+                                ForEach(visible) { pos in
+                                    PositionCard(pos: pos)
+                                }
+                            }
+                            .padding(10)
+                        }
+                        .frame(height: max(220, min(CGFloat(visible.count) * 150 + 14, 620)))
                     }
-                    .frame(height: max(220, min(CGFloat(service.positions.count) * 150 + 14, 620)))
                 }
             }
         }
+    }
+
+    private var noMatchingPositions: some View {
+        VStack(spacing: 8) {
+            Text("No positions match the filters")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Button("Clear Filters") { settings.positionListOptions.clearFilters() }
+                .controlSize(.small)
+        }
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Footer
@@ -238,6 +263,101 @@ private struct BrandMark: View {
             return appIcon
         }
         return nil
+    }
+}
+
+// MARK: - Position List Toolbar
+
+private struct PositionListToolbar: View {
+    @Binding var options: PositionListOptions
+    let positions: [Position]
+    let visibleCount: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(countLabel)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Spacer()
+            filterMenu
+            sortMenu
+        }
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+    }
+
+    private var countLabel: String {
+        let total = positions.count
+        let noun = total == 1 ? "position" : "positions"
+        return options.isFiltering ? "\(visibleCount) of \(total) \(noun)" : "\(total) \(noun)"
+    }
+
+    /// Chains that have positions, plus the selected one so it can still be seen and cleared
+    /// after its positions are gone.
+    private var chainChoices: [(id: String, name: String)] {
+        var names: [String: String] = [:]
+        for pos in positions where names[pos.chainID] == nil {
+            names[pos.chainID] = SupportedChain.byID(pos.chainID)?.displayName ?? pos.chainName
+        }
+        if let selected = options.chainID, names[selected] == nil {
+            names[selected] = SupportedChain.byID(selected)?.displayName ?? selected
+        }
+        return names.map { (id: $0.key, name: $0.value) }.sorted { $0.name < $1.name }
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Toggle("In Range Only", isOn: $options.inRangeOnly)
+            Section("Version") {
+                Picker("Version", selection: $options.version) {
+                    ForEach(PositionVersionFilter.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+            let chains = chainChoices
+            if chains.count > 1 || options.chainID != nil {
+                Section("Chain") {
+                    Picker("Chain", selection: $options.chainID) {
+                        Text("All Chains").tag(String?.none)
+                        ForEach(chains, id: \.id) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+            }
+            Divider()
+            Button("Clear Filters") { options.clearFilters() }
+                .disabled(!options.isFiltering)
+        } label: {
+            Label("Filter", systemImage: options.isFiltering
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
+        }
+        .menuStyle(.borderlessButton)
+        .tint(options.isFiltering ? .accentColor : nil)
+        .fixedSize()
+        .help("Filter positions")
+        .accessibilityValue(options.isFiltering ? "On" : "Off")
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Section("Sort By") {
+                Picker("Sort By", selection: $options.sort) {
+                    ForEach(PositionSort.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        } label: {
+            Label(options.sort.title, systemImage: "arrow.up.arrow.down")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Sort positions")
+        .accessibilityLabel("Sort by \(options.sort.title)")
     }
 }
 
