@@ -10,9 +10,20 @@ struct MenuBarContentView: View {
     @State private var showSettings = false
     @State private var showLogs     = false
     @State private var now          = Date()
+    /// Measured height of the cards, so the list is only as tall as its content.
+    @State private var listContentHeight: CGFloat?
+    @State private var screenSize: CGSize = .zero
     private let clockTick = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        screen
+            .fixedSize()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { screenSize = $0 }
+            .background(MenuWindowSizer(contentSize: screenSize))
+    }
+
+    @ViewBuilder
+    private var screen: some View {
         if showSettings {
             SettingsView(onDismiss: { showSettings = false })
                 .environmentObject(service)
@@ -179,8 +190,11 @@ struct MenuBarContentView: View {
                                 }
                             }
                             .padding(10)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listContentHeight = $0 }
                         }
-                        .frame(height: max(220, min(CGFloat(visible.count) * 150 + 14, 620)))
+                        // A definite height lets the menu window resize when the list changes;
+                        // the estimate only covers the first layout pass, before the cards are measured.
+                        .frame(height: min(listContentHeight ?? CGFloat(visible.count) * 150 + 20, 620))
                     }
                 }
             }
@@ -229,6 +243,29 @@ struct MenuBarContentView: View {
         .padding(.vertical, 8)
     }
 
+}
+
+/// MenuBarExtra grows its window for taller content but never shrinks it: a shorter screen
+/// (Logs after the position list) is centred between empty, transparent bands. This resizes
+/// the window to the screen's size, keeping its top edge under the menu bar.
+private struct MenuWindowSizer: NSViewRepresentable {
+    let contentSize: CGSize
+
+    func makeNSView(context: Context) -> NSView { NSView() }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        let size = contentSize
+        // The view is attached to its window after the first update.
+        DispatchQueue.main.async {
+            guard let window = view.window, size.width > 0, size.height > 0 else { return }
+            let current = window.contentRect(forFrameRect: window.frame).size
+            guard abs(current.width - size.width) > 0.5 || abs(current.height - size.height) > 0.5 else { return }
+            var frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+            frame.origin.x = window.frame.midX - frame.width / 2
+            frame.origin.y = window.frame.maxY - frame.height
+            window.setFrame(frame, display: true)
+        }
+    }
 }
 
 private struct BrandMark: View {
