@@ -86,13 +86,13 @@ struct Position: Identifiable {
     /// USD value of unclaimed fees, formatted.
     var feesUSDLabel: String? {
         guard let usd else { return nil }
-        return String(format: "$%.2f", usd)
+        return formatUSD(usd)
     }
 
 
     var claimedUSDLabel: String? {
         guard let usd = claimedUSD, usd > 0 else { return nil }
-        return String(format: "$%.2f", usd)
+        return formatUSD(usd)
     }
 
     var claimedFeesLabel: String? {
@@ -114,7 +114,7 @@ struct Position: Identifiable {
     /// Total position liquidity value in USD, formatted.
     var positionUSDLabel: String? {
         guard let positionUSD, positionUSD > 0 else { return nil }
-        return String(format: "$%.2f", positionUSD)
+        return formatUSD(positionUSD)
     }
 
     var volumeLabel: String? {
@@ -145,8 +145,15 @@ private func formatCompact(_ x: Double) -> String {
     case 1_000_000_000...: return String(format: "$%.2fB", x / 1_000_000_000)
     case 1_000_000...:     return String(format: "$%.2fM", x / 1_000_000)
     case 1_000...:         return String(format: "$%.1fK", x / 1_000)
-    default:               return String(format: "$%.2f", x)
+    default:               return formatUSD(x)
     }
+}
+
+/// "$12,400.00". US separators regardless of the system locale: the UI is English and the
+/// compact amounts ("$3.40M") use a decimal point, so a locale such as en_BG would show
+/// "$12 400,00" next to them.
+func formatUSD(_ x: Double) -> String {
+    x.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
 }
 
 private func trimNum(_ x: Double) -> String {
