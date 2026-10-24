@@ -112,6 +112,12 @@ final class AppSettings: ObservableObject {
     @Published var notifyOnRangeChange: Bool {
         didSet { UserDefaults.standard.set(notifyOnRangeChange, forKey: "notifyOnRangeChange") }
     }
+    @Published var positionListOptions: PositionListOptions {
+        didSet {
+            guard positionListOptions != oldValue else { return }
+            positionListOptions.save(to: .standard)
+        }
+    }
     @Published var loginItemError: String?
 
     nonisolated static let infuraKeyAccount = "infuraAPIKey"
@@ -145,6 +151,7 @@ final class AppSettings: ObservableObject {
         flashOnValueChange = ud.object(forKey: "flashOnValueChange") as? Bool ?? true
         trackClaimedFees = ud.object(forKey: "trackClaimedFees") as? Bool ?? false
         notifyOnRangeChange = ud.object(forKey: "notifyOnRangeChange") as? Bool ?? false
+        positionListOptions = PositionListOptions(defaults: ud)
 
         // Sync stored preference with the actual service status on launch
         let actuallyEnabled = SMAppService.mainApp.status == .enabled
