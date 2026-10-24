@@ -260,6 +260,9 @@ struct EthereumClient {
                 return result
             } catch {
                 lastError = error
+                if Self.isRateLimit(error), let cps = await limiter.noteRateLimited() {
+                    log("rate limited — RPC pace lowered to \(Int(cps)) credits/s, recovers gradually", level: .info)
+                }
                 guard shouldRetry(error), attempt < spec.maxRetries else { throw error }
                 let next = attempt + 1
                 log("\(spec.label) retry \(next)/\(spec.maxRetries)\(spec.retryDetail) — \(Self.retryReason(error))", level: .info)
@@ -285,6 +288,14 @@ struct EthereumClient {
               let message = err["message"] as? String, !message.isEmpty
         else { return "HTTP \(status)" }
         return "HTTP \(status): \(message)"
+    }
+
+    /// The provider is throttling us: HTTP 429, or a JSON-RPC error saying so on HTTP 200.
+    static func isRateLimit(_ error: Error) -> Bool {
+        guard case let Err.rpc(message) = error else { return false }
+        if message.hasPrefix("HTTP 429") { return true }
+        let m = message.lowercased()
+        return ["too many requests", "rate limit", "rate exceeded", "request rate"].contains { m.contains($0) }
     }
 
     /// Short reason shown in "retry n/max" log lines.
@@ -341,7 +352,7 @@ struct EthereumClient {
 
     private func sleepBeforeRetry(attempt: Int, error: Error) async throws {
         let baseMs: Int
-        if case let Err.rpc(message) = error, message.contains("HTTP 429") {
+        if Self.isRateLimit(error) {
             // Stronger cooldown when provider explicitly rate-limits us.
             baseMs = 900 * (1 << attempt)
         } else {
@@ -361,17 +372,43 @@ struct EthereumClient {
     }
 }
 
+/// Token bucket for the provider's credit budget. It also backs off on its own: a rate-limit
+/// response halves the effective rate (down to `minThrottle` of the configured budget) and
+/// empties the bucket, and the rate climbs back by `recoveryStep` every `recoveryInterval`
+/// seconds without another rate limit.
 actor RPCCreditLimiter {
+    static let minThrottle = 0.125
+    static let recoveryStep = 0.125
+    static let recoveryInterval: TimeInterval = 15
+    /// Rate limits closer together than this count once, so one burst of parallel requests
+    /// that all get HTTP 429 lowers the rate a single step.
+    static let penaltyWindow: TimeInterval = 1
+
     private var creditsPerSecond: Double
     private var maxBurstCredits: Double
     private(set) var availableCredits: Double
     private var lastRefill: TimeInterval
+    /// Fraction of the configured budget currently in use (minThrottle...1).
+    private(set) var throttle: Double = 1
+    private var lastThrottleChange: TimeInterval
+    private var lastPenalty: TimeInterval = -.infinity
+    private let now: @Sendable () -> TimeInterval
 
-    init(creditsPerSecond: Double, maxBurstCredits: Double) {
+    init(
+        creditsPerSecond: Double,
+        maxBurstCredits: Double,
+        now: @escaping @Sendable () -> TimeInterval = { Date().timeIntervalSince1970 }
+    ) {
         self.creditsPerSecond = max(1, creditsPerSecond)
         self.maxBurstCredits = max(1, maxBurstCredits)
         self.availableCredits = self.maxBurstCredits
-        self.lastRefill = Date().timeIntervalSince1970
+        self.now = now
+        self.lastRefill = now()
+        self.lastThrottleChange = lastRefill
+    }
+
+    var effectiveCreditsPerSecond: Double {
+        creditsPerSecond * throttle
     }
 
     func configure(creditsPerSecond: Double, maxBurstCredits: Double) {
@@ -393,17 +430,41 @@ actor RPCCreditLimiter {
                 return
             }
             let deficit = needed - availableCredits
-            let seconds = max(0.05, deficit / creditsPerSecond)
+            let seconds = max(0.05, deficit / effectiveCreditsPerSecond)
             let nanos = UInt64(seconds * 1_000_000_000)
             try await Task.sleep(nanoseconds: nanos)
         }
     }
 
+    /// Called when the provider answered with a rate limit. Returns the new effective
+    /// credits/s when the rate was lowered, nil when this limit was already accounted for.
+    @discardableResult
+    func noteRateLimited() -> Double? {
+        refill()
+        let t = now()
+        // Requests already waiting must not go out at the old pace.
+        availableCredits = 0
+        guard t - lastPenalty >= Self.penaltyWindow else { return nil }
+        lastPenalty = t
+        guard throttle > Self.minThrottle else { return nil }
+        throttle = max(Self.minThrottle, throttle / 2)
+        lastThrottleChange = t
+        return effectiveCreditsPerSecond
+    }
+
     private func refill() {
-        let now = Date().timeIntervalSince1970
-        let elapsed = max(0, now - lastRefill)
+        let t = now()
+        recoverThrottle(at: t)
+        let elapsed = max(0, t - lastRefill)
         guard elapsed > 0 else { return }
-        availableCredits = min(maxBurstCredits, availableCredits + elapsed * creditsPerSecond)
-        lastRefill = now
+        availableCredits = min(maxBurstCredits, availableCredits + elapsed * effectiveCreditsPerSecond)
+        lastRefill = t
+    }
+
+    private func recoverThrottle(at t: TimeInterval) {
+        while throttle < 1, t - lastThrottleChange >= Self.recoveryInterval {
+            throttle = min(1, throttle + Self.recoveryStep)
+            lastThrottleChange += Self.recoveryInterval
+        }
     }
 }

@@ -39,8 +39,10 @@ private actor FakeTransport {
     }
 }
 
-private func client(_ fake: FakeTransport) -> EthereumClient {
-    EthereumClient(rpcURL: rpcURL) { try await fake.send($0) }
+/// Each client gets its own generous limiter, so rate-limit tests cannot slow the shared one.
+private func client(_ fake: FakeTransport, limiter: RPCCreditLimiter? = nil) -> EthereumClient {
+    let limiter = limiter ?? RPCCreditLimiter(creditsPerSecond: 1_000_000, maxBurstCredits: 1_000_000)
+    return EthereumClient(rpcURL: rpcURL, limiter: limiter) { try await fake.send($0) }
 }
 
 private func result(_ json: String) -> FakeTransport.Reply {
@@ -218,6 +220,21 @@ private func rpcError(code: Int, message: String) -> FakeTransport.Reply {
         #expect(try await client(fake).ethBlockNumber() == 42)
         #expect(ContinuousClock.now - start >= .milliseconds(900))
         #expect(await fake.attempts == 2)
+    }
+
+    /// A 429 must slow every later request, not only the retried one.
+    @Test func rateLimitLowersSharedPace() async throws {
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 400)
+        let fake = FakeTransport([.http(429, ""), result(#""0x2a""#)])
+        #expect(try await client(fake, limiter: limiter).ethBlockNumber() == 42)
+        #expect(await limiter.effectiveCreditsPerSecond == 200)
+    }
+
+    @Test func otherErrorsLeavePaceAlone() async throws {
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 400)
+        let fake = FakeTransport([.http(503, ""), result(#""0x2a""#)])
+        #expect(try await client(fake, limiter: limiter).ethBlockNumber() == 42)
+        #expect(await limiter.effectiveCreditsPerSecond == 400)
     }
 
     @Test func cancelledTransportIsNotRetried() async throws {
