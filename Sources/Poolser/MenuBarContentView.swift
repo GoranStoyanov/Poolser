@@ -10,6 +10,8 @@ struct MenuBarContentView: View {
     @State private var showSettings = false
     @State private var showLogs     = false
     @State private var now          = Date()
+    /// Measured height of the cards, so the list is only as tall as its content.
+    @State private var listContentHeight: CGFloat?
     private let clockTick = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -178,8 +180,11 @@ struct MenuBarContentView: View {
                                 }
                             }
                             .padding(10)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listContentHeight = $0 }
                         }
-                        .frame(height: max(220, min(CGFloat(visible.count) * 150 + 14, 620)))
+                        // A definite height lets the menu window resize when the list changes;
+                        // the estimate only covers the first layout pass, before the cards are measured.
+                        .frame(height: min(listContentHeight ?? CGFloat(visible.count) * 150 + 20, 620))
                     }
                 }
             }

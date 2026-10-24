@@ -136,7 +136,8 @@ struct LogsView: View {
                     }
                 }
             }
-            .frame(maxHeight: 380)
+            // A flexible height would keep whatever height the menu window had before Logs opened.
+            .frame(height: 380)
         }
     }
 }
