@@ -16,6 +16,7 @@
 		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
 		53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1302F8F628F00C82982 /* UniswapService.swift */; };
 		53A0B3112FB0C0DE00B5EC27 /* ChainLoadResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3102FB0C0DE00B5EC27 /* ChainLoadResult.swift */; };
+		53A0B31D2FB0C0DE00B5EC27 /* ContractReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */; };
 		53A0B3132FB0C0DE00B5EC27 /* TokenMetadataResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3122FB0C0DE00B5EC27 /* TokenMetadataResolver.swift */; };
 		53A0B3152FB0C0DE00B5EC27 /* V3PositionLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3142FB0C0DE00B5EC27 /* V3PositionLoader.swift */; };
 		53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */; };
@@ -61,6 +62,7 @@
 		53FAE12F2F8F628F00C82982 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = ../Sources/Poolser/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1302F8F628F00C82982 /* UniswapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapService.swift; path = ../Sources/Poolser/UniswapService.swift; sourceTree = SOURCE_ROOT; };
 		53A0B3102FB0C0DE00B5EC27 /* ChainLoadResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainLoadResult.swift; path = ../Sources/Poolser/Loading/ChainLoadResult.swift; sourceTree = SOURCE_ROOT; };
+		53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContractReader.swift; path = ../Sources/Poolser/Loading/ContractReader.swift; sourceTree = SOURCE_ROOT; };
 		53A0B3122FB0C0DE00B5EC27 /* TokenMetadataResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenMetadataResolver.swift; path = ../Sources/Poolser/Loading/TokenMetadataResolver.swift; sourceTree = SOURCE_ROOT; };
 		53A0B3142FB0C0DE00B5EC27 /* V3PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V3PositionLoader.swift; path = ../Sources/Poolser/Loading/V3PositionLoader.swift; sourceTree = SOURCE_ROOT; };
 		53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4OwnershipTracker.swift; path = ../Sources/Poolser/Loading/V4OwnershipTracker.swift; sourceTree = SOURCE_ROOT; };
@@ -115,6 +117,7 @@
 				53FAE12F2F8F628F00C82982 /* SettingsView.swift */,
 				53FAE1302F8F628F00C82982 /* UniswapService.swift */,
 				53A0B3102FB0C0DE00B5EC27 /* ChainLoadResult.swift */,
+				53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */,
 				53A0B3122FB0C0DE00B5EC27 /* TokenMetadataResolver.swift */,
 				53A0B3142FB0C0DE00B5EC27 /* V3PositionLoader.swift */,
 				53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */,
@@ -225,6 +228,7 @@
 				53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */,
 				53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */,
 				53A0B3112FB0C0DE00B5EC27 /* ChainLoadResult.swift in Sources */,
+				53A0B31D2FB0C0DE00B5EC27 /* ContractReader.swift in Sources */,
 				53A0B3132FB0C0DE00B5EC27 /* TokenMetadataResolver.swift in Sources */,
 				53A0B3152FB0C0DE00B5EC27 /* V3PositionLoader.swift in Sources */,
 				53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */,

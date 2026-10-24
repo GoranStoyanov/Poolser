@@ -220,18 +220,13 @@ struct V4OwnershipTracker {
         _ ids: some Sequence<UInt64>,
         wallet: String
     ) async -> [(tokenId: UInt64, isOwner: Bool?)] {
-        await withTaskGroup(of: (UInt64, Bool?).self) { group -> [(tokenId: UInt64, isOwner: Bool?)] in
-            for tokenId in ids {
-                group.addTask {
-                    let result: Result<Data, Error>
-                    do { result = .success(try await eth.ethCall(to: positionManager, data: ABI.callOwnerOf(tokenId: tokenId))) }
-                    catch { result = .failure(error) }
-                    return (tokenId, v4OwnerCheck(result, wallet: wallet))
-                }
-            }
-            var result: [(tokenId: UInt64, isOwner: Bool?)] = []
-            for await update in group { result.append(update) }
-            return result
+        let tokenIds = Array(ids)
+        let results = await ContractReader(eth: eth, multicall3: chain.multicall3).read(
+            tokenIds.map { ContractCall(target: positionManager, data: ABI.callOwnerOf(tokenId: $0)) },
+            context: "v4 \(chain.displayName) ownerOf"
+        )
+        return zip(tokenIds, results).map { tokenId, result in
+            (tokenId, v4OwnerCheck(result, wallet: wallet))
         }
     }
 

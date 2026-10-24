@@ -285,3 +285,125 @@ extension ABI {
     }
 }
 
+
+// MARK: - Multicall3
+
+/// One sub-call of Multicall3 `aggregate3`. With `allowFailure`, a revert is reported in that
+/// call's result instead of reverting the whole batch.
+struct Call3: Equatable {
+    let target: String
+    let allowFailure: Bool
+    let data: Data
+}
+
+struct Call3Result: Equatable {
+    let success: Bool
+    /// Return data on success, raw revert data otherwise.
+    let returnData: Data
+}
+
+extension ABI {
+    struct DecodeError: LocalizedError {
+        let errorDescription: String?
+        init(_ message: String) { errorDescription = "ABI decode: \(message)" }
+    }
+
+    private static let sel_aggregate3: Data = {
+        keccak256(Data("aggregate3((address,bool,bytes)[])".utf8)).prefix(4)
+    }()
+
+    /// aggregate3((address target, bool allowFailure, bytes callData)[])
+    /// Layout: offset to the array, its length, one offset per tuple (relative to the first
+    /// offset word), then each tuple as target, allowFailure, offset to callData (always 0x60),
+    /// callData length and callData right-padded to a word boundary.
+    static func encodeAggregate3(_ calls: [Call3]) -> Data {
+        var tuples: [Data] = []
+        tuples.reserveCapacity(calls.count)
+        for call in calls {
+            var tuple = encodeAddress(call.target)
+            tuple += encodeUInt256(call.allowFailure ? 1 : 0)
+            tuple += encodeUInt256(96)
+            tuple += encodeUInt256(UInt64(call.data.count))
+            tuple += call.data
+            tuple += Data(count: (32 - call.data.count % 32) % 32)
+            tuples.append(tuple)
+        }
+
+        var out = sel_aggregate3 + encodeUInt256(32) + encodeUInt256(UInt64(calls.count))
+        var offset = 32 * calls.count
+        for tuple in tuples {
+            out += encodeUInt256(UInt64(offset))
+            offset += tuple.count
+        }
+        for tuple in tuples { out += tuple }
+        return out
+    }
+
+    /// Decodes the `(bool success, bytes returnData)[]` returned by aggregate3.
+    static func decodeAggregate3Result(_ raw: Data) throws -> [Call3Result] {
+        // The word readers index from 0, so rebase slices first.
+        let data = Data(raw)
+        let array = try readOffset(data, wordAt: 0)
+        let count = try readLength(data, wordAt: array)
+        let heads = array + 32
+        guard count <= (data.count - heads) / 32 else {
+            throw DecodeError("aggregate3 result claims \(count) entries in \(data.count)B")
+        }
+
+        var results: [Call3Result] = []
+        results.reserveCapacity(count)
+        for i in 0..<count {
+            let tuple = heads + (try readOffset(data, wordAt: heads + 32 * i))
+            guard tuple <= data.count - 64 else {
+                throw DecodeError("aggregate3 entry \(i) out of bounds")
+            }
+            let success = !data.isZeroWord(at: tuple)
+            let bytes = tuple + (try readOffset(data, wordAt: tuple + 32))
+            let length = try readLength(data, wordAt: bytes)
+            guard length <= data.count - bytes - 32 else {
+                throw DecodeError("aggregate3 entry \(i) return data out of bounds")
+            }
+            let start = bytes + 32
+            results.append(Call3Result(success: success, returnData: data.subdata(in: start..<(start + length))))
+        }
+        return results
+    }
+
+    /// Human-readable form of a sub-call's revert data, in the shape node errors use
+    /// ("execution reverted: <reason>").
+    static func revertMessage(_ data: Data) -> String {
+        let selector = data.prefix(4).hexString
+        switch selector {
+        case "08c379a0": // Error(string)
+            let reason = Data(data.dropFirst(4)).readABIString()
+            return reason.isEmpty ? "execution reverted" : "execution reverted: \(reason)"
+        case "4e487b71": // Panic(uint256)
+            let code = Data(data.dropFirst(4)).readUInt64(wordAt: 0)
+            return "execution reverted: panic 0x\(String(code, radix: 16))"
+        case "":
+            return "execution reverted"
+        default:
+            return "execution reverted: 0x\(selector)"
+        }
+    }
+
+    /// A word holding a byte offset that must land inside `data`.
+    private static func readOffset(_ data: Data, wordAt offset: Int) throws -> Int {
+        let value = try readLength(data, wordAt: offset)
+        guard value <= data.count else { throw DecodeError("offset \(value) past \(data.count)B") }
+        return value
+    }
+
+    /// A word holding a small non-negative integer (count, length or offset).
+    private static func readLength(_ data: Data, wordAt offset: Int) throws -> Int {
+        guard offset >= 0, offset <= data.count - 32 else {
+            throw DecodeError("word at \(offset) past \(data.count)B")
+        }
+        guard data[offset..<(offset + 24)].allSatisfy({ $0 == 0 }) else {
+            throw DecodeError("word at \(offset) is not a valid length")
+        }
+        let value = data.readUInt64(wordAt: offset)
+        guard value <= UInt64(Int32.max) else { throw DecodeError("length \(value) too large") }
+        return Int(value)
+    }
+}

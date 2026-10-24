@@ -228,3 +228,42 @@ private func rpcError(code: Int, message: String) -> FakeTransport.Reply {
         #expect(await fake.attempts == 1)
     }
 }
+
+@Suite struct EthereumClientHTTPErrorTests {
+    /// Infura explains 429/403 in a JSON-RPC error body; the reason must survive into the error.
+    @Test func httpErrorKeepsJSONRPCReasonFromBody() async throws {
+        let body = #"{"jsonrpc":"2.0","id":1,"error":{"code":-32005,"message":"project ID request rate exceeded"}}"#
+        let fake = FakeTransport([.http(429, body), result(#""0x2a""#)])
+        #expect(try await client(fake).ethBlockNumber() == 42)
+        #expect(await fake.attempts == 2)
+    }
+
+    @Test func forbiddenStatusCarriesAccessMessage() async throws {
+        let body = #"{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"project ID does not have access to this network"}}"#
+        let fake = FakeTransport([.http(403, body)])
+        await #expect {
+            _ = try await client(fake).ethChainId()
+        } throws: { error in
+            guard case EthereumClient.Err.rpc(let message) = error else { return false }
+            return message == "HTTP 403: project ID does not have access to this network"
+        }
+        #expect(await fake.attempts == 1)
+    }
+
+    @Test(arguments: [
+        (429, #"{"error":{"code":-32005,"message":"rate exceeded"}}"#, "HTTP 429: rate exceeded"),
+        (500, "oops", "HTTP 500"),
+        (502, "", "HTTP 502"),
+        (503, #"{"error":{"message":""}}"#, "HTTP 503"),
+    ])
+    func httpErrorMessage(status: Int, body: String, expected: String) {
+        #expect(EthereumClient.httpErrorMessage(status: status, body: Data(body.utf8)) == expected)
+    }
+
+    @Test func retryReasonNamesTheCause() {
+        #expect(EthereumClient.retryReason(EthereumClient.Err.rpc("HTTP 429: rate exceeded")) == "HTTP 429: rate exceeded")
+        #expect(EthereumClient.retryReason(EthereumClient.Err.noResult) == "no result")
+        #expect(EthereumClient.retryReason(EthereumClient.Err.badJSON) == "bad JSON")
+        #expect(EthereumClient.retryReason(URLError(.timedOut)).hasPrefix("network error -1001"))
+    }
+}
