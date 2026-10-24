@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var draftFlashOnValueChange: Bool
     @State private var draftTrackClaimedFees: Bool
     @State private var draftNotifyOnRangeChange: Bool
+    @State private var isAPIKeyRevealed = false
 
     init(onDismiss: (() -> Void)? = nil) {
         self.onDismiss = onDismiss
@@ -64,12 +65,7 @@ struct SettingsView: View {
                                 error: walletAddressError
                             )
                             Divider().opacity(0.35).padding(.leading, 14)
-                            fieldRow(
-                                label: "Infura API Key",
-                                info: "Only the API key is needed. RPC URLs are generated per enabled chain.",
-                                placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                                text: $draftInfuraAPIKey
-                            )
+                            apiKeyRow
                             Divider().opacity(0.35).padding(.leading, 14)
                             VStack(alignment: .leading, spacing: 8) {
                                 infoTitle("Enabled Networks", info: "Select which Infura-backed EVM chains to scan.")
@@ -329,6 +325,35 @@ struct SettingsView: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var apiKeyRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            infoTitle("Infura API Key", info: "Only the API key is needed. RPC URLs are generated per enabled chain. Stored in the Keychain.")
+            HStack(spacing: 6) {
+                Group {
+                    if isAPIKeyRevealed {
+                        TextField("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", text: $draftInfuraAPIKey)
+                    } else {
+                        SecureField("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", text: $draftInfuraAPIKey)
+                    }
+                }
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, design: .monospaced))
+                Button {
+                    isAPIKeyRevealed.toggle()
+                } label: {
+                    Image(systemName: isAPIKeyRevealed ? "eye.slash" : "eye")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isAPIKeyRevealed ? "Hide API key" : "Show API key")
+                .accessibilityLabel(isAPIKeyRevealed ? "Hide API key" : "Show API key")
             }
         }
         .padding(.horizontal, 14)
