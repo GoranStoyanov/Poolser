@@ -65,14 +65,21 @@ private let bareHex = String(address.dropFirst(2))
     @Test func defaultsMatchFreshInstallAndFitSettingRanges() {
         #expect(AppSettings.Defaults.refreshIntervalMinutes == 10)
         #expect(AppSettings.Defaults.rpcCreditsPerSecondBudget == 400)
-        #expect(AppSettings.Defaults.v4LogChunkSize == 20_000)
+        #expect(AppSettings.Defaults.v4LogChunkSize == 10_000)
         #expect(AppSettings.Defaults.v4LogMaxConcurrentRequests == 3)
         #expect(AppSettings.Defaults.v4BootstrapMaxChunksPerRefresh == 120)
 
         #expect((1...120).contains(AppSettings.Defaults.refreshIntervalMinutes))
         #expect((50...5_000).contains(AppSettings.Defaults.rpcCreditsPerSecondBudget))
-        #expect((1_000...50_000).contains(AppSettings.Defaults.v4LogChunkSize))
+        #expect(AppSettings.Defaults.v4LogChunkSizeRange.contains(AppSettings.Defaults.v4LogChunkSize))
         #expect((1...8).contains(AppSettings.Defaults.v4LogMaxConcurrentRequests))
         #expect((5...200).contains(AppSettings.Defaults.v4BootstrapMaxChunksPerRefresh))
+    }
+
+    /// Infura rejects eth_getLogs over more than 10,000 blocks; stored values from older
+    /// versions (12,000 / 20,000) must be pulled down or every log scan fails forever.
+    @Test(arguments: [(12_000, 10_000), (20_000, 10_000), (50_000, 10_000), (10_000, 10_000), (5_000, 5_000), (500, 1_000)])
+    func logChunkSizeIsClampedToInfuraLimit(stored: Int, expected: Int) {
+        #expect(AppSettings.clampLogChunkSize(stored) == expected)
     }
 }

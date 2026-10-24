@@ -12,9 +12,16 @@ final class AppSettings: ObservableObject {
         static let refreshIntervalMinutes = 10
         static let enabledChainIDs = ["ethereum"]
         static let rpcCreditsPerSecondBudget = 400
-        static let v4LogChunkSize = 20_000
+        static let v4LogChunkSize = 10_000
         static let v4LogMaxConcurrentRequests = 3
         static let v4BootstrapMaxChunksPerRefresh = 120
+        /// Infura rejects eth_getLogs spanning more than 10,000 blocks
+        /// ("range 11999 exceeds limit of 10000"), so larger chunks can never succeed.
+        static let v4LogChunkSizeRange = 1_000...10_000
+    }
+
+    nonisolated static func clampLogChunkSize(_ value: Int) -> Int {
+        Swift.max(Defaults.v4LogChunkSizeRange.lowerBound, Swift.min(value, Defaults.v4LogChunkSizeRange.upperBound))
     }
 
     @Published var walletAddress: String {
@@ -65,7 +72,7 @@ final class AppSettings: ObservableObject {
     }
     @Published var v4LogChunkSize: Int {
         didSet {
-            let clamped = Self.clamp(v4LogChunkSize, min: 1_000, max: 50_000)
+            let clamped = Self.clampLogChunkSize(v4LogChunkSize)
             if clamped != v4LogChunkSize {
                 v4LogChunkSize = clamped
                 return
@@ -129,7 +136,7 @@ final class AppSettings: ObservableObject {
         let cpsRaw = ud.object(forKey: "rpcCreditsPerSecondBudget") as? Int ?? Defaults.rpcCreditsPerSecondBudget
         rpcCreditsPerSecondBudget = Self.clamp(cpsRaw, min: 50, max: 5_000)
         let chunkRaw = ud.object(forKey: "v4LogChunkSize") as? Int ?? Defaults.v4LogChunkSize
-        v4LogChunkSize = Self.clamp(chunkRaw, min: 1_000, max: 50_000)
+        v4LogChunkSize = Self.clampLogChunkSize(chunkRaw)
         let concurrentRaw = ud.object(forKey: "v4LogMaxConcurrentRequests") as? Int ?? Defaults.v4LogMaxConcurrentRequests
         v4LogMaxConcurrentRequests = Self.clamp(concurrentRaw, min: 1, max: 8)
         let bootstrapRaw = ud.object(forKey: "v4BootstrapMaxChunksPerRefresh") as? Int ?? Defaults.v4BootstrapMaxChunksPerRefresh
