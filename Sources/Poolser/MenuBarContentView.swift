@@ -153,6 +153,7 @@ struct MenuBarContentView: View {
                     }
                 } else {
                     let visible = settings.positionListOptions.apply(to: service.positions)
+                    let spansChains = Set(service.positions.map(\.chainID)).count > 1
                     if service.positions.count > 1 || settings.positionListOptions.isFiltering {
                         PositionListToolbar(
                             options: $settings.positionListOptions,
@@ -166,7 +167,7 @@ struct MenuBarContentView: View {
                     } else if visible.count == 1 {
                         VStack(spacing: 6) {
                             ForEach(visible) { pos in
-                                PositionCard(pos: pos)
+                                PositionCard(pos: pos, onShowOnlyChain: chainFilterAction(for: pos, spansChains: spansChains))
                             }
                         }
                         .padding(10)
@@ -174,7 +175,7 @@ struct MenuBarContentView: View {
                         ScrollView {
                             VStack(spacing: 6) {
                                 ForEach(visible) { pos in
-                                    PositionCard(pos: pos)
+                                    PositionCard(pos: pos, onShowOnlyChain: chainFilterAction(for: pos, spansChains: spansChains))
                                 }
                             }
                             .padding(10)
@@ -184,6 +185,11 @@ struct MenuBarContentView: View {
                 }
             }
         }
+    }
+
+    private func chainFilterAction(for pos: Position, spansChains: Bool) -> (() -> Void)? {
+        guard spansChains, settings.positionListOptions.chainID != pos.chainID else { return nil }
+        return { settings.positionListOptions.chainID = pos.chainID }
     }
 
     private var noMatchingPositions: some View {
@@ -365,6 +371,8 @@ private struct PositionListToolbar: View {
 
 struct PositionCard: View {
     let pos: Position
+    /// Nil when every position is on one chain or the list is already filtered to this one.
+    var onShowOnlyChain: (() -> Void)? = nil
 
     var body: some View {
         if let error = pos.error {
@@ -391,6 +399,10 @@ struct PositionCard: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassCard(cornerRadius: 10)
+            .contextMenu {
+                Button("Copy Error") { copy(error) }
+                Button("Copy Position ID") { copy(pos.tokenId) }
+            }
         } else {
             Button { openInUniswap() } label: {
                 cardContent.contentShape(Rectangle())
@@ -400,7 +412,36 @@ struct PositionCard: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .stroke(rangeColor.opacity(0.5), lineWidth: 1)
             )
+            .contextMenu { cardMenu }
         }
+    }
+
+    @ViewBuilder
+    private var cardMenu: some View {
+        Button("Open in Uniswap") { openInUniswap() }
+        Divider()
+        Button("Copy Position ID") { copy(pos.tokenId) }
+        if let poolRef {
+            Button(pos.isV4 ? "Copy Pool ID" : "Copy Pool Address") { copy(poolRef) }
+        }
+        if let onShowOnlyChain {
+            Divider()
+            Button("Show Only \(chainDisplayName) Positions", action: onShowOnlyChain)
+        }
+    }
+
+    /// v4 pools have no contract of their own; they are identified by the PoolKey hash.
+    private var poolRef: String? {
+        pos.isV4 ? pos.poolId.map { "0x" + $0.hexString } : pos.poolAddress
+    }
+
+    private var chainDisplayName: String {
+        SupportedChain.byID(pos.chainID)?.displayName ?? pos.chainName
+    }
+
+    private func copy(_ string: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
     }
 
     private var cardContent: some View {
