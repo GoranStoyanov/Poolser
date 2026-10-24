@@ -27,8 +27,15 @@ final class AppSettings: ObservableObject {
             }
         }
     }
+    /// Persisted in the Keychain. Read once at launch and kept here, so request paths never
+    /// touch the Keychain.
     @Published var infuraAPIKey: String {
-        didSet { UserDefaults.standard.set(infuraAPIKey, forKey: "infuraAPIKey") }
+        didSet {
+            guard infuraAPIKey != oldValue else { return }
+            if !secrets.set(infuraAPIKey, forAccount: Self.infuraKeyAccount) {
+                LogStore.shared.log("Could not save the Infura API key to the Keychain", level: .error)
+            }
+        }
     }
     @Published var enabledChainIDs: Set<String> {
         didSet {
@@ -100,7 +107,11 @@ final class AppSettings: ObservableObject {
     }
     @Published var loginItemError: String?
 
-    private init() {
+    nonisolated static let infuraKeyAccount = "infuraAPIKey"
+    private let secrets: SecretStore
+
+    private init(secrets: SecretStore = KeychainStore()) {
+        self.secrets = secrets
         let ud = UserDefaults.standard
         // Older builds saved the field verbatim, so a pasted newline or space could be stored.
         let storedWallet = ud.string(forKey: "walletAddress") ?? ""
@@ -108,14 +119,7 @@ final class AppSettings: ObservableObject {
             ?? storedWallet.trimmingCharacters(in: .whitespacesAndNewlines)
         if wallet != storedWallet { ud.set(wallet, forKey: "walletAddress") }
         walletAddress = wallet
-        let savedInfuraKey = ud.string(forKey: "infuraAPIKey") ?? ""
-        let migratedInfuraKey: String
-        if savedInfuraKey.isEmpty, let oldRPC = ud.string(forKey: "rpcURL") {
-            migratedInfuraKey = Self.extractInfuraKey(from: oldRPC) ?? ""
-        } else {
-            migratedInfuraKey = savedInfuraKey
-        }
-        infuraAPIKey = migratedInfuraKey
+        infuraAPIKey = Self.loadInfuraAPIKey(defaults: ud, secrets: secrets)
         let enabledRaw = ud.string(forKey: "enabledChainIDs") ?? Defaults.enabledChainIDs.joined(separator: ",")
         let enabled = Set(enabledRaw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
             .intersection(Set(SupportedChain.all.map(\.id)))
@@ -183,7 +187,26 @@ final class AppSettings: ObservableObject {
         Swift.max(min, Swift.min(value, max))
     }
 
-    private static func extractInfuraKey(from rpcURL: String) -> String? {
+    /// Returns the stored Infura key, moving one left in UserDefaults by older builds
+    /// (`infuraAPIKey`, or the key inside a legacy `rpcURL`) into `secrets`. The UserDefaults
+    /// copies are removed only once the key is safely in `secrets`, so a failed write loses nothing.
+    nonisolated static func loadInfuraAPIKey(defaults: UserDefaults, secrets: SecretStore) -> String {
+        let legacyKeys = ["infuraAPIKey", "rpcURL"]
+        var key = secrets.string(forAccount: infuraKeyAccount) ?? ""
+        guard legacyKeys.contains(where: { defaults.object(forKey: $0) != nil }) else { return key }
+
+        if key.isEmpty {
+            key = defaults.string(forKey: "infuraAPIKey") ?? ""
+            if key.isEmpty, let oldRPC = defaults.string(forKey: "rpcURL") {
+                key = extractInfuraKey(from: oldRPC) ?? ""
+            }
+            if !key.isEmpty, !secrets.set(key, forAccount: infuraKeyAccount) { return key }
+        }
+        legacyKeys.forEach(defaults.removeObject(forKey:))
+        return key
+    }
+
+    private nonisolated static func extractInfuraKey(from rpcURL: String) -> String? {
         guard let url = URL(string: rpcURL),
               url.host?.contains("infura.io") == true else { return nil }
         let parts = url.pathComponents

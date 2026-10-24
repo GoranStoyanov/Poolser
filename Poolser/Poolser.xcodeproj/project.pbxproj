@@ -16,6 +16,7 @@
 		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
 		53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1302F8F628F00C82982 /* UniswapService.swift */; };
 		53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11F2F8F628F00C82982 /* AppSettings.swift */; };
+		5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */; };
 		53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1232F8F628F00C82982 /* Keccak256.swift */; };
 		53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1212F8F628F00C82982 /* ChainIconView.swift */; };
 		53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11E2F8F628F00C82982 /* AppDelegate.swift */; };
@@ -36,6 +37,7 @@
 		53FAE11D2F8F628F00C82982 /* ABI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ABI.swift; path = ../Sources/Poolser/ABI.swift; sourceTree = SOURCE_ROOT; };
 		53FAE11E2F8F628F00C82982 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ../Sources/Poolser/AppDelegate.swift; sourceTree = SOURCE_ROOT; };
 		53FAE11F2F8F628F00C82982 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppSettings.swift; path = ../Sources/Poolser/AppSettings.swift; sourceTree = SOURCE_ROOT; };
+		5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SecretStore.swift; path = ../Sources/Poolser/SecretStore.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1202F8F628F00C82982 /* ChainConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainConfig.swift; path = ../Sources/Poolser/ChainConfig.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1212F8F628F00C82982 /* ChainIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainIconView.swift; path = ../Sources/Poolser/ChainIconView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1222F8F628F00C82982 /* EthereumClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EthereumClient.swift; path = ../Sources/Poolser/EthereumClient.swift; sourceTree = SOURCE_ROOT; };
@@ -97,6 +99,7 @@
 				53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */,
 				53FAE12C2F8F628F00C82982 /* PriceService.swift */,
 				53FAE12E2F8F628F00C82982 /* Resources */,
+				5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */,
 				53FAE12F2F8F628F00C82982 /* SettingsView.swift */,
 				53FAE1302F8F628F00C82982 /* UniswapService.swift */,
 				53FAE0EB2F8ECAC700C82982 /* Poolser */,
@@ -204,6 +207,7 @@
 				53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */,
 				53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */,
 				53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */,
+				5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */,
 				5351F34A2F992BDB0013F91C /* NotificationService.swift in Sources */,
 				53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */,
 				53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */,
