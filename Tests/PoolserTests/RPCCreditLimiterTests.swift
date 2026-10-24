@@ -69,3 +69,99 @@ import Testing
         await #expect(throws: CancellationError.self) { try await request.value }
     }
 }
+
+/// Hand-driven time for the limiter's throttle tests.
+private final class ManualClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var t: TimeInterval = 1_000
+
+    var now: TimeInterval { lock.withLock { t } }
+    func advance(_ seconds: TimeInterval) { lock.withLock { t += seconds } }
+}
+
+@Suite struct RPCCreditLimiterThrottleTests {
+    private func limiter(_ clock: ManualClock, cps: Double = 400) -> RPCCreditLimiter {
+        RPCCreditLimiter(creditsPerSecond: cps, maxBurstCredits: cps, now: { clock.now })
+    }
+
+    @Test func rateLimitHalvesPaceAndEmptiesBucket() async {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        #expect(await limiter.noteRateLimited() == 200)
+        #expect(await limiter.effectiveCreditsPerSecond == 200)
+        #expect(await limiter.availableCredits == 0)
+    }
+
+    /// Parallel requests from one burst all get 429; that must lower the pace one step, not five.
+    @Test func burstOfRateLimitsCountsOnce() async {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        await limiter.noteRateLimited()
+        for _ in 0..<4 { #expect(await limiter.noteRateLimited() == nil) }
+        #expect(await limiter.effectiveCreditsPerSecond == 200)
+
+        clock.advance(RPCCreditLimiter.penaltyWindow)
+        #expect(await limiter.noteRateLimited() == 100)
+    }
+
+    @Test func paceNeverDropsBelowFloor() async {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        for _ in 0..<10 {
+            await limiter.noteRateLimited()
+            clock.advance(RPCCreditLimiter.penaltyWindow)
+        }
+        #expect(await limiter.throttle == RPCCreditLimiter.minThrottle)
+        #expect(await limiter.effectiveCreditsPerSecond == 400 * RPCCreditLimiter.minThrottle)
+        #expect(await limiter.noteRateLimited() == nil)
+    }
+
+    @Test func paceRecoversStepByStepWithoutNewRateLimits() async throws {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        await limiter.noteRateLimited()                       // 0.5
+        clock.advance(RPCCreditLimiter.recoveryInterval - 1)
+        try await limiter.acquire(credits: 1)                 // triggers refill/recovery
+        #expect(await limiter.throttle == 0.5)
+
+        clock.advance(1)
+        try await limiter.acquire(credits: 1)
+        #expect(await limiter.throttle == 0.5 + RPCCreditLimiter.recoveryStep)
+
+        clock.advance(RPCCreditLimiter.recoveryInterval * 10)
+        try await limiter.acquire(credits: 1)
+        #expect(await limiter.throttle == 1)
+        #expect(await limiter.effectiveCreditsPerSecond == 400)
+    }
+
+    @Test func refillUsesLoweredPace() async throws {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        await limiter.noteRateLimited()                       // 200 credits/s, bucket empty
+        clock.advance(0.5)
+        try await limiter.acquire(credits: 100)               // exactly 0.5 s × 200
+        #expect(await limiter.availableCredits == 0)
+    }
+}
+
+@Suite struct RateLimitDetectionTests {
+    @Test(arguments: [
+        "HTTP 429",
+        "HTTP 429: project ID request rate exceeded",
+        "too many requests",
+        "Rate limit reached",
+    ])
+    func rateLimitMessages(_ message: String) {
+        #expect(EthereumClient.isRateLimit(EthereumClient.Err.rpc(message)))
+    }
+
+    @Test(arguments: ["HTTP 500", "header not found", "execution reverted"])
+    func otherErrorsAreNotRateLimits(_ message: String) {
+        #expect(!EthereumClient.isRateLimit(EthereumClient.Err.rpc(message)))
+    }
+
+    @Test func nonRPCErrorsAreNotRateLimits() {
+        #expect(!EthereumClient.isRateLimit(URLError(.timedOut)))
+        #expect(!EthereumClient.isRateLimit(EthereumClient.Err.noResult))
+    }
+}
