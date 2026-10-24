@@ -21,3 +21,17 @@ struct PositionRangeTests {
         #expect(!Position.isInRange(tick: 120, lower: 60, upper: 120))
     }
 }
+
+@Suite("Range bar label order")
+struct RangeBarLabelOrderTests {
+    @Test(arguments: [
+        (-900, [TickRangeBar.LabelSlot.current, .lower, .upper]),  // below the range
+        (-600, [.lower, .current, .upper]),                        // lower bound is in range
+        (10, [.lower, .current, .upper]),
+        (600, [.lower, .upper, .current]),                         // upper bound is out of range
+        (900, [.lower, .upper, .current]),
+    ])
+    func currentTickSitsOnItsSide(tick: Int, expected: [TickRangeBar.LabelSlot]) {
+        #expect(TickRangeBar.labelOrder(tick: tick, lower: -600, upper: 600) == expected)
+    }
+}
