@@ -234,7 +234,9 @@ struct EthereumClient {
 
                 let (data, response) = try await transport(req)
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    throw Err.rpc("HTTP \(http.statusCode)")
+                    let message = Self.httpErrorMessage(status: http.statusCode, body: data)
+                    log("\(spec.label) ← \(message)", level: .error)
+                    throw Err.rpc(message)
                 }
 
                 guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -260,7 +262,7 @@ struct EthereumClient {
                 lastError = error
                 guard shouldRetry(error), attempt < spec.maxRetries else { throw error }
                 let next = attempt + 1
-                log("\(spec.label) retry \(next)/\(spec.maxRetries)\(spec.retryDetail)", level: .info)
+                log("\(spec.label) retry \(next)/\(spec.maxRetries)\(spec.retryDetail) — \(Self.retryReason(error))", level: .info)
                 try await sleepBeforeRetry(attempt: attempt, error: error)
             }
         }
@@ -273,6 +275,32 @@ struct EthereumClient {
         guard let result = raw as? String else { return nil }
         guard let n = Int(Self.stripHexPrefix(result), radix: 16) else { throw Err.badJSON }
         return n
+    }
+
+    /// "HTTP <status>", plus the JSON-RPC error message when the body carries one
+    /// (Infura puts the reason for 429/403 there, e.g. "project ID request rate exceeded").
+    static func httpErrorMessage(status: Int, body: Data) -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let err = json["error"] as? [String: Any],
+              let message = err["message"] as? String, !message.isEmpty
+        else { return "HTTP \(status)" }
+        return "HTTP \(status): \(message)"
+    }
+
+    /// Short reason shown in "retry n/max" log lines.
+    static func retryReason(_ error: Error) -> String {
+        switch error {
+        case let err as Err:
+            switch err {
+            case .rpc(let message), .reverted(let message): return message
+            case .noResult: return "no result"
+            case .badJSON:  return "bad JSON"
+            }
+        case let urlError as URLError:
+            return "network error \(urlError.code.rawValue): \(urlError.localizedDescription)"
+        default:
+            return error.localizedDescription
+        }
     }
 
     private static func stripHexPrefix(_ hex: String) -> String {
