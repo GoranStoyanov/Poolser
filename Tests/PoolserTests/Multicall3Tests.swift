@@ -322,3 +322,39 @@ func describe(_ result: Result<Data, Error>) -> String {
     case .failure(let error): return "error \(error.localizedDescription)"
     }
 }
+
+@Suite("ContractReader retries")
+struct ContractReaderRetryTests {
+    private let a = "0x00000000000000000000000000000000000000aa"
+    private let b = "0x00000000000000000000000000000000000000bb"
+
+    @Test func failedRequestIsRetriedOnce() async {
+        let chain = FakeChain()
+        let reads = (0..<3).map { ContractCall(target: a, data: word($0)) }
+        for call in reads { await chain.set(call.target, call.data, .value(word(100) + call.data)) }
+        await chain.failNextRequest(with: "too many requests")
+
+        let results = await ContractReader(eth: chain.client(), multicall3: multicall3)
+            .readRetryingFailures(reads, context: "test")
+
+        #expect(results.map { try? $0.get() } == reads.map { word(100) + $0.data })
+        #expect(await chain.requests.count == 2)
+    }
+
+    @Test func revertIsNotRetried() async {
+        let chain = FakeChain()
+        await chain.set(a, Data([1]), .value(word(1)))
+        await chain.set(b, Data([2]), .revert("Invalid token ID"))
+
+        let results = await ContractReader(eth: chain.client(), multicall3: multicall3).readRetryingFailures(
+            [ContractCall(target: a, data: Data([1])), ContractCall(target: b, data: Data([2]))],
+            context: "test"
+        )
+
+        #expect((try? results[0].get()) == word(1))
+        guard case .failure(EthereumClient.Err.reverted) = results[1] else {
+            Issue.record("expected a revert, got \(results[1])"); return
+        }
+        #expect(await chain.requests.count == 1)
+    }
+}

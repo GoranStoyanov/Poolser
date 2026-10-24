@@ -50,6 +50,8 @@ struct Position: Identifiable {
     var isV4: Bool = false
     var poolId: Data? = nil   // keccak256(PoolKey) — used for StateView queries
     var feesError: String? = nil  // set when fee computation fails
+    /// Why the pool's price could not be read; amounts and range are unknown while set.
+    var poolStateError: String? = nil
     // pool stats (GeckoTerminal)
     var poolAddress: String? = nil  // v3 pool contract address
     var volumeUSD24h: Double? = nil
@@ -136,8 +138,8 @@ struct Position: Identifiable {
         return parts.joined(separator: " + ")
     }
 
-    var amount0Label: String { amount0 > 0 ? trimNum(amount0) : "0" }
-    var amount1Label: String { amount1 > 0 ? trimNum(amount1) : "0" }
+    var amount0Label: String { poolStateError != nil ? "–" : amount0 > 0 ? trimNum(amount0) : "0" }
+    var amount1Label: String { poolStateError != nil ? "–" : amount1 > 0 ? trimNum(amount1) : "0" }
 }
 
 private func formatCompact(_ x: Double) -> String {

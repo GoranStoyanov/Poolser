@@ -133,7 +133,7 @@ struct V4PositionLoader {
              ContractCall(target: v4SV, data: ABI.v4CallGetTickInfo(poolId: f.poolId, tick: f.tickUpper)),
              ContractCall(target: v4SV, data: ABI.v4CallGetFeeGrowthGlobals(poolId: f.poolId))]
         }
-        let batch = await reader.read(metadataReads.calls + slot0Calls + feeCalls, context: "\(context) pools+fees")
+        let batch = await reader.readRetryingFailures(metadataReads.calls + slot0Calls + feeCalls, context: "\(context) pools+fees")
         metadata.store(metadataReads, results: batch.prefix(metadataReads.calls.count))
         let slot0Results = Array(batch.dropFirst(metadataReads.calls.count).prefix(slot0Calls.count))
         let feeResults = Array(batch.suffix(feeCalls.count))
@@ -211,6 +211,16 @@ struct V4PositionLoader {
         for var p in rawPositions {
             guard let tokenId = UInt64(p.tokenId), let reads = stateByTokenId[tokenId],
                   case .success(let s0) = reads.slot0, s0.count >= 64 else {
+                if p.error == nil {
+                    let reason: String
+                    if case .failure(let error)? = UInt64(p.tokenId).flatMap({ stateByTokenId[$0]?.slot0 }) {
+                        reason = "getSlot0: \(error.localizedDescription)"
+                    } else {
+                        reason = "getSlot0 returned no data"
+                    }
+                    p.poolStateError = reason
+                    await LogStore.shared.log("\(context) #\(p.tokenId): pool state unavailable — \(reason)", level: .error)
+                }
                 finalPositions.append(p); continue
             }
             let tick      = s0.readInt24(wordAt: 32)
