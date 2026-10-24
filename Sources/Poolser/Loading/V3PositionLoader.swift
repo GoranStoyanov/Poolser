@@ -59,7 +59,7 @@ struct V3PositionLoader {
         let poolCalls = fields.map {
             ContractCall(target: v3Factory, data: ABI.callGetPool(token0: $0.token0, token1: $0.token1, fee: $0.feeRaw))
         }
-        let batch = await reader.read(metadataReads.calls + poolCalls, context: "\(context) tokens+pools")
+        let batch = await reader.readRetryingFailures(metadataReads.calls + poolCalls, context: "\(context) tokens+pools")
         metadata.store(metadataReads, results: batch.prefix(metadataReads.calls.count))
         let poolResultByTokenId = Dictionary(
             zip(fields.map(\.tokenId), batch.suffix(poolCalls.count)),
@@ -132,7 +132,7 @@ struct V3PositionLoader {
             poolByTokenId[p.tokenId] = pool.lowercased()
         }
         let pools = Set(poolByTokenId.values).sorted()
-        let slot0Results = await reader.read(
+        let slot0Results = await reader.readRetryingFailures(
             pools.map { ContractCall(target: $0, data: ABI.callSlot0()) },
             context: "\(context) slot0"
         )
@@ -158,9 +158,18 @@ struct V3PositionLoader {
                 p.inRange = Position.isInRange(tick: tick, lower: p.tickLower, upper: p.tickUpper)
                 p.poolAddress = pool
                 computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metadata.cache, priceMap: priceMap)
+            } else {
+                p.poolStateError = Self.poolStateError(
+                    pool: UInt64(p.tokenId).flatMap { poolResultByTokenId[$0] },
+                    slot0: poolByTokenId[p.tokenId].flatMap { slot0ByPool[$0] }
+                )
             }
 
             finalPositions.append(p)
+        }
+        for p in finalPositions {
+            guard let reason = p.poolStateError else { continue }
+            await LogStore.shared.log("\(context) #\(p.tokenId): pool state unavailable — \(reason)", level: .error)
         }
 
         // Mark v3 positions as pending fee history scan (background task will fill in claimed amounts).
@@ -171,6 +180,14 @@ struct V3PositionLoader {
         }
 
         return LoaderOutput(positions: finalPositions, feesUSD: totalFeesUSD)
+    }
+
+    /// Why a position has no pool state: the failed slot0 or getPool read, or a pool the
+    /// factory does not know.
+    static func poolStateError(pool: Result<Data, Error>?, slot0: Result<Data, Error>?) -> String {
+        if case .failure(let error)? = slot0 { return "slot0: \(error.localizedDescription)" }
+        if case .failure(let error)? = pool { return "getPool: \(error.localizedDescription)" }
+        return "pool not found"
     }
 
     /// Unclaimed fees per tokenId from collect() simulated with eth_call; a failed simulation

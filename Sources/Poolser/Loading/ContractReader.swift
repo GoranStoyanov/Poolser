@@ -52,6 +52,24 @@ struct ContractReader {
         return slots.map { results[$0] }
     }
 
+    /// `read`, then one more pass over the reads that failed for a reason other than a revert.
+    /// A refresh that loses a read to a rate limit or a dropped request would otherwise show
+    /// positions without their pool state until the next refresh.
+    func readRetryingFailures(_ calls: [ContractCall], context: String) async -> [Result<Data, Error>] {
+        var results = await read(calls, context: context)
+        let failed = results.indices.filter { Self.isRetryable(results[$0]) }
+        guard !failed.isEmpty else { return results }
+        let again = await read(failed.map { calls[$0] }, context: "\(context) retry")
+        for (index, result) in zip(failed, again) { results[index] = result }
+        return results
+    }
+
+    private static func isRetryable(_ result: Result<Data, Error>) -> Bool {
+        guard case .failure(let error) = result else { return false }
+        if case EthereumClient.Err.reverted = error { return false }
+        return true
+    }
+
     private func aggregate(
         _ calls: [ContractCall],
         via multicall3: String,

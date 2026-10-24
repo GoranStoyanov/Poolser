@@ -509,7 +509,12 @@ struct PositionCard: View {
                         .padding(.vertical, 1)
                         .background(Color.secondary.opacity(0.1), in: Capsule())
                     Spacer()
-                    if let label = pos.positionUSDLabel ?? pos.feesUSDLabel {
+                    // Without pool state the fees are not the position's value, so show neither.
+                    if pos.poolStateError != nil {
+                        Text("–")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    } else if let label = pos.positionUSDLabel ?? pos.feesUSDLabel {
                         Text(label)
                             .font(.body.weight(.medium))
                     }
@@ -545,9 +550,16 @@ struct PositionCard: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text("current assets")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.tertiary)
+                    if let reason = pos.poolStateError {
+                        Label("pool data unavailable", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.orange)
+                            .help("\(reason)\nRetried on the next refresh.")
+                    } else {
+                        Text("current assets")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.tertiary)
+                    }
                     Spacer()
                     HStack(spacing: 4) {
                         Text(pos.amount1Label)
