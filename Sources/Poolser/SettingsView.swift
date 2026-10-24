@@ -264,9 +264,7 @@ struct SettingsView: View {
             Divider().opacity(0.35)
 
             HStack {
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
-                let build   = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-                Text("v\(version) (\(build))")
+                Text(AppVersion.label(info: Bundle.main.infoDictionary))
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(.tertiary)
                 Spacer()
@@ -384,5 +382,15 @@ struct SettingsView: View {
             .font(.system(size: 10))
             .foregroundStyle(.tertiary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+enum AppVersion {
+    /// "v1.2 (34)" from the bundle's Info.plist. `swift run` starts a bare executable with no
+    /// version keys, so that build is labelled as such instead of "v? (?)".
+    static func label(info: [String: Any]?) -> String {
+        guard let version = info?["CFBundleShortVersionString"] as? String else { return "development build" }
+        guard let build = info?["CFBundleVersion"] as? String else { return "v\(version)" }
+        return "v\(version) (\(build))"
     }
 }

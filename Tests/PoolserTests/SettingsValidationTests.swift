@@ -83,3 +83,16 @@ private let bareHex = String(address.dropFirst(2))
         #expect(AppSettings.clampLogChunkSize(stored) == expected)
     }
 }
+
+@Suite("App version label")
+struct AppVersionLabelTests {
+    @Test func bundledAppShowsVersionAndBuild() {
+        #expect(AppVersion.label(info: ["CFBundleShortVersionString": "1.4", "CFBundleVersion": "27"]) == "v1.4 (27)")
+        #expect(AppVersion.label(info: ["CFBundleShortVersionString": "1.4"]) == "v1.4")
+    }
+
+    @Test func swiftPMBuildIsNamedInsteadOfQuestionMarks() {
+        #expect(AppVersion.label(info: nil) == "development build")
+        #expect(AppVersion.label(info: ["CFBundleExecutable": "Poolser"]) == "development build")
+    }
+}
