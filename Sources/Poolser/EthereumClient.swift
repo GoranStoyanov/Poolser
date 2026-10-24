@@ -9,10 +9,11 @@ struct EthereumClient {
     // Infura free tier nominal throughput is 500 credits/sec.
     // App default keeps a safety margin to reduce bursty 429s.
     private static let defaultBudgetCreditsPerSecond = 400
-    private static let limiter = RPCCreditLimiter(
+    private static let sharedLimiter = RPCCreditLimiter(
         creditsPerSecond: Double(defaultBudgetCreditsPerSecond),
         maxBurstCredits: Double(defaultBudgetCreditsPerSecond)
     )
+    private let limiter: RPCCreditLimiter
     private let costEthCall = 80
     private let costEthGetLogs = 255
     private let costEthBlockNumber = 80
@@ -22,8 +23,14 @@ struct EthereumClient {
     private let blockNumberMaxRetries = 2
     private let chainIdMaxRetries = 2
 
-    init(rpcURL: URL, transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }) {
+    /// Every client shares one limiter unless a test passes its own.
+    init(
+        rpcURL: URL,
+        limiter: RPCCreditLimiter? = nil,
+        transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }
+    ) {
         self.rpcURL = rpcURL
+        self.limiter = limiter ?? Self.sharedLimiter
         self.transport = transport
     }
 
@@ -31,7 +38,7 @@ struct EthereumClient {
     /// load, so request code never touches `AppSettings`.
     static func setCreditBudget(perSecond credits: Int) async {
         let cps = Double(credits)
-        await limiter.configure(creditsPerSecond: cps, maxBurstCredits: cps)
+        await sharedLimiter.configure(creditsPerSecond: cps, maxBurstCredits: cps)
     }
 
     enum Err: Error, LocalizedError {
@@ -136,11 +143,43 @@ struct EthereumClient {
 
     func ethCall(to: String, data: Data) async throws -> Data {
         let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
-        let target = "\(short(to)) \(selector)"
-        let resultData = try await rpc(RPCSpec(
+        let resultData = try await call(to: to, data: data, label: "eth_call", target: "\(short(to)) \(selector)")
+        log("eth_call ← \(resultData.count)B", level: .response)
+        return resultData
+    }
+
+    /// Runs `calls` as one Multicall3 `aggregate3` eth_call: one request and one eth_call's
+    /// credits however many sub-calls it carries. Results are in call order.
+    func aggregate3(_ calls: [Call3], multicall3: String, context: String) async throws -> [Call3Result] {
+        let label = "aggregate3"
+        let raw = try await call(
+            to: multicall3, data: ABI.encodeAggregate3(calls), label: label,
+            target: "\(short(multicall3)) ×\(calls.count) \(context)"
+        )
+        let results: [Call3Result]
+        do {
+            results = try ABI.decodeAggregate3Result(raw)
+        } catch {
+            log("\(label) ← \(error.localizedDescription) (\(context))", level: .error)
+            throw error
+        }
+        guard results.count == calls.count else {
+            log("\(label) ← \(results.count) results for \(calls.count) calls (\(context))", level: .error)
+            throw ABI.DecodeError("aggregate3 returned \(results.count) results for \(calls.count) calls")
+        }
+        let failed = results.filter { !$0.success }.count
+        log(
+            "\(label) ← \(results.count) results\(failed > 0 ? ", \(failed) reverted" : "") (\(context))",
+            level: .response
+        )
+        return results
+    }
+
+    private func call(to: String, data: Data, label: String, target: String) async throws -> Data {
+        try await rpc(RPCSpec(
             method: "eth_call",
             params: [["to": to, "data": "0x" + data.hexString], "latest"],
-            cost: costEthCall, maxRetries: callMaxRetries, timeout: 15, label: "eth_call",
+            cost: costEthCall, maxRetries: callMaxRetries, timeout: 15, label: label,
             requestDetail: target,
             noResultDetail: ": \(target)",
             retryDetail: " \(target)",
@@ -148,8 +187,6 @@ struct EthereumClient {
         )) { raw in
             (raw as? String).map { Data(hexString: Self.stripHexPrefix($0)) ?? Data() }
         }
-        log("eth_call ← \(resultData.count)B", level: .response)
-        return resultData
     }
 
     // MARK: - Request path
@@ -181,7 +218,7 @@ struct EthereumClient {
         var lastError: Error?
         for attempt in 0...spec.maxRetries {
             do {
-                try await Self.limiter.acquire(credits: spec.cost)
+                try await limiter.acquire(credits: spec.cost)
                 let body = try JSONSerialization.data(withJSONObject: [
                     "jsonrpc": "2.0", "method": spec.method, "params": spec.params, "id": 1
                 ] as [String: Any])

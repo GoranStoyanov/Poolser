@@ -15,6 +15,8 @@ struct SupportedChain: Identifiable, Hashable {
     let v4SV: String?
     let v4DeployBlockHex: String?
     let v3DeployBlock: Int?
+    /// Multicall3 used to batch contract reads; nil falls back to one eth_call per read.
+    var multicall3: String?
     /// Approximate average block time in seconds — used to normalize fee history scan coverage.
     let blockTimeSeconds: Double
 
@@ -34,6 +36,10 @@ struct SupportedChain: Identifiable, Hashable {
     var supportsV4: Bool {
         v4PM != nil && v4SV != nil && v4DeployBlockHex != nil
     }
+
+    /// Multicall3's deterministic address, deployed on every v3/v4 chain here except ZKsync,
+    /// whose native deployment lives elsewhere because of its CREATE2 rules.
+    static let canonicalMulticall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
 
     var infuraRPCURLTemplate: String {
         "https://\(infuraHost).infura.io/v3/<YOUR-API-KEY>"
@@ -55,6 +61,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0x7ffe42c4a5deea5b0fec41c94c136cf115597227",
             v4DeployBlockHex: "0x14af301",
             v3DeployBlock: 12_369_621,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 12,
         ),
         SupportedChain(
@@ -72,6 +79,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0xa3c0c9b65bad0b08107aa264b0f3db444b867a71",
             v4DeployBlockHex: "0x182d351",
             v3DeployBlock: 1_371_680,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 2,
         ),
         SupportedChain(
@@ -89,6 +97,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0x76fd297e2d437cd7f76d50f01afe6160f86e9990",
             v4DeployBlockHex: "0x11c0b8cd",
             v3DeployBlock: 222_817,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 0.25,
         ),
         SupportedChain(
@@ -106,6 +115,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0xc18a3169788f4f75a170290584eca6395c75ecdb",
             v4DeployBlockHex: "0x7ce22bb",
             v3DeployBlock: 3_936_000,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 2,
         ),
         SupportedChain(
@@ -123,6 +133,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0x5ea1bd7974c8a611cbab0bdcafcb1d9cc9b3ba5a",
             v4DeployBlockHex: "0x3fe0a2a",
             v3DeployBlock: 22_757_547,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 2,
         ),
         SupportedChain(
@@ -140,6 +151,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0x12a88ae16f46dce4e8b15368008ab3380885df30",
             v4DeployBlockHex: "0xdb6164",
             v3DeployBlock: 400_000,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 2,
         ),
         SupportedChain(
@@ -157,6 +169,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: nil,
+            multicall3: nil,
             blockTimeSeconds: 5,
         ),
         SupportedChain(
@@ -174,6 +187,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: 27_832_972,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 2,
         ),
         SupportedChain(
@@ -191,6 +205,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: 13_916_355,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 5,
         ),
         SupportedChain(
@@ -208,6 +223,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: nil,
+            multicall3: nil,
             blockTimeSeconds: 3,
         ),
         SupportedChain(
@@ -225,6 +241,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: nil,
+            multicall3: nil,
             blockTimeSeconds: 2,
         ),
         SupportedChain(
@@ -242,6 +259,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: 14_000_000,
+            multicall3: "0xF9cda624FBC7e059355ce98a31693d299FACd963",
             blockTimeSeconds: 1,
         ),
         SupportedChain(
@@ -259,6 +277,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: 26_975_000,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 3,
         ),
         SupportedChain(
@@ -276,6 +295,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: 0,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 0.1,
         ),
         SupportedChain(
@@ -293,6 +313,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: nil,
             v4DeployBlockHex: nil,
             v3DeployBlock: 0,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 1,
         ),
         SupportedChain(
@@ -310,6 +331,7 @@ struct SupportedChain: Identifiable, Hashable {
             v4SV: "0x86e8631a016f9068c3f085faf484ee3f5fdee8f2",
             v4DeployBlockHex: "0x680f5f",
             v3DeployBlock: 0,
+            multicall3: canonicalMulticall3,
             blockTimeSeconds: 1,
         )
     ]
