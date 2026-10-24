@@ -570,7 +570,7 @@ final class UniswapService: ObservableObject {
                     poolTicks[key] = tick; poolSqrtPrices[key] = sqrtPrice
                 }
                 p.currentTick = tick
-                p.inRange = tick >= p.tickLower && tick <= p.tickUpper
+                p.inRange = Position.isInRange(tick: tick, lower: p.tickLower, upper: p.tickUpper)
                 p.poolAddress = pool.lowercased()
                 Self.computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
             } catch { /* inRange stays nil */ }
@@ -929,7 +929,7 @@ final class UniswapService: ObservableObject {
             }
 
             p.currentTick = tick
-            p.inRange = tick >= p.tickLower && tick <= p.tickUpper
+            p.inRange = Position.isInRange(tick: tick, lower: p.tickLower, upper: p.tickUpper)
             Self.computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metaCache, priceMap: priceMap)
 
             // Unclaimed fees via StateView feeGrowth math (4 concurrent RPC calls)

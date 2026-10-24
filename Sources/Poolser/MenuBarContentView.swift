@@ -459,14 +459,12 @@ struct PositionCard: View {
     }
 
     private var rangeDistanceLabel: String? {
-        guard let tick = pos.currentTick, !pos.isFullRange else { return nil }
+        guard let tick = pos.currentTick, !pos.isFullRange,
+              !Position.isInRange(tick: tick, lower: pos.tickLower, upper: pos.tickUpper) else { return nil }
         if tick < pos.tickLower {
             return "below \(percentDistance(from: tick, toBoundary: pos.tickLower))"
         }
-        if tick > pos.tickUpper {
-            return "above \(percentDistance(from: tick, toBoundary: pos.tickUpper))"
-        }
-        return nil
+        return "above \(percentDistance(from: tick, toBoundary: pos.tickUpper))"
     }
 
     private func percentDistance(from tick: Int, toBoundary boundary: Int) -> String {
