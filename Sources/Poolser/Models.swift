@@ -142,6 +142,24 @@ struct Position: Identifiable {
     var amount1Label: String { poolStateError != nil ? "–" : amount1 > 0 ? trimNum(amount1) : "0" }
 }
 
+/// Fees across every loaded position of the wallet, including ones the list filters hide.
+/// Claimed fees come from the v3 Collect history; v4 claimed fees are not tracked.
+struct WalletFeeSummary: Equatable {
+    var unclaimedUSD: Double
+    var claimedUSD: Double
+    /// True while a claimed-fee history scan is still catching up, so the claimed total is partial.
+    var isSyncing: Bool
+
+    var allTimeUSD: Double { unclaimedUSD + claimedUSD }
+
+    init(positions: [Position]) {
+        let loaded = positions.filter { $0.error == nil }
+        unclaimedUSD = loaded.compactMap(\.usd).reduce(0, +)
+        claimedUSD = loaded.compactMap(\.claimedUSD).reduce(0, +)
+        isSyncing = loaded.contains(where: \.feeHistoryBootstrapping)
+    }
+}
+
 private func formatCompact(_ x: Double) -> String {
     switch x {
     case 1_000_000_000...: return String(format: "$%.2fB", x / 1_000_000_000)

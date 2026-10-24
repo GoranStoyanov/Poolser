@@ -33,6 +33,10 @@ struct MenuBarContentView: View {
             VStack(spacing: 0) {
                 header
                 Divider().opacity(0.4)
+                if settings.trackClaimedFees && !service.positions.isEmpty {
+                    WalletFeeSummaryRow(summary: WalletFeeSummary(positions: service.positions))
+                    Divider().opacity(0.4)
+                }
                 contentArea
                 Divider().opacity(0.4)
                 footer
@@ -306,6 +310,37 @@ private struct BrandMark: View {
             return appIcon
         }
         return nil
+    }
+}
+
+// MARK: - Wallet Fee Summary
+
+private struct WalletFeeSummaryRow: View {
+    let summary: WalletFeeSummary
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("All-time fees")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            // Until the history scan catches up the claimed part is incomplete, so no total yet.
+            Text(summary.isSyncing ? "syncing…" : formatUSD(summary.allTimeUSD))
+                .font(.callout.weight(.semibold).monospacedDigit())
+                .foregroundStyle(summary.isSyncing ? .secondary : .primary)
+            Spacer()
+            Text(detail)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .help("Claimed fees come from the v3 Collect history, valued at current prices; v4 claimed fees are not tracked. Totals cover every position, including ones hidden by filters.")
+        .accessibilityElement(children: .combine)
+    }
+
+    private var detail: String {
+        let unclaimed = "unclaimed \(formatUSD(summary.unclaimedUSD))"
+        return summary.isSyncing ? unclaimed : "claimed \(formatUSD(summary.claimedUSD)) · \(unclaimed)"
     }
 }
 
