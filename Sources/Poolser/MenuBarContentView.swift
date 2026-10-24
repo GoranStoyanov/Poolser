@@ -53,17 +53,17 @@ struct MenuBarContentView: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     Text("Poolser")
-                        .font(.system(size: 12.5, weight: .semibold))
+                        .font(.headline)
                     Text("for Uniswap positions")
-                        .font(.system(size: 11))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
                 HStack(spacing: 5) {
                     Image(systemName: "wallet.pass.fill")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                     Text(shortWallet)
-                        .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
                         .lineLimit(1)
                 }
                 .foregroundStyle(Color.blue)
@@ -80,7 +80,7 @@ struct MenuBarContentView: View {
                         .frame(width: 14, height: 14)
                 } else {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -454,19 +454,19 @@ struct PositionCard: View {
                         ChainIconView(chain: chain, size: 14)
                     } else {
                         Text(pos.chainLabel)
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color.blue)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
                             .background(Color.blue.opacity(0.1), in: Capsule())
                     }
                     Text("\(pos.sym0)/\(pos.sym1)")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.body.weight(.semibold))
                     Text("\(pos.feePct)%")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(pos.versionLabel)
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(Color.secondary)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
@@ -474,7 +474,7 @@ struct PositionCard: View {
                     Spacer()
                     if let label = pos.positionUSDLabel ?? pos.feesUSDLabel {
                         Text(label)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.body.weight(.medium))
                     }
                 }
                 // Row 2: range bar (hidden for full-range positions)
@@ -492,7 +492,7 @@ struct PositionCard: View {
                 if let distance = rangeDistanceLabel {
                     HStack(spacing: 6) {
                         Text(distance)
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .font(.system(.caption, design: .monospaced).weight(.medium))
                             .foregroundStyle(rangeColor)
                             .lineLimit(1)
                         Spacer()
@@ -509,7 +509,7 @@ struct PositionCard: View {
                     }
                     Spacer()
                     Text("current assets")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(.tertiary)
                     Spacer()
                     HStack(spacing: 4) {
@@ -602,7 +602,7 @@ struct PositionCard: View {
 
     private var rangeBadge: some View {
         Text(pos.rangeLabel)
-            .font(.system(size: 10, weight: .medium))
+            .font(.caption.weight(.medium))
             .foregroundStyle(rangeColor)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -841,7 +841,7 @@ struct TickRangeBar: View {
                 Spacer()
                 anchorLabel(slots[2])
             }
-            .font(.system(size: 9, weight: .regular, design: .monospaced))
+            .font(.system(.caption2, design: .monospaced))
             .foregroundStyle(.tertiary)
         }
         .animation(.easeInOut(duration: 0.35), value: animatedTick)
@@ -883,7 +883,7 @@ struct FullRangeTickBar: View {
                     Text("tick \(tick)")
                 }
             }
-            .font(.system(size: 9, weight: .regular, design: .monospaced))
+            .font(.system(.caption2, design: .monospaced))
             .foregroundStyle(.tertiary)
         }
         .help("Full-range position")
