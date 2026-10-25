@@ -108,6 +108,9 @@ private final class Harness {
     /// Answers the creation-block lookup; nil leaves the scan without one.
     var creationBlock: Int?
     private(set) var creationLookups: [String] = []
+    /// Answers block-timestamp reads as `block * 10`; nil leaves positions without an open date.
+    var readsTimestamps = false
+    private(set) var timestampReads: [Int] = []
 
     init(_ events: [FakeRPC.Event] = []) {
         store = UserDefaults(suiteName: suiteName)!
@@ -140,7 +143,11 @@ private final class Harness {
             chunkSize: chunkSize,
             maxChunks: maxChunks,
             store: store,
-            findCreationBlock: finder
+            findCreationBlock: finder,
+            blockTimestamp: readsTimestamps ? { [weak self] block in
+                self?.timestampReads.append(block)
+                return block * 10
+            } : nil
         ) { topics, from, to in
             try await rpc.fetch(topics: topics, from: from, to: to)
         }
@@ -444,3 +451,45 @@ struct FeeHistoryCreationBlockTests {
         #expect(Array(ceilingsSeen.dropFirst().prefix(3)) == [190, 180, 170])
     }
 }
+
+@Suite("Fee history open dates")
+struct FeeHistoryOpenDateTests {
+    @Test func completeHistoryReportsEachPositionsOpenDate() async {
+        let h = Harness([.increase(block: 120, tokenId: "1"), .increase(block: 160, tokenId: "2"), .increase(block: 170, tokenId: "2")])
+        h.positions = [position("1"), position("2")]
+        h.creationBlock = 120
+        h.readsTimestamps = true
+
+        let result = await h.scan(currentBlock: 200, deployBlock: 0)
+
+        #expect(!result.bootstrapInProgress)
+        #expect(result.openedAt["1"] == Date(timeIntervalSince1970: 1_200))
+        // The earliest IncreaseLiquidity is the mint once the history is complete.
+        #expect(result.openedAt["2"] == Date(timeIntervalSince1970: 1_600))
+    }
+
+    @Test func noOpenDateWhileBootstrapping() async {
+        let h = Harness([.increase(block: 150, tokenId: "1")])
+        h.maxChunks = 2
+        h.readsTimestamps = true
+
+        let result = await h.scan(currentBlock: 200, deployBlock: 0)
+
+        #expect(result.bootstrapInProgress)
+        #expect(result.openedAt.isEmpty)
+        #expect(h.timestampReads.isEmpty)
+    }
+
+    @Test func openDateIsReadOnce() async {
+        let h = Harness([.increase(block: 150, tokenId: "1")])
+        h.creationBlock = 150
+        h.readsTimestamps = true
+
+        await h.scan(currentBlock: 200, deployBlock: 0)
+        let again = await h.scan(currentBlock: 210, deployBlock: 0)
+
+        #expect(h.timestampReads == [150])
+        #expect(again.openedAt["1"] == Date(timeIntervalSince1970: 1_500))
+    }
+}
+

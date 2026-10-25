@@ -23,6 +23,7 @@ struct EthereumClient {
     private let costEthGetLogs = 255
     private let costEthBlockNumber = 80
     private let costEthChainId = 80
+    private let costEthGetBlock = 80
     private let callMaxRetries = 3
     private let logsMaxRetries = 4
     private let blockNumberMaxRetries = 2
@@ -73,6 +74,18 @@ struct EthereumClient {
             method: "eth_blockNumber", params: [], cost: costEthBlockNumber,
             maxRetries: blockNumberMaxRetries, timeout: 15, label: "eth_blockNumber", logsErrors: false
         ), decode: decodeQuantity)
+    }
+
+    /// Unix time of a block, from eth_getBlockByNumber without its transactions.
+    func ethBlockTimestamp(_ block: Int) async throws -> Int {
+        try await rpc(RPCSpec(
+            method: "eth_getBlockByNumber", params: ["0x" + String(block, radix: 16), false], cost: costEthGetBlock,
+            maxRetries: blockNumberMaxRetries, timeout: 15, label: "eth_getBlockByNumber",
+            requestDetail: "\(block)"
+        )) { raw in
+            guard let header = raw as? [String: Any], let timestamp = header["timestamp"] else { return nil }
+            return try self.decodeQuantity(timestamp)
+        }
     }
 
     func ethChainId() async throws -> Int {
