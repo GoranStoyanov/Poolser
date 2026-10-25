@@ -146,10 +146,17 @@ struct Position: Identifiable {
     /// Claimed plus unclaimed fees in USD. Needs the complete claimed history (`openedAt` is set
     /// with it) and prices for both parts.
     var allTimeFeesUSD: Double? {
-        guard error == nil, openedAt != nil, let unclaimed = usd else { return nil }
+        guard error == nil, openedAt != nil, let unclaimed = unclaimedFeesUSD else { return nil }
         let hasClaims = claimedFees0 > 0 || claimedFees1 > 0
         if hasClaims && claimedUSD == nil { return nil }
         return unclaimed + (claimedUSD ?? 0)
+    }
+
+    /// `usd`, except that a position owing nothing (e.g. right after a collect) is $0 rather than
+    /// unpriced. A failed fee read also leaves both amounts at zero, so it stays unknown.
+    private var unclaimedFeesUSD: Double? {
+        if let usd { return usd }
+        return feesError == nil && fees0 == 0 && fees1 == 0 ? 0 : nil
     }
 
     /// All-time fees as a share of the position's current value (0.18 = 18%).
