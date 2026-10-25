@@ -34,12 +34,7 @@ struct GraphitePositionCard: View {
                 header(info)
                 rangeSection(info, colors: colors)
                 assetsRow(info)
-                if let line = realizedLine {
-                    Text(line)
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(palette.secondaryText)
-                        .help(realizedReturnHelp)
-                }
+                earningsRow
                 footer(info, colors: colors)
             }
             .padding(12)
@@ -155,6 +150,54 @@ struct GraphitePositionCard: View {
         .foregroundStyle(palette.secondaryText)
     }
 
+    /// Claimed fees and the realized return, once the claimed-fee history is known: the
+    /// position's fee pool with its level beside it, the claimed total and its APR since open.
+    @ViewBuilder
+    private var earningsRow: some View {
+        let claimed = position.claimedUSDLabel ?? position.claimedFeesLabel
+        let feeReturn = position.feeReturnOnAssets
+        let apr = position.realizedAPR()
+        if claimed != nil || position.feeHistoryBootstrapping || feeReturn != nil || apr != nil {
+            HStack(alignment: .center, spacing: 16) {
+                if let feeReturn {
+                    HStack(spacing: 7) {
+                        PoolGauge(level: feeReturn)
+                        earningsStat(formatPercent(feeReturn), "of value earned")
+                    }
+                }
+                if let claimed {
+                    earningsStat(claimed, "claimed")
+                } else if position.feeHistoryBootstrapping {
+                    earningsStat("–", "claimed, syncing…")
+                }
+                Spacer(minLength: 4)
+                if let apr {
+                    earningsStat(formatPercent(apr), "APR since open", tint: palette.fees, alignment: .trailing)
+                }
+            }
+            .help(realizedReturnHelp)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func earningsStat(
+        _ value: String,
+        _ label: String,
+        tint: Color? = nil,
+        alignment: HorizontalAlignment = .leading
+    ) -> some View {
+        VStack(alignment: alignment, spacing: 0) {
+            Text(value)
+                .font(.callout.weight(.semibold).monospacedDigit())
+                .fontDesign(.rounded)
+                .foregroundStyle(tint ?? palette.primaryText)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(palette.secondaryText)
+        }
+        .lineLimit(1)
+    }
+
     private func footer(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
         HStack(spacing: 8) {
             StatusPill(status: info.status, colors: colors)
@@ -244,23 +287,6 @@ struct GraphitePositionCard: View {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// Claimed fees and the realized return, once the claimed-fee history is known.
-    private var realizedLine: String? {
-        var parts: [String] = []
-        if let claimed = position.claimedUSDLabel ?? position.claimedFeesLabel {
-            parts.append("Claimed \(claimed)")
-        } else if position.feeHistoryBootstrapping {
-            parts.append("Claimed: syncing…")
-        }
-        if let feeReturn = position.feeReturnOnAssets {
-            parts.append("earned \(formatPercent(feeReturn)) of value")
-        }
-        if let apr = position.realizedAPR() {
-            parts.append("\(formatPercent(apr)) APR since open")
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
     private var realizedReturnHelp: String {
         let opened = position.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
         return """
@@ -333,6 +359,139 @@ struct PriceRangeGauge: View {
             .animation(.easeInOut(duration: 0.35), value: layout)
         }
         .frame(height: 36)
+    }
+}
+
+// MARK: - Fee pool
+
+/// The fee pool: water in the logo's colours filling its container from the bottom to `level`,
+/// the share of the value already earned back in fees. Pours in when shown or when the level
+/// changes; it stays still otherwise, so an open popover costs nothing.
+struct PoolWater: View {
+    /// All-time fees over value, clamped to 0…1. Drawn above a fixed `base` so the bottom of the
+    /// container always sits in water; 1 fills it.
+    let level: Double
+    var base = 0.14
+    var amplitude: CGFloat = 3.5
+
+    @State private var shownLevel = 0.0
+    @State private var phase = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let palette = GraphitePalette.current(colorScheme)
+        GeometryReader { geo in
+            let height = geo.size.height * shownLevel
+            ZStack(alignment: .bottom) {
+                Wave(phase: phase + .pi * 0.8, amplitude: amplitude)
+                    .fill(palette.brand)
+                    .opacity(palette.waterBack)
+                    .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
+                Wave(phase: phase, amplitude: amplitude)
+                    .fill(palette.brand)
+                    .opacity(palette.waterFront)
+                    .frame(height: height)
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { pour() }
+        .onChange(of: level) { pour() }
+    }
+
+    private var target: Double { Self.fill(level: level, base: base) }
+
+    /// The share of the container a pool at `level` fills, starting from `base`.
+    static func fill(level: Double, base: Double) -> Double {
+        base + (1 - base) * min(max(level, 0), 1)
+    }
+
+    private func pour() {
+        guard !reduceMotion else {
+            shownLevel = target
+            return
+        }
+        withAnimation(.easeOut(duration: 1.2)) {
+            shownLevel = target
+            phase += .pi * 2
+        }
+    }
+}
+
+/// A filled shape whose top edge is a sine wave, one and a half periods across.
+struct Wave: Shape {
+    var phase: Double
+    var amplitude: CGFloat
+
+    var animatableData: Double {
+        get { phase }
+        set { phase = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        guard rect.height > 0 else { return path }
+        let wavelength = rect.width / 1.5
+        let crest = min(amplitude, rect.height / 2)
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        for x in stride(from: rect.minX, through: rect.maxX, by: 2) {
+            let angle = Double((x - rect.minX) / wavelength) * 2 * .pi + phase
+            path.addLine(to: CGPoint(x: x, y: rect.minY + crest + crest * CGFloat(sin(angle))))
+        }
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// A small upright tank showing a position's fee pool, for rows too small for `PoolWater`.
+struct PoolGauge: View {
+    let level: Double
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let palette = GraphitePalette.current(colorScheme)
+        RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .fill(palette.control)
+            .overlay(alignment: .bottom) {
+                GeometryReader { geo in
+                    LinearGradient(colors: [palette.brandStart, palette.brandEnd], startPoint: .top, endPoint: .bottom)
+                        .frame(height: geo.size.height * PoolWater.fill(level: level, base: 0.1))
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(palette.cardLine, lineWidth: 1))
+            .frame(width: 10, height: 26)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The logo's eyes, small enough to sit beside a caption.
+struct PoolEyes: View {
+    var body: some View {
+        HStack(spacing: 1.5) {
+            eye
+            eye
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var eye: some View {
+        Ellipse()
+            .fill(.white)
+            .overlay(Ellipse().strokeBorder(Color(white: 0.2), lineWidth: 1.2))
+            .overlay(alignment: .bottomTrailing) {
+                Ellipse()
+                    .fill(Color(white: 0.07))
+                    .frame(width: 4, height: 5)
+                    .padding(.trailing, 1.5)
+                    .padding(.bottom, 1.5)
+            }
+            .frame(width: 8, height: 10)
     }
 }
 

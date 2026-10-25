@@ -103,14 +103,18 @@ struct DailyFeeLedger: Codable, Equatable {
     // MARK: - Series
 
     /// USD earned per day for the last `days` days ending today, oldest first, starting at the
-    /// first day with data. Nil with fewer than two days, or without a price for either token.
-    func dailyUSD(for position: Position, days: Int, endingAt now: Date, calendar: Calendar = .current) -> [Double]? {
+    /// first day with data. Nil with fewer than `minDays` days, or without a price for either token.
+    func dailyUSD(
+        for position: Position, days: Int, minDays: Int = 2, endingAt now: Date, calendar: Calendar = .current
+    ) -> [Double]? {
         guard let values = rawDailyUSD(for: position, days: days, endingAt: now, calendar: calendar) else { return nil }
-        return Self.trimmed(values)
+        return Self.trimmed(values, minDays: minDays)
     }
 
     /// The same summed over positions; a day counts once any position has data for it.
-    func walletDailyUSD(_ positions: [Position], days: Int, endingAt now: Date, calendar: Calendar = .current) -> [Double]? {
+    func walletDailyUSD(
+        _ positions: [Position], days: Int, minDays: Int = 2, endingAt now: Date, calendar: Calendar = .current
+    ) -> [Double]? {
         var sums = [Double?](repeating: nil, count: days)
         for pos in positions {
             guard let values = rawDailyUSD(for: pos, days: days, endingAt: now, calendar: calendar) else { continue }
@@ -118,7 +122,7 @@ struct DailyFeeLedger: Codable, Equatable {
                 if let value { sums[i] = (sums[i] ?? 0) + value }
             }
         }
-        return Self.trimmed(sums)
+        return Self.trimmed(sums, minDays: minDays)
     }
 
     private func rawDailyUSD(for position: Position, days: Int, endingAt now: Date, calendar: Calendar) -> [Double?]? {
@@ -133,10 +137,10 @@ struct DailyFeeLedger: Codable, Equatable {
     }
 
     /// Drops the days before the first one with data; later gaps count as nothing earned.
-    private static func trimmed(_ values: [Double?]) -> [Double]? {
+    private static func trimmed(_ values: [Double?], minDays: Int) -> [Double]? {
         guard let first = values.firstIndex(where: { $0 != nil }) else { return nil }
         let series = values[first...].map { $0 ?? 0 }
-        return series.count >= 2 ? series : nil
+        return series.count >= max(minDays, 1) ? series : nil
     }
 }
 

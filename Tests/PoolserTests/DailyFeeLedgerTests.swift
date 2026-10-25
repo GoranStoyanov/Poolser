@@ -97,6 +97,15 @@ struct DailyFeeLedgerTests {
         #expect(ledger.dailyUSD(for: position(price0: nil), days: 7, endingAt: at("2026-10-20T12:00"), calendar: utc) == nil)
     }
 
+    @Test func walletSeriesCanStartFromOneDay() {
+        let a = position(id: "1", price0: 2)
+        var ledger = DailyFeeLedger()
+        ledger.entries[a.id] = .init(lastTime: at("2026-10-20T12:00"), lastUnclaimed: amounts(0),
+                                     days: ["2026-10-20": amounts(1.5)])
+        #expect(ledger.walletDailyUSD([a], days: 7, endingAt: at("2026-10-20T12:00"), calendar: utc) == nil)
+        #expect(ledger.walletDailyUSD([a], days: 7, minDays: 1, endingAt: at("2026-10-20T12:00"), calendar: utc) == [3])
+    }
+
     @Test func walletSeriesSumsPositions() {
         let a = position(id: "1", price0: 1)
         let b = position(id: "2", price0: 10)
