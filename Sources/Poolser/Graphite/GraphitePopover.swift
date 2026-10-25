@@ -14,10 +14,19 @@ struct PortfolioSnapshot {
     var lastError: String?
     /// Nil while claimed-fee tracking is off.
     var feeSummary: WalletFeeSummary?
+    /// A collect in progress or how it ended.
+    var notice: Notice?
 
     var totalValueUSD: Double { positions.compactMap(\.positionUSD).reduce(0, +) }
     var unclaimedFeesUSD: Double { positions.compactMap(\.usd).reduce(0, +) }
     var chainCount: Int { Set(positions.map(\.chainID)).count }
+}
+
+struct Notice: Equatable {
+    enum Kind { case progress, success, failure }
+    let kind: Kind
+    let text: String
+    var link: URL?
 }
 
 struct GraphitePopoverActions {
@@ -26,7 +35,9 @@ struct GraphitePopoverActions {
     var logs: (() -> Void)?
     var quit: (() -> Void)?
     var open: ((Position) -> Void)?
+    /// Offered only on positions `CollectRequest.canCollect` accepts.
     var collect: ((Position) -> Void)?
+    var dismissNotice: (() -> Void)?
 }
 
 struct GraphitePopover: View {
@@ -46,6 +57,9 @@ struct GraphitePopover: View {
             header
             if let error = snapshot.lastError {
                 errorBanner(error)
+            }
+            if let notice = snapshot.notice {
+                noticeBanner(notice)
             }
             if !snapshot.positions.isEmpty {
                 summaryCard
@@ -127,6 +141,50 @@ struct GraphitePopover: View {
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(palette.nearEdge.background))
         .padding(.horizontal, 12)
         .padding(.bottom, 10)
+    }
+
+    private func noticeBanner(_ notice: Notice) -> some View {
+        let tint: Color
+        let background: Color
+        switch notice.kind {
+        case .progress: (tint, background) = (palette.secondaryText, palette.control)
+        case .success:  (tint, background) = (palette.inRange.tint, palette.inRange.background)
+        case .failure:  (tint, background) = (palette.outOfRange.tint, palette.outOfRange.background)
+        }
+        return HStack(alignment: .top, spacing: 8) {
+            Group {
+                switch notice.kind {
+                case .progress: ProgressView().controlSize(.mini)
+                case .success:  Image(systemName: "checkmark.circle.fill")
+                case .failure:  Image(systemName: "xmark.octagon.fill")
+                }
+            }
+            .foregroundStyle(tint)
+            .frame(width: 14)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(notice.text)
+                    .foregroundStyle(palette.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let link = notice.link {
+                    Link("View transaction", destination: link)
+                        .foregroundStyle(tint)
+                }
+            }
+            Spacer(minLength: 0)
+            if notice.kind != .progress, let dismiss = actions.dismissNotice {
+                Button(action: dismiss) { Image(systemName: "xmark") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(palette.secondaryText)
+                    .help("Dismiss")
+                    .accessibilityLabel("Dismiss")
+            }
+        }
+        .font(.caption)
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(background))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+        .accessibilityElement(children: .contain)
     }
 
     // MARK: - Summary
@@ -389,7 +447,7 @@ struct GraphitePopover: View {
                         position: pos,
                         recentDailyFees: snapshot.positionDailyFeesUSD[pos.id],
                         onOpen: actions.open.map { open in { open(pos) } },
-                        onCollect: actions.collect.map { collect in { collect(pos) } },
+                        onCollect: CollectRequest.canCollect(pos) ? actions.collect.map { collect in { collect(pos) } } : nil,
                         onShowOnlyChain: chainFilterAction(for: pos)
                     )
                 }

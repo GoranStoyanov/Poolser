@@ -2,7 +2,7 @@
 
 **Poolser** is a macOS menu bar app for monitoring Uniswap v3 and v4 liquidity positions.
 
-_Last updated: April 21, 2026_
+_Last updated: October 25, 2026_
 
 ## Data Collection
 
@@ -18,6 +18,16 @@ Poolser communicates only with the following external services to function:
 - **GeckoTerminal** (`api.geckoterminal.com`) — pool volume, TVL, and yield data.
 
 All requests are read-only. No data is submitted to or stored by Poolser's developers.
+
+## Collecting Fees
+
+When you click **Collect** on a position, Poolser:
+
+1. Runs the collect as a dry run (`eth_call`) through Infura, to check it would succeed.
+2. Starts a temporary web server on `127.0.0.1`, reachable only from your Mac, and opens its page in your default browser.
+3. The page passes the transaction to your browser wallet (for example MetaMask or Rabby), which asks you to confirm and signs it. The page reports the transaction hash back to Poolser so it can refresh.
+
+Poolser never sees or stores your private keys and does not sign anything. The temporary server stops once the transaction is sent or after 15 minutes.
 
 ## Local Storage
 

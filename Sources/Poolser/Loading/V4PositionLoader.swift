@@ -176,7 +176,9 @@ struct V4PositionLoader {
                     tickLower: f.tickLower, tickUpper: f.tickUpper,
                     liquidity: f.liquidity,
                     isV4:      true,
-                    poolId:    f.poolId
+                    poolId:    f.poolId,
+                    currency0: f.currency0,
+                    currency1: f.currency1
                 ))
             case .failed(let tokenId, let error):
                 rawPositions.append(Position(

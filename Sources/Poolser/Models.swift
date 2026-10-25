@@ -54,6 +54,10 @@ struct Position: Identifiable {
     // v4-specific
     var isV4: Bool = false
     var poolId: Data? = nil   // keccak256(PoolKey) — used for StateView queries
+    /// The pool's currencies as the PoolKey has them: address(0) for native ETH, which
+    /// `token0`/`token1` replace with the wrapped token for price lookups.
+    var currency0: String? = nil
+    var currency1: String? = nil
     var feesError: String? = nil  // set when fee computation fails
     /// Why the pool's price could not be read; amounts and range are unknown while set.
     var poolStateError: String? = nil

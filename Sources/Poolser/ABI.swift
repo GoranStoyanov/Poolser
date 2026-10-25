@@ -173,7 +173,8 @@ extension ABI {
         sel_positions + encodeUInt256(tokenId)
     }
 
-    /// Simulates collect() via eth_call to read current owed fees without submitting a tx.
+    /// collect() for every token owed to the position. Run through eth_call it reads the
+    /// unclaimed fees; sent as a transaction by the owner it collects them to `recipient`.
     static func callCollectStatic(tokenId: UInt64, recipient: String) -> Data {
         sel_collect
             + encodeUInt256(tokenId)
@@ -214,6 +215,52 @@ extension ABI {
     private static let sel_v4GetFeeGrowthGlobals: Data = {
         keccak256(Data("getFeeGrowthGlobals(bytes32)".utf8)).prefix(4)
     }()
+    private static let sel_v4ModifyLiquidities: Data = {
+        keccak256(Data("modifyLiquidities(bytes,uint256)".utf8)).prefix(4)
+    }()
+
+    /// v4-periphery `Actions` codes.
+    static let v4ActionDecreaseLiquidity: UInt8 = 0x01
+    static let v4ActionTakePair: UInt8 = 0x11
+
+    /// PositionManager: modifyLiquidities(unlockData, deadline) that collects a position's fees.
+    /// DECREASE_LIQUIDITY by zero settles the fees owed to the position, and TAKE_PAIR sends both
+    /// currencies to `recipient`. Currencies are the PoolKey's, address(0) for native ETH.
+    static func v4CallCollectFees(
+        tokenId: UInt64, currency0: String, currency1: String, recipient: String, deadline: UInt64
+    ) -> Data {
+        // (uint256 tokenId, uint256 liquidity, uint128 amount0Min, uint128 amount1Min, bytes hookData)
+        let decrease = encodeUInt256(tokenId) + encodeUInt256(0) + encodeUInt256(0) + encodeUInt256(0)
+            + encodeUInt256(5 * 32) + encodeDynamicBytes(Data())
+        // (Currency currency0, Currency currency1, address recipient)
+        let take = encodeAddress(currency0) + encodeAddress(currency1) + encodeAddress(recipient)
+
+        // unlockData = abi.encode(bytes actions, bytes[] params)
+        let actions = encodeDynamicBytes(Data([v4ActionDecreaseLiquidity, v4ActionTakePair]))
+        let unlockData = encodeUInt256(2 * 32) + encodeUInt256(UInt64(2 * 32 + actions.count))
+            + actions + encodeBytesArray([decrease, take])
+
+        return sel_v4ModifyLiquidities + encodeUInt256(2 * 32) + encodeUInt256(deadline)
+            + encodeDynamicBytes(unlockData)
+    }
+
+    /// A `bytes` tail: its length, then the data right-padded to whole words.
+    static func encodeDynamicBytes(_ data: Data) -> Data {
+        encodeUInt256(UInt64(data.count)) + data + Data(count: (32 - data.count % 32) % 32)
+    }
+
+    /// A `bytes[]` tail: the count, one offset per element (from the first offset), then the
+    /// elements.
+    static func encodeBytesArray(_ items: [Data]) -> Data {
+        let tails = items.map(encodeDynamicBytes)
+        var offsets = Data()
+        var offset = items.count * 32
+        for tail in tails {
+            offsets += encodeUInt256(UInt64(offset))
+            offset += tail.count
+        }
+        return encodeUInt256(UInt64(items.count)) + offsets + tails.reduce(Data(), +)
+    }
 
     /// PositionManager: getPoolAndPositionInfo(uint256)
     /// Returns: (PoolKey[currency0,currency1,fee,tickSpacing,hooks], PositionInfo[bytes32])

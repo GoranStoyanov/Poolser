@@ -5,6 +5,7 @@ import AppKit
 
 struct MenuBarContentView: View {
     @EnvironmentObject var service: UniswapService
+    @EnvironmentObject var collector: FeeCollector
     @ObservedObject private var settings = AppSettings.shared
     @State private var showSettings = false
     @State private var showLogs     = false
@@ -15,6 +16,7 @@ struct MenuBarContentView: View {
             .fixedSize()
             .onGeometryChange(for: CGSize.self) { $0.size } action: { screenSize = $0 }
             .background(MenuWindowSizer(contentSize: screenSize))
+            .onAppear { collector.onSent = { service.refresh() } }
     }
 
     @ViewBuilder
@@ -35,7 +37,9 @@ struct MenuBarContentView: View {
                     quit: { NSApp.terminate(nil) },
                     open: { pos in
                         if let url = pos.uniswapURL { NSWorkspace.shared.open(url) }
-                    }
+                    },
+                    collect: { pos in collector.collect(pos, owner: owner) },
+                    dismissNotice: { collector.dismiss() }
                 )
             )
         }
@@ -58,8 +62,27 @@ struct MenuBarContentView: View {
             lastError: service.lastError,
             feeSummary: settings.trackClaimedFees && !service.positions.isEmpty
                 ? WalletFeeSummary(positions: service.positions)
-                : nil
+                : nil,
+            notice: collector.status.map(Self.notice)
         )
+    }
+
+    private var owner: String {
+        let address = settings.walletAddress
+        return address.hasPrefix("0x") ? address : "0x" + address
+    }
+
+    private static func notice(for status: FeeCollector.Status) -> Notice {
+        switch status {
+        case .checking(let pair):
+            return Notice(kind: .progress, text: "Checking the collect for \(pair)…")
+        case .waitingForWallet(let pair):
+            return Notice(kind: .progress, text: "Confirm the collect for \(pair) in your browser wallet.")
+        case .sent(let pair, let transaction):
+            return Notice(kind: .success, text: "Collect for \(pair) sent. Positions refresh shortly.", link: transaction)
+        case .failed(let message):
+            return Notice(kind: .failure, text: message)
+        }
     }
 }
 
@@ -91,7 +114,7 @@ struct BrandMark: View {
 
     var body: some View {
         Group {
-            if let image = brandImage {
+            if let image = Self.logo {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
@@ -109,7 +132,8 @@ struct BrandMark: View {
         .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
     }
 
-    private var brandImage: NSImage? {
+    /// The app logo: the bundled AppLogo, else the app icon.
+    static var logo: NSImage? {
         #if SPM_BUILD
         if let url = Bundle.module.url(forResource: "AppLogo", withExtension: "png"),
            let image = NSImage(contentsOf: url),
@@ -126,6 +150,22 @@ struct BrandMark: View {
             return appIcon
         }
         return nil
+    }
+
+    /// The logo as a square PNG of `pixels` per side, for the collect page.
+    static func logoPNG(pixels: Int) -> Data? {
+        guard let logo,
+              let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                bytesPerRow: 0, bitsPerPixel: 0
+              ) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        logo.draw(in: NSRect(x: 0, y: 0, width: pixels, height: pixels))
+        return rep.representation(using: .png, properties: [:])
     }
 }
 

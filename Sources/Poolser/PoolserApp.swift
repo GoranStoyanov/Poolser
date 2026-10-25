@@ -5,11 +5,14 @@ import Combine
 struct PoolserApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var service = UniswapService()
+    /// Lives with the app rather than the menu window, so a collect survives closing the menu.
+    @StateObject private var collector = FeeCollector()
 
     var body: some Scene {
         MenuBarExtra {
             MenuBarContentView()
                 .environmentObject(service)
+                .environmentObject(collector)
         } label: {
             if service.isLoading && service.positions.isEmpty {
                 LoadingMenuBarLabel()
