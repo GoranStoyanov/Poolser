@@ -11,6 +11,8 @@ struct FeeHistoryCache: Codable {
     /// Exact creation block per tokenId, found from historical state. Unlike `knownMintBlocks`
     /// it cannot be a later liquidity add, so the scan can stop right at it.
     var creationBlocks: [String: Int] = [:]
+    /// Unix time each position was opened, read once its creation block is certain.
+    var openedAt: [String: Int] = [:]
 
     struct PositionFees: Codable {
         /// Σ Collect — principal and fees, since decreaseLiquidity() principal leaves via collect().
@@ -39,6 +41,7 @@ struct FeeHistoryCache: Codable {
         fees = try c.decode([String: PositionFees].self, forKey: .fees)
         knownMintBlocks = (try? c.decode([String: Int].self, forKey: .knownMintBlocks)) ?? [:]
         creationBlocks = (try? c.decode([String: Int].self, forKey: .creationBlocks)) ?? [:]
+        openedAt = (try? c.decode([String: Int].self, forKey: .openedAt)) ?? [:]
     }
 }
 
@@ -66,12 +69,16 @@ struct FeeHistoryService {
         /// Claimed fees per tokenId: collected amounts minus withdrawn principal.
         var fees: [String: (amount0: Double, amount1: Double)]
         var bootstrapInProgress: Bool
+        /// When each position was opened; only once the history is complete.
+        var openedAt: [String: Date] = [:]
     }
 
     /// eth_getLogs for the NFPM over an inclusive block range.
     typealias LogFetcher = (_ topics: [[String]?], _ fromBlock: Int, _ toBlock: Int) async throws -> [[String: Any]]
     /// Block at which a tokenId was minted, or nil when it cannot be determined.
     typealias CreationBlockFinder = (_ tokenId: String) async -> Int?
+    /// Unix time of a block, or nil when it cannot be read.
+    typealias BlockTimestampReader = (_ block: Int) async -> Int?
 
     private static let scanQueue = ScanQueue()
 
@@ -129,7 +136,8 @@ struct FeeHistoryService {
             chunkSize: chunkSize,
             maxChunks: maxChunks,
             store: .standard,
-            findCreationBlock: findCreationBlock
+            findCreationBlock: findCreationBlock,
+            blockTimestamp: { try? await eth.ethBlockTimestamp($0) }
         ) { topics, fromBlock, toBlock in
             try await eth.ethGetLogsOR(
                 address: nfpm,
@@ -154,6 +162,7 @@ struct FeeHistoryService {
         maxChunks: Int,
         store: UserDefaults,
         findCreationBlock: CreationBlockFinder? = nil,
+        blockTimestamp: BlockTimestampReader? = nil,
         fetchLogs: @escaping LogFetcher
     ) async -> Result {
         guard !positions.isEmpty else {
@@ -174,7 +183,8 @@ struct FeeHistoryService {
                 currentBlock: currentBlock,
                 cacheKey: cacheKey,
                 store: store,
-                findCreationBlock: findCreationBlock
+                findCreationBlock: findCreationBlock,
+                blockTimestamp: blockTimestamp
             )
         }
     }
@@ -233,7 +243,8 @@ struct FeeHistoryService {
         currentBlock: Int,
         cacheKey: String,
         store: UserDefaults,
-        findCreationBlock: CreationBlockFinder?
+        findCreationBlock: CreationBlockFinder?,
+        blockTimestamp: BlockTimestampReader?
     ) async -> Result {
         var cache: FeeHistoryCache = loadCache(forKey: cacheKey, store: store)
             ?? FeeHistoryCache(nextScanCeiling: currentBlock, lastSeenBlock: currentBlock, fees: [:])
@@ -283,10 +294,26 @@ struct FeeHistoryService {
             cache.nextScanCeiling = nil
         }
 
+        // A complete history reaches every position's mint, so its earliest IncreaseLiquidity is
+        // the creation block; before that it may be a later liquidity add.
+        if cache.nextScanCeiling == nil, let blockTimestamp {
+            for tokenId in context.tokenIds where cache.openedAt[tokenId] == nil {
+                guard !Task.isCancelled,
+                      let block = cache.creationBlocks[tokenId] ?? cache.knownMintBlocks[tokenId],
+                      let time = await blockTimestamp(block) else { continue }
+                cache.openedAt[tokenId] = time
+            }
+        }
+
         // Cursors only cover completed chunks, so saving after a failure or cancellation is safe.
         checkpoint(cache)
         let bootstrapInProgress = cache.nextScanCeiling != nil || cache.lastSeenBlock < currentBlock
-        return Result(fees: feeDict(from: cache), bootstrapInProgress: bootstrapInProgress)
+        let openedAt = cache.nextScanCeiling == nil
+            ? Dictionary(uniqueKeysWithValues: context.tokenIds.compactMap { id in
+                cache.openedAt[id].map { (id, Date(timeIntervalSince1970: TimeInterval($0))) }
+            })
+            : [:]
+        return Result(fees: feeDict(from: cache), bootstrapInProgress: bootstrapInProgress, openedAt: openedAt)
     }
 
     /// Returns the block we can safely stop scanning at.

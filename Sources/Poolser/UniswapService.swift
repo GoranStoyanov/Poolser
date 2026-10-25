@@ -307,6 +307,7 @@ final class UniswapService: ObservableObject {
         for i in positions.indices {
             guard positions[i].chainID == chainID, !positions[i].isV4, positions[i].error == nil else { continue }
             positions[i].feeHistoryBootstrapping = result.bootstrapInProgress
+            positions[i].openedAt = result.openedAt[positions[i].tokenId]
             guard let claimed = result.fees[positions[i].tokenId] else { continue }
             positions[i].claimedFees0 = claimed.amount0
             positions[i].claimedFees1 = claimed.amount1
