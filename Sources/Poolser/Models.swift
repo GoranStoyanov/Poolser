@@ -71,6 +71,11 @@ struct Position: Identifiable {
         tickLower <= -887200 && tickUpper >= 887200
     }
 
+    /// Addresses whose logos stand for each token: native ETH keeps address(0) rather than the
+    /// wrapped token `token0`/`token1` hold for pricing, so it shows the ETH logo.
+    var iconAddress0: String { currency0 ?? token0 }
+    var iconAddress1: String { currency1 ?? token1 }
+
     /// Uniswap semantics: a position is active iff `tickLower <= tick < tickUpper`.
     /// At `tick == tickUpper` it holds only token1 and earns no fees.
     static func isInRange(tick: Int, lower: Int, upper: Int) -> Bool {

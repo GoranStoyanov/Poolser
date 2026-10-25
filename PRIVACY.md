@@ -14,7 +14,7 @@ Poolser communicates only with the following external services to function:
 
 - **Infura** (`infura.io`) — RPC requests to read on-chain data using your API key. Your wallet address is included in these requests as part of normal blockchain queries.
 - **CoinGecko** (`api.coingecko.com`, `assets.coingecko.com`) — token USD prices and chain icon images.
-- **DefiLlama** (`coins.llama.fi`) — token USD prices as a fallback.
+- **DefiLlama** (`coins.llama.fi`, `token-icons.llamao.fi`) — token USD prices as a fallback, and token logo images (looked up by chain and token contract address).
 - **GeckoTerminal** (`api.geckoterminal.com`) — pool volume, TVL, and yield data.
 
 All requests are read-only. No data is submitted to or stored by Poolser's developers.

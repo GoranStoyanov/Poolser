@@ -71,7 +71,18 @@ struct GraphitePositionCard: View {
 
     private func header(_ info: PositionPresentation) -> some View {
         HStack(spacing: 10) {
-            TokenPairAvatar(base: info.baseSymbol, quote: info.quoteSymbol, chain: SupportedChain.byID(position.chainID))
+            TokenPairAvatar(
+                base: TokenPairAvatar.Token(
+                    symbol: info.baseSymbol,
+                    address: info.isInverted ? position.iconAddress1 : position.iconAddress0
+                ),
+                quote: TokenPairAvatar.Token(
+                    symbol: info.quoteSymbol,
+                    address: info.isInverted ? position.iconAddress0 : position.iconAddress1
+                ),
+                chainID: position.chainNumericID,
+                chain: SupportedChain.byID(position.chainID)
+            )
             VStack(alignment: .leading, spacing: 1) {
                 Text(info.pairLabel)
                     .font(.body.weight(.semibold))
@@ -534,11 +545,18 @@ struct MiniFeeBars: View {
 }
 
 struct TokenPairAvatar: View {
-    let base: String
-    let quote: String
+    struct Token {
+        let symbol: String
+        let address: String
+    }
+
+    let base: Token
+    let quote: Token
+    let chainID: Int
     let chain: SupportedChain?
 
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var iconStore = TokenIconStore.shared
 
     var body: some View {
         let ring = GraphitePalette.current(colorScheme).card
@@ -554,19 +572,44 @@ struct TokenPairAvatar: View {
         }
         .frame(width: 44, height: 30, alignment: .topLeading)
         .accessibilityHidden(true)
+        .task(id: "\(chainID)-\(base.address)-\(quote.address)") {
+            await iconStore.fetchIfNeeded(chainID: chainID, address: base.address)
+            await iconStore.fetchIfNeeded(chainID: chainID, address: quote.address)
+        }
     }
 
-    private func token(_ symbol: String, ring: Color) -> some View {
-        let style = Self.style(for: symbol)
-        return Text(style.glyph)
+    private func token(_ token: Token, ring: Color) -> some View {
+        let style = Self.style(for: token.symbol)
+        return ZStack {
+            Circle().fill(style.color)
+#if canImport(AppKit)
+            if let icon = iconStore.icon(chainID: chainID, address: token.address) {
+                // Logos with transparent corners sit on white rather than the letter's colour.
+                Circle().fill(.white)
+                Image(nsImage: icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFill()
+                    .clipShape(Circle())
+            } else {
+                glyph(style.glyph)
+            }
+#else
+            glyph(style.glyph)
+#endif
+        }
+        .frame(width: 26, height: 26)
+        .overlay(Circle().strokeBorder(ring, lineWidth: 2))
+    }
+
+    private func glyph(_ text: String) -> some View {
+        Text(text)
             .font(.callout.weight(.bold))
             .foregroundStyle(.white)
-            .frame(width: 26, height: 26)
-            .background(Circle().fill(style.color))
-            .overlay(Circle().strokeBorder(ring, lineWidth: 2))
     }
 
-    /// Letter avatars until token logos are fetched; well-known tokens get their usual colour.
+    /// Letter avatars until a token's logo loads, or when it has none; well-known tokens get
+    /// their usual colour.
     static func style(for symbol: String) -> (glyph: String, color: Color) {
         switch symbol.lowercased() {
         case "eth", "weth":                        return ("Ξ", Color(red: 0.36, green: 0.42, blue: 0.84))

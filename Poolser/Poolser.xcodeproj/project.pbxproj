@@ -12,6 +12,7 @@
 		53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1202F8F628F00C82982 /* ChainConfig.swift */; };
 		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
 		53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */; };
+		53FAE1F12F8F628F00C82982 /* TokenIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */; };
 		53FAE1342F8F628F00C82982 /* PoolStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */; };
 		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
 		53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1302F8F628F00C82982 /* UniswapService.swift */; };
@@ -68,6 +69,7 @@
 		53FAE1272F8F628F00C82982 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = ../Sources/Poolser/Models.swift; sourceTree = SOURCE_ROOT; };
 		5327A1302FA1C0DE00B5EC27 /* PositionListOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionListOptions.swift; path = ../Sources/Poolser/PositionListOptions.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NetworkIconStore.swift; path = ../Sources/Poolser/NetworkIconStore.swift; sourceTree = SOURCE_ROOT; };
+		53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenIconStore.swift; path = ../Sources/Poolser/TokenIconStore.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1292F8F628F00C82982 /* Poolser.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Poolser.entitlements; path = ../Sources/Poolser/Poolser.entitlements; sourceTree = SOURCE_ROOT; };
 		53FAE12A2F8F628F00C82982 /* PoolserApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PoolserApp.swift; path = ../Sources/Poolser/PoolserApp.swift; sourceTree = SOURCE_ROOT; };
 		53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PoolStatsService.swift; path = ../Sources/Poolser/PoolStatsService.swift; sourceTree = SOURCE_ROOT; };
@@ -134,6 +136,7 @@
 				53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */,
 				53FAE1272F8F628F00C82982 /* Models.swift */,
 				53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */,
+				53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */,
 				53FAE1292F8F628F00C82982 /* Poolser.entitlements */,
 				53FAE12A2F8F628F00C82982 /* PoolserApp.swift */,
 				53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */,
@@ -263,6 +266,7 @@
 				53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */,
 				53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */,
 				53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */,
+				53FAE1F12F8F628F00C82982 /* TokenIconStore.swift in Sources */,
 				53FAE1342F8F628F00C82982 /* PoolStatsService.swift in Sources */,
 				53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */,
 				53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */,
