@@ -114,7 +114,7 @@ struct BrandMark: View {
 
     var body: some View {
         Group {
-            if let image = brandImage {
+            if let image = Self.logo {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
@@ -132,7 +132,8 @@ struct BrandMark: View {
         .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
     }
 
-    private var brandImage: NSImage? {
+    /// The app logo: the bundled AppLogo, else the app icon.
+    static var logo: NSImage? {
         #if SPM_BUILD
         if let url = Bundle.module.url(forResource: "AppLogo", withExtension: "png"),
            let image = NSImage(contentsOf: url),
@@ -149,6 +150,22 @@ struct BrandMark: View {
             return appIcon
         }
         return nil
+    }
+
+    /// The logo as a square PNG of `pixels` per side, for the collect page.
+    static func logoPNG(pixels: Int) -> Data? {
+        guard let logo,
+              let rep = NSBitmapImageRep(
+                bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                bytesPerRow: 0, bitsPerPixel: 0
+              ) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        logo.draw(in: NSRect(x: 0, y: 0, width: pixels, height: pixels))
+        return rep.representation(using: .png, properties: [:])
     }
 }
 

@@ -58,9 +58,14 @@ final class FeeCollector: ObservableObject {
     }
 
     private func openPage(for request: CollectRequest) {
+        #if canImport(AppKit)
+        let logo = BrandMark.logoPNG(pixels: 128)
+        #else
+        let logo: Data? = nil
+        #endif
         let server: WalletBridgeServer
         do {
-            server = try WalletBridgeServer { nonce in CollectPage.html(for: request, nonce: nonce) }
+            server = try WalletBridgeServer { nonce in CollectPage.html(for: request, nonce: nonce, logoPNG: logo) }
         } catch {
             status = .failed("Could not open the local page: \(error.localizedDescription)")
             return

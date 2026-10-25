@@ -51,6 +51,13 @@ struct CollectPageTests {
         #expect(decoded?["chainId"] as? Int == 1)
     }
 
+    @Test func logoIsInlinedAsADataURI() throws {
+        let html = CollectPage.html(for: try request(), nonce: "n", logoPNG: Data([0x89, 0x50, 0x4e, 0x47]))
+        #expect(html.contains("<img class=\"logo\" src=\"data:image/png;base64,iVBORw==\""))
+        #expect(html.contains("<link rel=\"icon\" href=\"data:image/png;base64,iVBORw==\">"))
+        #expect(CollectPage.html(for: try request(), nonce: "n").contains("logo-fallback"))
+    }
+
     @Test func scriptsCarryTheNonce() throws {
         let html = CollectPage.html(for: try request(), nonce: "abc123")
         #expect(html.contains("<script nonce=\"abc123\">"))

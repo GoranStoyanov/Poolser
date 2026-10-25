@@ -120,7 +120,7 @@ final class WalletBridgeServer: @unchecked Sendable {
         if let contentType {
             head += "Content-Type: \(contentType)\r\n"
             head += "Content-Security-Policy: default-src 'none'; script-src 'nonce-\(nonce)'; "
-                + "style-src 'nonce-\(nonce)'; connect-src 'self'; base-uri 'none'; form-action 'none'\r\n"
+                + "style-src 'nonce-\(nonce)'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'\r\n"
         }
         connection.send(content: Data((head + "\r\n").utf8) + body, completion: .contentProcessed { _ in
             connection.cancel()
