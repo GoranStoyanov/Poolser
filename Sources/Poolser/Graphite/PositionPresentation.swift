@@ -68,20 +68,12 @@ struct RangeGaugeLayout: Equatable {
     }
 }
 
-/// Status item text. `MenuBarExtra` labels draw plain text, so the out-of-range mark is a
-/// text glyph rather than a coloured dot.
+/// Status item text. Range problems are left to the popover's Needs attention chip.
 enum MenuBarTitle {
-    /// "$48.2k │ $312.58", with `trend` (an arrow while the fees change) and a warning sign
-    /// while a position is out of range.
-    static func text(valueUSD: Double, feesUSD: Double, outOfRange: Bool, trend: String? = nil) -> String {
-        var title = "\(PositionPresentation.compactUSD(valueUSD)) │ \(formatUSD(feesUSD))"
-        if let trend { title += " \(trend)" }
-        if outOfRange { title += " ⚠︎" }
-        return title
-    }
-
-    static func hasOutOfRange(_ positions: [Position]) -> Bool {
-        positions.contains { $0.error == nil && !$0.isFullRange && $0.inRange == false }
+    /// "$48.2k │ $312.58", with `trend` (an arrow while the fees change).
+    static func text(valueUSD: Double, feesUSD: Double, trend: String? = nil) -> String {
+        let title = "\(PositionPresentation.compactUSD(valueUSD)) │ \(formatUSD(feesUSD))"
+        return trend.map { "\(title) \($0)" } ?? title
     }
 }
 
