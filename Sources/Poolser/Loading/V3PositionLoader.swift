@@ -145,6 +145,8 @@ struct V3PositionLoader {
         for var p in rawPositions {
             guard p.error == nil else { finalPositions.append(p); continue }
 
+            p.price0USD = priceMap[p.token0.lowercased()]
+            p.price1USD = priceMap[p.token1.lowercased()]
             var usd = 0.0; var hasUsd = false
             if let px = priceMap[p.token0.lowercased()], p.fees0 > 0 { usd += p.fees0 * px; hasUsd = true }
             if let px = priceMap[p.token1.lowercased()], p.fees1 > 0 { usd += p.fees1 * px; hasUsd = true }

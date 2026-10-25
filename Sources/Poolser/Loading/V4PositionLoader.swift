@@ -230,6 +230,8 @@ struct V4PositionLoader {
 
             p.currentTick = tick
             p.inRange = Position.isInRange(tick: tick, lower: p.tickLower, upper: p.tickUpper)
+            p.price0USD = priceMap[p.token0.lowercased()]
+            p.price1USD = priceMap[p.token1.lowercased()]
             computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metadata.cache, priceMap: priceMap)
 
             // Unclaimed fees via StateView feeGrowth math

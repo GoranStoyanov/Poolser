@@ -38,6 +38,9 @@ struct Position: Identifiable {
     var dec0: Int = 18
     var dec1: Int = 18
     var usd: Double?          // fees value in USD
+    /// USD per whole token at the last refresh; nil when no price source had the token.
+    var price0USD: Double?
+    var price1USD: Double?
     var positionUSD: Double?  // total position liquidity value in USD
     var claimedFees0: Double = 0
     var claimedFees1: Double = 0

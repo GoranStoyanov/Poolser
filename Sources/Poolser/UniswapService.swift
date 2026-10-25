@@ -10,6 +10,8 @@ final class UniswapService: ObservableObject {
     @Published var isLoading      = false
     @Published var lastError:     String?
     @Published var lastUpdated:   Date? = nil
+    /// Fees earned per day, from the unclaimed fees seen at each refresh.
+    @Published private(set) var feeLedger = DailyFeeLedger.load()
     private var previousTotal: Double = -1
     private var flashTask: Task<Void, Never>?
 
@@ -222,6 +224,8 @@ final class UniswapService: ObservableObject {
             .flatMap(\.positions)
             .sorted { lhs, rhs in (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0) }
         positions = all
+        feeLedger.record(all, at: Date())
+        feeLedger.save()
 
         let errors = snapshot.compactMap(\.error)
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
