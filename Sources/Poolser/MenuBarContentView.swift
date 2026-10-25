@@ -33,6 +33,10 @@ struct MenuBarContentView: View {
             VStack(spacing: 0) {
                 header
                 Divider().opacity(0.4)
+                if settings.trackClaimedFees && !service.positions.isEmpty {
+                    WalletFeeSummaryRow(summary: WalletFeeSummary(positions: service.positions))
+                    Divider().opacity(0.4)
+                }
                 contentArea
                 Divider().opacity(0.4)
                 footer
@@ -308,6 +312,55 @@ struct BrandMark: View {
             return appIcon
         }
         return nil
+    }
+}
+
+// MARK: - Wallet Fee Summary
+
+private struct WalletFeeSummaryRow: View {
+    let summary: WalletFeeSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("All-time fees")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                // Until the history scan catches up the claimed part is incomplete, so no total yet.
+                Text(summary.isSyncing ? "syncing…" : formatUSD(summary.allTimeUSD))
+                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(summary.isSyncing ? .secondary : .primary)
+                Spacer()
+                Text(detail)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            if !summary.isSyncing, let feeReturn = summary.returnOnAssets {
+                HStack(spacing: 4) {
+                    Text("\(formatPercent(feeReturn)) of assets")
+                    if let apr = summary.realizedAPR {
+                        Text("·").foregroundStyle(.tertiary)
+                        Text("APR since open \(formatPercent(apr))")
+                    }
+                }
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .help("""
+        Claimed fees come from the v3 Collect history, valued at current prices; v4 claimed fees \
+        are not tracked. Totals cover every position, including ones hidden by filters.
+        The return is all-time fees over the current value; the APR weighs each position by its \
+        value and how long it has been open.
+        """)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var detail: String {
+        let unclaimed = "unclaimed \(formatUSD(summary.unclaimedUSD))"
+        return summary.isSyncing ? unclaimed : "claimed \(formatUSD(summary.claimedUSD)) · \(unclaimed)"
     }
 }
 
@@ -616,6 +669,20 @@ struct PositionCard: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
+                // Row 5: realized return, right above the pool's Yield (24h) in the footer
+                if let feeReturn = pos.feeReturnOnAssets {
+                    HStack(spacing: 4) {
+                        Text("earned \(formatPercent(feeReturn)) of assets")
+                        if let apr = pos.realizedAPR() {
+                            Text("·").foregroundStyle(.tertiary)
+                            Text("APR since open \(formatPercent(apr))")
+                        }
+                        Spacer()
+                    }
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .help(realizedReturnHelp)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -649,6 +716,17 @@ struct PositionCard: View {
             .background(rangeColor.opacity(0.15))
         }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var realizedReturnHelp: String {
+        let opened = pos.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
+        return """
+        All-time fees (claimed + unclaimed) as a share of the position's current value, and that \
+        return per year since the position was opened\(opened). Compare with Yield (24h) below, \
+        the pool's estimate from the last 24 hours, also per year.
+        Claimed fees are valued at today's prices. If liquidity was added or removed, the current \
+        value is not the capital the fees were earned on.
+        """
     }
 
     private var rangeBadge: some View {

@@ -43,6 +43,8 @@ struct Position: Identifiable {
     var claimedFees1: Double = 0
     var claimedUSD: Double? = nil
     var feeHistoryBootstrapping: Bool = false
+    /// When the position was opened; set once its claimed-fee history is complete.
+    var openedAt: Date? = nil
     var currentTick: Int?
     var inRange: Bool?
     var error: String?
@@ -130,6 +132,39 @@ struct Position: Identifiable {
     }
     var hasPoolStats: Bool { volumeUSD24h != nil || feeAPR != nil || tvlUSD != nil }
 
+    /// Positions younger than this get no annualized figure: a few hours of fees scaled to a
+    /// year is noise.
+    static let minAgeForAPR: TimeInterval = 24 * 3600
+
+    /// Claimed plus unclaimed fees in USD. Needs the complete claimed history (`openedAt` is set
+    /// with it) and prices for both parts.
+    var allTimeFeesUSD: Double? {
+        guard error == nil, openedAt != nil, let unclaimed = usd else { return nil }
+        let hasClaims = claimedFees0 > 0 || claimedFees1 > 0
+        if hasClaims && claimedUSD == nil { return nil }
+        return unclaimed + (claimedUSD ?? 0)
+    }
+
+    /// All-time fees as a share of the position's current value (0.18 = 18%).
+    var feeReturnOnAssets: Double? {
+        guard let fees = allTimeFeesUSD, let value = positionUSD, value > 0 else { return nil }
+        return fees / value
+    }
+
+    func yearsOpen(at now: Date) -> Double? {
+        guard let openedAt else { return nil }
+        let age = now.timeIntervalSince(openedAt)
+        guard age >= Self.minAgeForAPR else { return nil }
+        return age / (365.25 * 24 * 3600)
+    }
+
+    /// `feeReturnOnAssets` per year since the position was opened, as a fraction. Comparable
+    /// with the pool's 24h yield (`feeAPR`, in percent), which is also annualized.
+    func realizedAPR(at now: Date = Date()) -> Double? {
+        guard let feeReturn = feeReturnOnAssets, let years = yearsOpen(at: now) else { return nil }
+        return feeReturn / years
+    }
+
     /// Current token amounts held in the position, e.g. "0.05 WBTC + 1,200 USDC".
     var distributionLabel: String {
         var parts: [String] = []
@@ -140,6 +175,42 @@ struct Position: Identifiable {
 
     var amount0Label: String { poolStateError != nil ? "–" : amount0 > 0 ? trimNum(amount0) : "0" }
     var amount1Label: String { poolStateError != nil ? "–" : amount1 > 0 ? trimNum(amount1) : "0" }
+}
+
+/// Fees across every loaded position of the wallet, including ones the list filters hide.
+/// Claimed fees come from the v3 Collect history; v4 claimed fees are not tracked.
+struct WalletFeeSummary: Equatable {
+    var unclaimedUSD: Double
+    var claimedUSD: Double
+    /// True while a claimed-fee history scan is still catching up, so the claimed total is partial.
+    var isSyncing: Bool
+    /// All-time fees ÷ current value, over the positions where both are known.
+    var returnOnAssets: Double?
+    /// Σ fees ÷ Σ (value × years open): an APR weighted by capital and time, so a large or old
+    /// position counts for more than a small new one.
+    var realizedAPR: Double?
+
+    var allTimeUSD: Double { unclaimedUSD + claimedUSD }
+
+    init(positions: [Position], now: Date = Date()) {
+        let loaded = positions.filter { $0.error == nil }
+        unclaimedUSD = loaded.compactMap(\.usd).reduce(0, +)
+        claimedUSD = loaded.compactMap(\.claimedUSD).reduce(0, +)
+        isSyncing = loaded.contains(where: \.feeHistoryBootstrapping)
+
+        var fees = 0.0, value = 0.0, aprFees = 0.0, valueYears = 0.0
+        for p in loaded {
+            guard p.feeReturnOnAssets != nil, let f = p.allTimeFeesUSD, let v = p.positionUSD else { continue }
+            fees += f
+            value += v
+            if let years = p.yearsOpen(at: now) {
+                aprFees += f
+                valueYears += v * years
+            }
+        }
+        returnOnAssets = value > 0 ? fees / value : nil
+        realizedAPR = valueYears > 0 ? aprFees / valueYears : nil
+    }
 }
 
 private func formatCompact(_ x: Double) -> String {
@@ -154,6 +225,11 @@ private func formatCompact(_ x: Double) -> String {
 /// "$12,400.00". US separators regardless of the system locale: the UI is English and the
 /// compact amounts ("$3.40M") use a decimal point, so a locale such as en_BG would show
 /// "$12 400,00" next to them.
+/// "18.0%" from a fraction (0.18).
+func formatPercent(_ fraction: Double) -> String {
+    String(format: "%.1f%%", fraction * 100)
+}
+
 func formatUSD(_ x: Double) -> String {
     x.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
 }

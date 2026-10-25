@@ -54,6 +54,18 @@ private func rpcError(code: Int, message: String) -> FakeTransport.Reply {
 }
 
 @Suite struct EthereumClientRequestTests {
+    @Test func blockTimestampReadsTheHeader() async throws {
+        let fake = FakeTransport([result(#"{"number":"0x176ae5d","timestamp":"0x6553f100","hash":"0xab"}"#)])
+        #expect(try await client(fake).ethBlockTimestamp(24_555_101) == 0x6553f100)
+    }
+
+    @Test func missingBlockIsNoResult() async {
+        let fake = FakeTransport([result("null"), result("null"), result("null")])
+        await #expect(throws: EthereumClient.Err.self) {
+            _ = try await client(fake).ethBlockTimestamp(1)
+        }
+    }
+
     @Test func ethCallSendsJSONRPCRequestAndDecodesHex() async throws {
         let fake = FakeTransport([result(#""0x00ff""#)])
         let data = try await client(fake).ethCall(to: zeroAddress, data: Data([0x99, 0xfb, 0xab, 0x88]))
