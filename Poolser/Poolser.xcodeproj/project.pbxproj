@@ -22,6 +22,7 @@
 		53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */; };
 		53A0B3192FB0C0DE00B5EC27 /* V4PositionLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */; };
 		53A0B31B2FB0C0DE00B5EC27 /* UniswapMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */; };
+		53C0A1222FC0C0DE00B5EC27 /* DailyFeeLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */; };
 		53C0A1022FC0C0DE00B5EC27 /* GraphitePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */; };
 		53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */; };
 		53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */; };
@@ -75,6 +76,7 @@
 		53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4OwnershipTracker.swift; path = ../Sources/Poolser/Loading/V4OwnershipTracker.swift; sourceTree = SOURCE_ROOT; };
 		53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4PositionLoader.swift; path = ../Sources/Poolser/Loading/V4PositionLoader.swift; sourceTree = SOURCE_ROOT; };
 		53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapMath.swift; path = ../Sources/Poolser/Math/UniswapMath.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFeeLedger.swift; path = ../Sources/Poolser/DailyFeeLedger.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePalette.swift; path = ../Sources/Poolser/Graphite/GraphitePalette.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionPresentation.swift; path = ../Sources/Poolser/Graphite/PositionPresentation.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
@@ -136,6 +138,7 @@
 				53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */,
 				53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */,
 				53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */,
+				53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */,
 				53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */,
 				53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */,
 				53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */,
@@ -252,6 +255,7 @@
 				53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */,
 				53A0B3192FB0C0DE00B5EC27 /* V4PositionLoader.swift in Sources */,
 				53A0B31B2FB0C0DE00B5EC27 /* UniswapMath.swift in Sources */,
+				53C0A1222FC0C0DE00B5EC27 /* DailyFeeLedger.swift in Sources */,
 				53C0A1022FC0C0DE00B5EC27 /* GraphitePalette.swift in Sources */,
 				53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */,
 				53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */,

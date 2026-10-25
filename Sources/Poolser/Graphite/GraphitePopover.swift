@@ -141,16 +141,19 @@ struct GraphitePopover: View {
                     Text(formatUSD(snapshot.unclaimedFeesUSD))
                         .font(.largeTitle.weight(.bold).monospacedDigit())
                         .foregroundStyle(palette.primaryText)
-                    if let today = snapshot.dailyFeesUSD?.last {
-                        Text("+\(formatUSD(today)) today")
-                            .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(palette.fees)
-                    } else if let summary = snapshot.feeSummary {
-                        // Until the history scan catches up the claimed part is incomplete, so no total yet.
-                        Text(summary.isSyncing ? "All-time fees syncing…" : "All-time \(formatUSD(summary.allTimeUSD))")
-                            .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(summary.isSyncing ? palette.secondaryText : palette.fees)
+                    HStack(spacing: 6) {
+                        if let today = snapshot.dailyFeesUSD?.last {
+                            Text("+\(formatUSD(today)) today")
+                                .foregroundStyle(palette.fees)
+                        }
+                        if let summary = snapshot.feeSummary {
+                            // Until the history scan catches up the claimed part is incomplete, so no total yet.
+                            Text(summary.isSyncing ? "All-time fees syncing…" : "All-time \(formatUSD(summary.allTimeUSD))")
+                                .foregroundStyle(summary.isSyncing || snapshot.dailyFeesUSD != nil
+                                                 ? palette.secondaryText : palette.fees)
+                        }
                     }
+                    .font(.caption.weight(.semibold).monospacedDigit())
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {

@@ -42,9 +42,17 @@ struct MenuBarContentView: View {
     }
 
     private var snapshot: PortfolioSnapshot {
-        PortfolioSnapshot(
+        let now = Date()
+        let ledger = service.feeLedger
+        var perPosition: [String: [Double]] = [:]
+        for pos in service.positions {
+            perPosition[pos.id] = ledger.dailyUSD(for: pos, days: 7, endingAt: now)
+        }
+        return PortfolioSnapshot(
             walletAddress: settings.walletAddress,
             positions: service.positions,
+            dailyFeesUSD: ledger.walletDailyUSD(service.positions, days: 30, endingAt: now),
+            positionDailyFeesUSD: perPosition,
             lastUpdated: service.lastUpdated,
             isLoading: service.isLoading,
             lastError: service.lastError,
