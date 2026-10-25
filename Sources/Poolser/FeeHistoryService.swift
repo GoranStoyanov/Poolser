@@ -8,6 +8,9 @@ struct FeeHistoryCache: Codable {
     var fees: [String: PositionFees]
     /// Earliest IncreaseLiquidity block found per tokenId — used to bound backward scan.
     var knownMintBlocks: [String: Int]
+    /// Exact creation block per tokenId, found from historical state. Unlike `knownMintBlocks`
+    /// it cannot be a later liquidity add, so the scan can stop right at it.
+    var creationBlocks: [String: Int] = [:]
 
     struct PositionFees: Codable {
         /// Σ Collect — principal and fees, since decreaseLiquidity() principal leaves via collect().
@@ -35,6 +38,7 @@ struct FeeHistoryCache: Codable {
         lastSeenBlock = try c.decode(Int.self, forKey: .lastSeenBlock)
         fees = try c.decode([String: PositionFees].self, forKey: .fees)
         knownMintBlocks = (try? c.decode([String: Int].self, forKey: .knownMintBlocks)) ?? [:]
+        creationBlocks = (try? c.decode([String: Int].self, forKey: .creationBlocks)) ?? [:]
     }
 }
 
@@ -46,6 +50,10 @@ private let increaseLiquidityTopic = "0x3067048beee31b25b2f1681f88dac838c8bba36a
 private let decreaseLiquidityTopic = "0x26f6a048ee9138f2c0ce266f322cb99228e8d619ae2bff30c67f8dcf9d2377b4"
 
 private let tokenIdBatchSize = 50
+
+/// First block whose state can be read with a historical eth_call, where it is later than the
+/// v3 deployment. Optimism's pre-Bedrock blocks are not served by the regular nodes.
+private let historicalStateFloor = ["optimism": 105_235_063]
 
 /// Bump when the cache format or scan semantics change; older caches are discarded once.
 /// v2: cursors only advance over successfully scanned ranges (v1 caches may have gaps).
@@ -62,6 +70,8 @@ struct FeeHistoryService {
 
     /// eth_getLogs for the NFPM over an inclusive block range.
     typealias LogFetcher = (_ topics: [[String]?], _ fromBlock: Int, _ toBlock: Int) async throws -> [[String: Any]]
+    /// Block at which a tokenId was minted, or nil when it cannot be determined.
+    typealias CreationBlockFinder = (_ tokenId: String) async -> Int?
 
     private static let scanQueue = ScanQueue()
 
@@ -91,6 +101,25 @@ struct FeeHistoryService {
         let blockTimeFactor = max(1, Int((12.0 / (SupportedChain.byID(chainID)?.blockTimeSeconds ?? 12)).rounded()))
         let maxChunks = baseMaxChunks * min(blockTimeFactor, 10)
 
+        let floor = max(deployBlock, historicalStateFloor[chainID] ?? 0)
+        let findCreationBlock: CreationBlockFinder = { tokenId in
+            guard let id = UInt64(tokenId) else { return nil }
+            let call = ABI.callPositions(tokenId: id)
+            let exists: (Int) async throws -> Bool = { block in
+                do {
+                    // positions() returns 12 words for a minted token and reverts before.
+                    return try await eth.ethCall(to: nfpm, data: call, block: block).count >= 12 * 32
+                } catch EthereumClient.Err.reverted {
+                    return false
+                }
+            }
+            // A token that already existed at the floor was minted where state cannot be read.
+            if floor > deployBlock {
+                guard let atFloor = try? await exists(floor), !atFloor else { return nil }
+            }
+            return await firstBlock(after: floor - 1, upTo: currentBlock, where: exists)
+        }
+
         return await scan(
             positions: positions,
             deployBlock: deployBlock,
@@ -99,7 +128,8 @@ struct FeeHistoryService {
             wallet: wallet,
             chunkSize: chunkSize,
             maxChunks: maxChunks,
-            store: .standard
+            store: .standard,
+            findCreationBlock: findCreationBlock
         ) { topics, fromBlock, toBlock in
             try await eth.ethGetLogsOR(
                 address: nfpm,
@@ -123,6 +153,7 @@ struct FeeHistoryService {
         chunkSize: Int,
         maxChunks: Int,
         store: UserDefaults,
+        findCreationBlock: CreationBlockFinder? = nil,
         fetchLogs: @escaping LogFetcher
     ) async -> Result {
         guard !positions.isEmpty else {
@@ -142,9 +173,28 @@ struct FeeHistoryService {
                 deployBlock: deployBlock,
                 currentBlock: currentBlock,
                 cacheKey: cacheKey,
-                store: store
+                store: store,
+                findCreationBlock: findCreationBlock
             )
         }
+    }
+
+    /// Smallest block in `low+1...high` where `exists` is true, assuming it is false at `low`,
+    /// true at `high` and stays true once it turns true. About log2(high - low) reads.
+    /// nil when a read fails, so the caller falls back to scanning without a known start.
+    static func firstBlock(after low: Int, upTo high: Int, where exists: (Int) async throws -> Bool) async -> Int? {
+        var lo = low, hi = high
+        while hi - lo > 1 {
+            let mid = lo + (hi - lo) / 2
+            guard let found = try? await exists(mid) else { return nil }
+            if found { hi = mid } else { lo = mid }
+        }
+        return hi
+    }
+
+    /// NFPM token ids grow with mint order, so the smallest one is the oldest position.
+    private static func oldestTokenId(_ tokenIds: [String]) -> String? {
+        tokenIds.min { (UInt64($0) ?? 0) < (UInt64($1) ?? 0) }
     }
 
     static func cacheKey(chainID: String, wallet: String) -> String {
@@ -155,6 +205,7 @@ struct FeeHistoryService {
 
     private struct ScanContext {
         let tokenIds: [String]
+        var oldestTokenId: String? { FeeHistoryService.oldestTokenId(tokenIds) }
         let decMap: [String: (dec0: Int, dec1: Int)]
         let tokenTopicBatches: [[String]]
         let chunkSize: Int
@@ -181,24 +232,50 @@ struct FeeHistoryService {
         deployBlock: Int,
         currentBlock: Int,
         cacheKey: String,
-        store: UserDefaults
+        store: UserDefaults,
+        findCreationBlock: CreationBlockFinder?
     ) async -> Result {
         var cache: FeeHistoryCache = loadCache(forKey: cacheKey, store: store)
             ?? FeeHistoryCache(nextScanCeiling: currentBlock, lastSeenBlock: currentBlock, fees: [:])
+        // Saved after every chunk, so quitting or a refresh that cancels a long scan loses nothing.
+        let checkpoint: (FeeHistoryCache) -> Void = { saveCache($0, forKey: cacheKey, store: store) }
+
+        // Only needed while the history is still being bootstrapped.
+        if cache.nextScanCeiling != nil, let oldest = context.oldestTokenId, cache.creationBlocks[oldest] == nil,
+           let findCreationBlock {
+            let chainID = context.chainID
+            if let block = await findCreationBlock(oldest) {
+                cache.creationBlocks[oldest] = block
+                checkpoint(cache)
+                Task { @MainActor in
+                    LogStore.shared.log("feeHistory[\(chainID)]: oldest position #\(oldest) created in block \(block)", level: .info)
+                }
+            } else if !Task.isCancelled {
+                Task { @MainActor in
+                    LogStore.shared.log("feeHistory[\(chainID)]: creation block of #\(oldest) unknown — scanning to the earliest liquidity event", level: .info)
+                }
+            }
+        }
 
         // 1. Fresh scan: pick up new blocks since last refresh. lastSeenBlock advances
         // chunk by chunk, so a failure or the maxChunks cap leaves the rest for next time.
         var interrupted = false
         if currentBlock > cache.lastSeenBlock {
-            interrupted = !(await scanForward(to: currentBlock, context: context, cache: &cache))
+            interrupted = !(await scanForward(to: currentBlock, context: context, cache: &cache, checkpoint: checkpoint))
         }
 
         // 2. Historical bootstrap: scan backward from nextScanCeiling.
         // Stop at the earliest known position creation block rather than deployBlock,
         // so we don't scan blocks that predate the wallet.
         let lowerBound = effectiveLowerBound(cache: cache, tokenIds: context.tokenIds, deployBlock: deployBlock)
+        // With the exact start known the remaining work is bounded, so the scan runs to it instead
+        // of stopping at the per-refresh cap and waiting for the next refresh.
+        let knowsStart = context.oldestTokenId.flatMap { cache.creationBlocks[$0] } != nil
         if !interrupted, let ceiling = cache.nextScanCeiling, ceiling >= lowerBound {
-            interrupted = !(await scanBackward(from: ceiling, downTo: lowerBound, context: context, cache: &cache))
+            interrupted = !(await scanBackward(
+                from: ceiling, downTo: lowerBound, maxChunks: knowsStart ? .max : context.maxChunks,
+                context: context, cache: &cache, checkpoint: checkpoint
+            ))
         }
         // Recompute after scan — knownMintBlocks may have been updated.
         let newLower = effectiveLowerBound(cache: cache, tokenIds: context.tokenIds, deployBlock: deployBlock)
@@ -207,7 +284,7 @@ struct FeeHistoryService {
         }
 
         // Cursors only cover completed chunks, so saving after a failure or cancellation is safe.
-        saveCache(cache, forKey: cacheKey, store: store)
+        checkpoint(cache)
         let bootstrapInProgress = cache.nextScanCeiling != nil || cache.lastSeenBlock < currentBlock
         return Result(fees: feeDict(from: cache), bootstrapInProgress: bootstrapInProgress)
     }
@@ -220,6 +297,10 @@ struct FeeHistoryService {
         tokenIds: [String],
         deployBlock: Int
     ) -> Int {
+        // The oldest position's exact creation block bounds every position's history.
+        if let oldest = oldestTokenId(tokenIds), let created = cache.creationBlocks[oldest] {
+            return max(deployBlock, created)
+        }
         guard !tokenIds.isEmpty,
               tokenIds.allSatisfy({ cache.knownMintBlocks[$0] != nil }),
               let earliest = tokenIds.compactMap({ cache.knownMintBlocks[$0] }).min()
@@ -231,7 +312,8 @@ struct FeeHistoryService {
     private static func scanForward(
         to upper: Int,
         context: ScanContext,
-        cache: inout FeeHistoryCache
+        cache: inout FeeHistoryCache,
+        checkpoint: (FeeHistoryCache) -> Void
     ) async -> Bool {
         var chunksScanned = 0
         while cache.lastSeenBlock < upper && chunksScanned < context.maxChunks {
@@ -240,6 +322,7 @@ struct FeeHistoryService {
             guard let logs = await fetchChunk(from: from, to: to, context: context) else { return false }
             parseLogs(logs, decMap: context.decMap, into: &cache)
             cache.lastSeenBlock = to
+            checkpoint(cache)
             chunksScanned += 1
         }
         return true
@@ -250,17 +333,20 @@ struct FeeHistoryService {
     private static func scanBackward(
         from ceiling: Int,
         downTo lowerBound: Int,
+        maxChunks: Int,
         context: ScanContext,
-        cache: inout FeeHistoryCache
+        cache: inout FeeHistoryCache,
+        checkpoint: (FeeHistoryCache) -> Void
     ) async -> Bool {
         var top = ceiling
         var chunksScanned = 0
-        while top >= lowerBound && chunksScanned < context.maxChunks {
+        while top >= lowerBound && chunksScanned < maxChunks {
             let bottom = max(top - context.chunkSize + 1, lowerBound)
             guard let logs = await fetchChunk(from: bottom, to: top, context: context) else { return false }
             parseLogs(logs, decMap: context.decMap, into: &cache)
             top = bottom - 1
             cache.nextScanCeiling = top
+            checkpoint(cache)
             chunksScanned += 1
         }
         return true
