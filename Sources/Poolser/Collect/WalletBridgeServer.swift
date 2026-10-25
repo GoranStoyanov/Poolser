@@ -3,11 +3,18 @@ import Network
 
 /// A short-lived HTTP server on 127.0.0.1 that serves one page to the default browser, where a
 /// wallet extension can sign, and hears back what happened. It answers only under a random path,
-/// only to requests addressed to 127.0.0.1 (no DNS rebinding), and stops once a transaction is
-/// sent or after `timeout`.
+/// only to requests addressed to 127.0.0.1 (no DNS rebinding), and stops once the page's
+/// transactions are sent or after `timeout`.
 final class WalletBridgeServer: @unchecked Sendable {
+    /// Answers the page's `POST <path>/build` with a JSON body, or nil for a bad request.
+    typealias BuildHandler = @Sendable (_ body: Data) async -> Data?
+
     enum Event: Equatable {
-        case sent(hash: String)
+        /// Every transaction of the page is sent, hashes in order. Empty when a wallet batch
+        /// did not report its hash.
+        case sent(hashes: [String])
+        /// Some of the page's transactions are sent and it waits for the rest.
+        case partlySent(hashes: [String])
         /// The page reported a failure or a rejection; the page stays usable for another try.
         case failed(String)
         case timedOut
@@ -21,16 +28,18 @@ final class WalletBridgeServer: @unchecked Sendable {
     private let token = WalletBridgeServer.randomHex(bytes: 16)
     private let nonce = WalletBridgeServer.randomHex(bytes: 16)
     private let page: (_ nonce: String) -> String
+    private let build: BuildHandler?
     private var port: UInt16 = 0
     private var onEvent: ((Event) -> Void)?
     private var finished = false
 
-    init(page: @escaping (_ nonce: String) -> String) throws {
+    init(page: @escaping (_ nonce: String) -> String, build: BuildHandler? = nil) throws {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
         parameters.acceptLocalOnly = true
         listener = try NWListener(using: parameters)
         self.page = page
+        self.build = build
     }
 
     /// `onReady` gets the page URL once the port is bound; `onEvent` runs on a background queue.
@@ -109,6 +118,22 @@ final class WalletBridgeServer: @unchecked Sendable {
             if let event = Self.event(fromResultBody: request.body) {
                 if case .sent = event { finish(event) } else if !finished { onEvent?(event) }
             }
+        case ("POST", "/\(token)/build"):
+            guard request.headers["origin"] == "http://\(origin)", let build, !finished else {
+                return send(status: "403 Forbidden", on: connection)
+            }
+            let body = request.body
+            Task { [weak self] in
+                let response = await build(body)
+                self?.queue.async { [weak self] in
+                    guard let self else { return connection.cancel() }
+                    if let response {
+                        send(status: "200 OK", contentType: "application/json", body: response, on: connection)
+                    } else {
+                        send(status: "400 Bad Request", on: connection)
+                    }
+                }
+            }
         default:
             send(status: "404 Not Found", on: connection)
         }
@@ -127,17 +152,26 @@ final class WalletBridgeServer: @unchecked Sendable {
         })
     }
 
-    /// `{"hash": "0x…"}` once sent, `{"error": "…"}` otherwise; anything else is ignored.
+    /// `{"hash": "0x…"}` or `{"hashes": [...]}` once sent, with `"pending": true` while more are
+    /// to come, `{"error": "…"}` otherwise; anything else is ignored.
     static func event(fromResultBody body: Data) -> Event? {
         guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return nil }
         if let hash = object["hash"] as? String {
-            let isHash = hash.count == 66 && hash.hasPrefix("0x") && hash.dropFirst(2).allSatisfy(\.isHexDigit)
-            return isHash ? .sent(hash: hash.lowercased()) : nil
+            return isHash(hash) ? .sent(hashes: [hash.lowercased()]) : nil
+        }
+        if let hashes = object["hashes"] as? [String] {
+            guard hashes.count <= 8, hashes.allSatisfy(isHash) else { return nil }
+            let lowered = hashes.map { $0.lowercased() }
+            return object["pending"] as? Bool == true ? .partlySent(hashes: lowered) : .sent(hashes: lowered)
         }
         if let error = object["error"] as? String {
             return .failed(String(error.prefix(300)))
         }
         return nil
+    }
+
+    private static func isHash(_ string: String) -> Bool {
+        string.count == 66 && string.hasPrefix("0x") && string.dropFirst(2).allSatisfy(\.isHexDigit)
     }
 
     private static func randomHex(bytes: Int) -> String {

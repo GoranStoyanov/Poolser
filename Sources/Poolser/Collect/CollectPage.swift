@@ -7,10 +7,7 @@ enum CollectPage {
     /// the server.
     static func html(for request: CollectRequest, nonce: String, logoPNG: Data? = nil) -> String {
         let explorer = request.explorerTxPrefix ?? ""
-        let logo = logoPNG.map { "data:image/png;base64," + $0.base64EncodedString() }
-        let logoMark = logo.map { "<img class=\"logo\" src=\"\($0)\" alt=\"\" width=\"40\" height=\"40\">" }
-            ?? "<span class=\"logo logo-fallback\" aria-hidden=\"true\">P</span>"
-        let favicon = logo.map { "<link rel=\"icon\" href=\"\($0)\">" } ?? ""
+        let (logoMark, favicon) = logo(logoPNG)
         return """
         <!doctype html>
         <html lang="en">
@@ -20,54 +17,7 @@ enum CollectPage {
         <title>Collect fees · Poolser</title>
         \(favicon)
         <style nonce="\(nonce)">
-        :root { color-scheme: light dark; --bg: #f2f2f4; --card: #fff; --line: #e6e6ea; --hair: #f0f0f2;
-                --text: #111113; --muted: #62626c; --strong: #111113; --on-strong: #fff;
-                --ok: #0b7a55; --ok-bg: #e8f4ef; --bad: #c2410c; --bad-bg: #fdeee6; }
-        @media (prefers-color-scheme: dark) {
-          :root { --bg: #0f0f11; --card: #1f1f22; --line: #2e2e33; --hair: #29292d; --text: #f4f4f5;
-                  --muted: #a1a1aa; --strong: #f4f4f5; --on-strong: #111113; --ok: #4ade9a; --ok-bg: #16302a;
-                  --bad: #ff9b5c; --bad-bg: #3a2417; }
-        }
-        * { box-sizing: border-box; }
-        body { margin: 0; background: var(--bg); color: var(--text);
-               font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-               -webkit-font-smoothing: antialiased; }
-        main { max-width: 520px; margin: 0 auto; padding: 40px 16px 48px; }
-        header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
-        .logo { width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.18); flex: none; }
-        .logo-fallback { display: grid; place-items: center; background: var(--strong); color: var(--on-strong);
-                         font-weight: 800; }
-        .brand { display: flex; flex-direction: column; line-height: 1.2; }
-        .brand strong { font-size: 17px; letter-spacing: -0.2px; }
-        .brand span { color: var(--muted); font-size: 13px; }
-        .chip { margin-left: auto; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
-                background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
-        .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
-        .hero { padding: 20px; margin-bottom: 12px; }
-        .label { color: var(--muted); font-size: 13px; font-weight: 600; }
-        .amount { font-size: 36px; font-weight: 700; letter-spacing: -0.8px; font-variant-numeric: tabular-nums;
-                  margin: 2px 0 6px; }
-        .pair { font-weight: 600; }
-        .pair span { color: var(--muted); font-weight: 400; }
-        .rows { padding: 0 20px; }
-        .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--hair); }
-        .row:first-child { border-top: 0; }
-        .row span:first-child { color: var(--muted); white-space: nowrap; }
-        .row span:last-child { text-align: right; overflow-wrap: anywhere; }
-        code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
-        button { margin-top: 20px; width: 100%; min-height: 48px; border: 0; border-radius: 12px;
-                 background: var(--strong); color: var(--on-strong); font: inherit; font-weight: 600; cursor: pointer; }
-        button:hover:not(:disabled) { opacity: .88; }
-        button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
-        button:disabled { opacity: .45; cursor: default; }
-        #status { margin-top: 16px; min-height: 1.5em; }
-        #status:empty { display: none; }
-        #status.ok, #status.error { padding: 12px 14px; border-radius: 12px; }
-        #status.ok { color: var(--ok); background: var(--ok-bg); }
-        #status.error { color: var(--bad); background: var(--bad-bg); }
-        a { color: inherit; font-weight: 600; }
-        footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
-        footer p { margin: 4px 0; }
+        \(styles)
         </style>
         </head>
         <body>
@@ -160,6 +110,66 @@ enum CollectPage {
         """
     }
 
+    /// The page look, shared with `BatchCollectPage`.
+    static let styles = """
+        :root { color-scheme: light dark; --bg: #f2f2f4; --card: #fff; --line: #e6e6ea; --hair: #f0f0f2;
+                --text: #111113; --muted: #62626c; --strong: #111113; --on-strong: #fff;
+                --ok: #0b7a55; --ok-bg: #e8f4ef; --bad: #c2410c; --bad-bg: #fdeee6; }
+        @media (prefers-color-scheme: dark) {
+          :root { --bg: #0f0f11; --card: #1f1f22; --line: #2e2e33; --hair: #29292d; --text: #f4f4f5;
+                  --muted: #a1a1aa; --strong: #f4f4f5; --on-strong: #111113; --ok: #4ade9a; --ok-bg: #16302a;
+                  --bad: #ff9b5c; --bad-bg: #3a2417; }
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--text);
+               font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+               -webkit-font-smoothing: antialiased; }
+        main { max-width: 520px; margin: 0 auto; padding: 40px 16px 48px; }
+        header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+        .logo { width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.18); flex: none; }
+        .logo-fallback { display: grid; place-items: center; background: var(--strong); color: var(--on-strong);
+                         font-weight: 800; }
+        .brand { display: flex; flex-direction: column; line-height: 1.2; }
+        .brand strong { font-size: 17px; letter-spacing: -0.2px; }
+        .brand span { color: var(--muted); font-size: 13px; }
+        .chip { margin-left: auto; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+                background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+        .hero { padding: 20px; margin-bottom: 12px; }
+        .label { color: var(--muted); font-size: 13px; font-weight: 600; }
+        .amount { font-size: 36px; font-weight: 700; letter-spacing: -0.8px; font-variant-numeric: tabular-nums;
+                  margin: 2px 0 6px; }
+        .pair { font-weight: 600; }
+        .pair span { color: var(--muted); font-weight: 400; }
+        .rows { padding: 0 20px; }
+        .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--hair); }
+        .row:first-child { border-top: 0; }
+        .row span:first-child { color: var(--muted); white-space: nowrap; }
+        .row span:last-child { text-align: right; overflow-wrap: anywhere; }
+        code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+        button { margin-top: 20px; width: 100%; min-height: 48px; border: 0; border-radius: 12px;
+                 background: var(--strong); color: var(--on-strong); font: inherit; font-weight: 600; cursor: pointer; }
+        button:hover:not(:disabled) { opacity: .88; }
+        button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
+        button:disabled { opacity: .45; cursor: default; }
+        #status { margin-top: 16px; min-height: 1.5em; }
+        #status:empty { display: none; }
+        #status.ok, #status.error { padding: 12px 14px; border-radius: 12px; }
+        #status.ok { color: var(--ok); background: var(--ok-bg); }
+        #status.error { color: var(--bad); background: var(--bad-bg); }
+        a { color: inherit; font-weight: 600; }
+        footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
+        footer p { margin: 4px 0; }
+        """
+
+    /// The header logo and the favicon, from the app logo when there is one.
+    static func logo(_ png: Data?) -> (mark: String, favicon: String) {
+        let uri = png.map { "data:image/png;base64," + $0.base64EncodedString() }
+        let mark = uri.map { "<img class=\"logo\" src=\"\($0)\" alt=\"\" width=\"40\" height=\"40\">" }
+            ?? "<span class=\"logo logo-fallback\" aria-hidden=\"true\">P</span>"
+        return (mark, uri.map { "<link rel=\"icon\" href=\"\($0)\">" } ?? "")
+    }
+
     /// "0x8f3c…a21c".
     static func shortAddress(_ address: String) -> String {
         address.count > 12 ? "\(address.prefix(6))…\(address.suffix(4))" : address
@@ -176,14 +186,18 @@ enum CollectPage {
     /// JSON for a `<script type="application/json">` block, with `<`, `>` and `&` escaped so the
     /// data cannot close the block.
     static func transactionJSON(_ request: CollectRequest, explorer: String) -> String {
-        let object: [String: Any] = [
+        scriptJSON([
             "to": request.to,
             "data": "0x" + request.data.hexString,
             "owner": request.owner,
             "chainId": request.chainId,
             "chainName": request.chainName,
             "explorer": explorer,
-        ]
+        ])
+    }
+
+    /// Any JSON object for a `<script type="application/json">` block, escaped the same way.
+    static func scriptJSON(_ object: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
               let json = String(data: data, encoding: .utf8) else { return "{}" }
         return json.replacingOccurrences(of: "<", with: "\\u003c")

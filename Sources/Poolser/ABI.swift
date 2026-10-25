@@ -156,6 +156,7 @@ extension ABI {
     private static let sel_slot0               = Data(hexString: "3850c7bd")! // slot0()
     private static let sel_symbol              = Data(hexString: "95d89b41")! // symbol()
     private static let sel_decimals            = Data(hexString: "313ce567")! // decimals()
+    private static let sel_multicall: Data = keccak256(Data("multicall(bytes[])".utf8)).prefix(4)
 
     static func callBalanceOf(owner: String) -> Data {
         sel_balanceOf + encodeAddress(owner)
@@ -181,6 +182,12 @@ extension ABI {
             + encodeAddress(recipient)
             + encodeMaxUInt128()
             + encodeMaxUInt128()
+    }
+
+    /// NonfungiblePositionManager: multicall(bytes[]). It delegatecalls each item, so
+    /// `msg.sender` stays the owner and each collect passes its approval check.
+    static func callMulticall(_ calls: [Data]) -> Data {
+        sel_multicall + encodeUInt256(32) + encodeBytesArray(calls)
     }
 
     static func callGetPool(token0: String, token1: String, fee: Int) -> Data {
@@ -221,6 +228,7 @@ extension ABI {
 
     /// v4-periphery `Actions` codes.
     static let v4ActionDecreaseLiquidity: UInt8 = 0x01
+    static let v4ActionTake: UInt8 = 0x0e
     static let v4ActionTakePair: UInt8 = 0x11
 
     /// PositionManager: modifyLiquidities(unlockData, deadline) that collects a position's fees.
@@ -229,17 +237,45 @@ extension ABI {
     static func v4CallCollectFees(
         tokenId: UInt64, currency0: String, currency1: String, recipient: String, deadline: UInt64
     ) -> Data {
-        // (uint256 tokenId, uint256 liquidity, uint128 amount0Min, uint128 amount1Min, bytes hookData)
-        let decrease = encodeUInt256(tokenId) + encodeUInt256(0) + encodeUInt256(0) + encodeUInt256(0)
-            + encodeUInt256(5 * 32) + encodeDynamicBytes(Data())
         // (Currency currency0, Currency currency1, address recipient)
         let take = encodeAddress(currency0) + encodeAddress(currency1) + encodeAddress(recipient)
+        return v4ModifyLiquidities(
+            actions: [v4ActionDecreaseLiquidity, v4ActionTakePair],
+            params: [v4DecreaseByZero(tokenId: tokenId), take],
+            deadline: deadline
+        )
+    }
 
-        // unlockData = abi.encode(bytes actions, bytes[] params)
-        let actions = encodeDynamicBytes(Data([v4ActionDecreaseLiquidity, v4ActionTakePair]))
-        let unlockData = encodeUInt256(2 * 32) + encodeUInt256(UInt64(2 * 32 + actions.count))
-            + actions + encodeBytesArray([decrease, take])
+    /// modifyLiquidities that collects the fees of several positions in one unlock: a
+    /// DECREASE_LIQUIDITY by zero per position, then one TAKE per distinct currency, so pools
+    /// sharing a currency take it once. TAKE with amount 0 (`OPEN_DELTA`) takes the full credit,
+    /// and a currency with nothing owed takes nothing instead of reverting.
+    static func v4CallCollectFees(
+        tokenIds: [UInt64], currencies: [String], recipient: String, deadline: UInt64
+    ) -> Data {
+        // (Currency currency, address recipient, uint256 amount)
+        let takes = currencies.map { encodeAddress($0) + encodeAddress(recipient) + encodeUInt256(0) }
+        return v4ModifyLiquidities(
+            actions: Array(repeating: v4ActionDecreaseLiquidity, count: tokenIds.count)
+                + Array(repeating: v4ActionTake, count: currencies.count),
+            params: tokenIds.map { v4DecreaseByZero(tokenId: $0) } + takes,
+            deadline: deadline
+        )
+    }
 
+    /// DECREASE_LIQUIDITY params (uint256 tokenId, uint256 liquidity, uint128 amount0Min,
+    /// uint128 amount1Min, bytes hookData), all zero but the token.
+    private static func v4DecreaseByZero(tokenId: UInt64) -> Data {
+        encodeUInt256(tokenId) + encodeUInt256(0) + encodeUInt256(0) + encodeUInt256(0)
+            + encodeUInt256(5 * 32) + encodeDynamicBytes(Data())
+    }
+
+    /// modifyLiquidities(abi.encode(bytes actions, bytes[] params), deadline), in the strict
+    /// encoding `CalldataDecoder.decodeActionsRouterParams` requires.
+    private static func v4ModifyLiquidities(actions: [UInt8], params: [Data], deadline: UInt64) -> Data {
+        let actionBytes = encodeDynamicBytes(Data(actions))
+        let unlockData = encodeUInt256(2 * 32) + encodeUInt256(UInt64(2 * 32 + actionBytes.count))
+            + actionBytes + encodeBytesArray(params)
         return sel_v4ModifyLiquidities + encodeUInt256(2 * 32) + encodeUInt256(deadline)
             + encodeDynamicBytes(unlockData)
     }
