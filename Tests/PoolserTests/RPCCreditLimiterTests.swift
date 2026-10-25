@@ -19,7 +19,8 @@ import Testing
 
     /// A waiter must leave as soon as it is cancelled; it used to spin until credits refilled.
     @Test func cancellingWaiterThrowsPromptly() async throws {
-        let limiter = RPCCreditLimiter(creditsPerSecond: 1, maxBurstCredits: 1)
+        let limiter = RPCCreditLimiter(creditsPerSecond: 1, maxBurstCredits: 100)
+        try await limiter.acquire(credits: 100)  // empty the bucket: the next caller must wait ~100 s
         let waiter = Task { try await limiter.acquire(credits: 100) }
         try await Task.sleep(for: .milliseconds(50))
 
@@ -28,10 +29,8 @@ import Testing
         await #expect(throws: CancellationError.self) { try await waiter.value }
         #expect(ContinuousClock.now - start < .seconds(1))
 
-        // The burst credit was never taken, so the next caller gets it right away.
-        let next = ContinuousClock.now
-        try await limiter.acquire(credits: 1)
-        #expect(ContinuousClock.now - next < .milliseconds(500))
+        // The waiter took nothing: the bucket holds only what refilled in the meantime.
+        #expect(await limiter.availableCredits < 5)
     }
 
     @Test func cancelledCallerTakesNoCredits() async throws {
@@ -165,3 +164,61 @@ private final class ManualClock: @unchecked Sendable {
         #expect(!EthereumClient.isRateLimit(EthereumClient.Err.noResult))
     }
 }
+
+@Suite("RPC credit limiter: provider backoff and burst")
+struct RPCCreditLimiterBackoffTests {
+    @Test func providerBackoffPausesEveryRequest() async {
+        let clock = ManualClock()
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
+
+        await limiter.noteRateLimited(pauseFor: 30)
+        #expect(await limiter.pauseRemaining == 30)
+        clock.advance(10)
+        #expect(await limiter.pauseRemaining == 20)
+        // A later, shorter hint never shortens a pause already in force.
+        await limiter.noteRateLimited(pauseFor: 5)
+        #expect(await limiter.pauseRemaining == 20)
+    }
+
+    @Test func providerBackoffIsCapped() async {
+        let clock = ManualClock()
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
+        await limiter.noteRateLimited(pauseFor: 3_600)
+        #expect(await limiter.pauseRemaining == RPCCreditLimiter.maxPause)
+    }
+
+    @Test func rateLimitWithoutHintDoesNotPause() async {
+        let clock = ManualClock()
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
+        await limiter.noteRateLimited()
+        #expect(await limiter.pauseRemaining == 0)
+    }
+
+    /// A budget below one getLogs (255 credits) used to leave such requests waiting forever.
+    @Test func requestLargerThanBucketStillStarts() async throws {
+        let limiter = RPCCreditLimiter(creditsPerSecond: 50, maxBurstCredits: 100)
+        try await limiter.acquire(credits: 255)
+        #expect(await limiter.availableCredits == 0)
+    }
+
+    @Test(arguments: [
+        ("5", "", 5.0),
+        (nil, #"{"error":{"code":-32005,"message":"project ID request rate exceeded","data":{"backoff_seconds":30}}}"#, 30.0),
+        (nil, #"{"error":{"code":429,"message":"Too Many Requests","data":{"rate":{"backoff_seconds":2.5}}}}"#, 2.5),
+        ("600", "", 60.0),
+    ] as [(String?, String, Double)])
+    func providerBackoffHints(retryAfter: String?, body: String, expected: Double) {
+        #expect(EthereumClient.providerBackoff(retryAfter: retryAfter, body: Data(body.utf8)) == expected)
+    }
+
+    @Test(arguments: [
+        (nil, ""),
+        (nil, #"{"error":{"message":"Too Many Requests"}}"#),
+        ("Wed, 21 Oct 2026 07:28:00 GMT", ""),
+        ("0", ""),
+    ] as [(String?, String)])
+    func noBackoffHint(retryAfter: String?, body: String) {
+        #expect(EthereumClient.providerBackoff(retryAfter: retryAfter, body: Data(body.utf8)) == nil)
+    }
+}
+

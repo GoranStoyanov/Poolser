@@ -9,9 +9,14 @@ struct EthereumClient {
     // Infura free tier nominal throughput is 500 credits/sec.
     // App default keeps a safety margin to reduce bursty 429s.
     private static let defaultBudgetCreditsPerSecond = 400
+    /// The costliest single request (eth_getLogs). Saved-up credits never exceed it: a burst of
+    /// a full second's budget on top of the pace sent ~800 credits in the first second of a
+    /// refresh, over Infura's 500/s. It must cover one request, or getLogs could never start
+    /// on a budget below its cost.
+    private static let maxBurstCredits = 255.0
     private static let sharedLimiter = RPCCreditLimiter(
         creditsPerSecond: Double(defaultBudgetCreditsPerSecond),
-        maxBurstCredits: Double(defaultBudgetCreditsPerSecond)
+        maxBurstCredits: maxBurstCredits
     )
     private let limiter: RPCCreditLimiter
     private let costEthCall = 80
@@ -37,8 +42,7 @@ struct EthereumClient {
     /// Shared by every client. Called with a value read on the main actor at the start of a
     /// load, so request code never touches `AppSettings`.
     static func setCreditBudget(perSecond credits: Int) async {
-        let cps = Double(credits)
-        await sharedLimiter.configure(creditsPerSecond: cps, maxBurstCredits: cps)
+        await sharedLimiter.configure(creditsPerSecond: Double(credits), maxBurstCredits: maxBurstCredits)
     }
 
     enum Err: Error, LocalizedError {
@@ -148,6 +152,18 @@ struct EthereumClient {
         return resultData
     }
 
+    /// eth_call against the state at a past block. Needs a node that serves historical state
+    /// (Infura does for Ethereum and Optimism, not for Base).
+    func ethCall(to: String, data: Data, block: Int) async throws -> Data {
+        let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
+        let resultData = try await call(
+            to: to, data: data, label: "eth_call",
+            target: "\(short(to)) \(selector) @\(block)", blockTag: "0x" + String(block, radix: 16)
+        )
+        log("eth_call ← \(resultData.count)B", level: .response)
+        return resultData
+    }
+
     /// Runs `calls` as one Multicall3 `aggregate3` eth_call: one request and one eth_call's
     /// credits however many sub-calls it carries. Results are in call order.
     func aggregate3(_ calls: [Call3], multicall3: String, context: String) async throws -> [Call3Result] {
@@ -175,10 +191,10 @@ struct EthereumClient {
         return results
     }
 
-    private func call(to: String, data: Data, label: String, target: String) async throws -> Data {
+    private func call(to: String, data: Data, label: String, target: String, blockTag: String = "latest") async throws -> Data {
         try await rpc(RPCSpec(
             method: "eth_call",
-            params: [["to": to, "data": "0x" + data.hexString], "latest"],
+            params: [["to": to, "data": "0x" + data.hexString], blockTag],
             cost: costEthCall, maxRetries: callMaxRetries, timeout: 15, label: label,
             requestDetail: target,
             noResultDetail: ": \(target)",
@@ -217,6 +233,7 @@ struct EthereumClient {
     private func rpc<T>(_ spec: RPCSpec, decode: (Any) throws -> T?) async throws -> T {
         var lastError: Error?
         for attempt in 0...spec.maxRetries {
+            var providerBackoff: TimeInterval?
             do {
                 try await limiter.acquire(credits: spec.cost)
                 let body = try JSONSerialization.data(withJSONObject: [
@@ -235,7 +252,12 @@ struct EthereumClient {
                 let (data, response) = try await transport(req)
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     let message = Self.httpErrorMessage(status: http.statusCode, body: data)
-                    log("\(spec.label) ← \(message)", level: .error)
+                    providerBackoff = Self.providerBackoff(retryAfter: http.value(forHTTPHeaderField: "Retry-After"), body: data)
+                    // A bare "HTTP 429" does not say why; the body and any backoff hint do.
+                    let detail = http.statusCode == 429
+                        ? " [\(debugBody(data))\(providerBackoff.map { ", back off \(Int($0.rounded(.up)))s" } ?? "")]"
+                        : ""
+                    log("\(spec.label) ← \(message)\(detail)", level: .error)
                     throw Err.rpc(message)
                 }
 
@@ -245,6 +267,7 @@ struct EthereumClient {
                 }
                 if let err = json["error"] as? [String: Any] {
                     let msg = err["message"] as? String ?? "unknown error"
+                    providerBackoff = Self.providerBackoff(retryAfter: nil, body: data)
                     if spec.logsErrors {
                         log("\(spec.label) ← error: \(msg)", level: .error)
                     }
@@ -260,8 +283,13 @@ struct EthereumClient {
                 return result
             } catch {
                 lastError = error
-                if Self.isRateLimit(error), let cps = await limiter.noteRateLimited() {
-                    log("rate limited — RPC pace lowered to \(Int(cps)) credits/s, recovers gradually", level: .info)
+                if Self.isRateLimit(error) {
+                    if let cps = await limiter.noteRateLimited(pauseFor: providerBackoff) {
+                        log("rate limited — RPC pace lowered to \(Int(cps)) credits/s, recovers gradually", level: .info)
+                    }
+                    if let providerBackoff {
+                        log("rate limited — all requests paused for \(Int(providerBackoff.rounded(.up)))s as the provider asked", level: .info)
+                    }
                 }
                 guard shouldRetry(error), attempt < spec.maxRetries else { throw error }
                 let next = attempt + 1
@@ -288,6 +316,21 @@ struct EthereumClient {
               let message = err["message"] as? String, !message.isEmpty
         else { return "HTTP \(status)" }
         return "HTTP \(status): \(message)"
+    }
+
+    /// Seconds the provider asks clients to wait: the `Retry-After` header (seconds), or Infura's
+    /// `backoff_seconds` in the JSON-RPC error data. Capped so a bad value cannot stall the app.
+    static func providerBackoff(retryAfter: String?, body: Data) -> TimeInterval? {
+        var seconds: Double?
+        if let header = retryAfter?.trimmingCharacters(in: .whitespaces), let value = Double(header) {
+            seconds = value
+        } else if let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+                  let data = (json["error"] as? [String: Any])?["data"] as? [String: Any] {
+            let rate = data["rate"] as? [String: Any]
+            seconds = (data["backoff_seconds"] ?? rate?["backoff_seconds"]) as? Double
+        }
+        guard let seconds, seconds > 0 else { return nil }
+        return min(seconds, RPCCreditLimiter.maxPause)
     }
 
     /// The provider is throttling us: HTTP 429, or a JSON-RPC error saying so on HTTP 200.
@@ -378,6 +421,8 @@ struct EthereumClient {
 /// seconds without another rate limit.
 actor RPCCreditLimiter {
     static let minThrottle = 0.125
+    /// Longest pause a provider's backoff hint can impose.
+    static let maxPause: TimeInterval = 60
     static let recoveryStep = 0.125
     static let recoveryInterval: TimeInterval = 15
     /// Rate limits closer together than this count once, so one burst of parallel requests
@@ -392,6 +437,8 @@ actor RPCCreditLimiter {
     private(set) var throttle: Double = 1
     private var lastThrottleChange: TimeInterval
     private var lastPenalty: TimeInterval = -.infinity
+    /// No request starts before this time; set when the provider names a backoff.
+    private var pausedUntil: TimeInterval = -.infinity
     private let now: @Sendable () -> TimeInterval
 
     init(
@@ -411,6 +458,10 @@ actor RPCCreditLimiter {
         creditsPerSecond * throttle
     }
 
+    var pauseRemaining: TimeInterval {
+        max(0, pausedUntil - now())
+    }
+
     func configure(creditsPerSecond: Double, maxBurstCredits: Double) {
         refill()
         self.creditsPerSecond = max(1, creditsPerSecond)
@@ -421,9 +472,15 @@ actor RPCCreditLimiter {
     /// Throws `CancellationError` without taking credits once the caller is cancelled, so a
     /// superseded refresh neither spins here nor spends budget the next one needs.
     func acquire(credits: Int) async throws {
-        let needed = Double(max(1, credits))
+        // A request larger than the bucket could never start; let it through once the bucket is full.
+        let needed = min(Double(max(1, credits)), maxBurstCredits)
         while true {
             try Task.checkCancellation()
+            let pause = pauseRemaining
+            if pause > 0 {
+                try await Task.sleep(nanoseconds: UInt64(pause * 1_000_000_000))
+                continue
+            }
             refill()
             if availableCredits >= needed {
                 availableCredits -= needed
@@ -436,12 +493,16 @@ actor RPCCreditLimiter {
         }
     }
 
-    /// Called when the provider answered with a rate limit. Returns the new effective
-    /// credits/s when the rate was lowered, nil when this limit was already accounted for.
+    /// Called when the provider answered with a rate limit. `pauseFor` is the provider's own
+    /// backoff hint: every request waits it out, not only the one being retried. Returns the new
+    /// effective credits/s when the rate was lowered, nil when this limit was already accounted for.
     @discardableResult
-    func noteRateLimited() -> Double? {
+    func noteRateLimited(pauseFor backoff: TimeInterval? = nil) -> Double? {
         refill()
         let t = now()
+        if let backoff, backoff > 0 {
+            pausedUntil = max(pausedUntil, t + min(backoff, Self.maxPause))
+        }
         // Requests already waiting must not go out at the old pace.
         availableCredits = 0
         guard t - lastPenalty >= Self.penaltyWindow else { return nil }

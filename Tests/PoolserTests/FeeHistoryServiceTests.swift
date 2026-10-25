@@ -4,6 +4,7 @@ import Testing
 
 private let collectTopic = "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01"
 private let decreaseLiquidityTopic = "0x26f6a048ee9138f2c0ce266f322cb99228e8d619ae2bff30c67f8dcf9d2377b4"
+private let increaseLiquidityTopic = "0x3067048beee31b25b2f1681f88dac838c8bba36af25bfb2b7cf7473a5847e35f"
 private let chainID = "test"
 
 /// In-memory NFPM log source with scriptable failures.
@@ -17,6 +18,10 @@ private final class FakeRPC: @unchecked Sendable {
 
         static func decrease(block: Int, tokenId: String, amount0: Int, amount1: Int = 0) -> Event {
             Event(block: block, tokenId: tokenId, amount0: amount0, amount1: amount1, topic: decreaseLiquidityTopic)
+        }
+
+        static func increase(block: Int, tokenId: String) -> Event {
+            Event(block: block, tokenId: tokenId, amount0: 0, topic: increaseLiquidityTopic)
         }
     }
 
@@ -100,6 +105,9 @@ private final class Harness {
     var positions = [position("1")]
     var chunkSize = 10
     var maxChunks = 100
+    /// Answers the creation-block lookup; nil leaves the scan without one.
+    var creationBlock: Int?
+    private(set) var creationLookups: [String] = []
 
     init(_ events: [FakeRPC.Event] = []) {
         store = UserDefaults(suiteName: suiteName)!
@@ -117,6 +125,12 @@ private final class Harness {
     @discardableResult
     func scan(currentBlock: Int, deployBlock: Int) async -> FeeHistoryService.Result {
         let rpc = rpc
+        let finder: FeeHistoryService.CreationBlockFinder? = creationBlock.map { block in
+            { [weak self] tokenId in
+                self?.creationLookups.append(tokenId)
+                return block
+            }
+        }
         return await FeeHistoryService.scan(
             positions: positions,
             deployBlock: deployBlock,
@@ -125,7 +139,8 @@ private final class Harness {
             wallet: wallet,
             chunkSize: chunkSize,
             maxChunks: maxChunks,
-            store: store
+            store: store,
+            findCreationBlock: finder
         ) { topics, from, to in
             try await rpc.fetch(topics: topics, from: from, to: to)
         }
@@ -331,3 +346,65 @@ private final class Harness {
         #expect(result.fees["1"]?.amount0 == 0)
     }
 }
+
+@Suite("Fee history creation block")
+struct FeeHistoryCreationBlockTests {
+    @Test func backwardScanStopsAtTheOldestPositionsCreationBlock() async {
+        // Minted at 110, liquidity added again at 150: a collect in between must still count.
+        let h = Harness([
+            .increase(block: 110, tokenId: "1"),
+            .init(block: 120, tokenId: "1", amount0: 7),
+            .increase(block: 150, tokenId: "1"),
+        ])
+        h.creationBlock = 110
+
+        let result = await h.scan(currentBlock: 200, deployBlock: 0)
+
+        #expect(!result.bootstrapInProgress)
+        #expect(result.fees["1"]?.amount0 == 7)
+        #expect(h.rpc.requestedRanges.map(\.lowerBound).min() == 110)
+        #expect(h.cache?.creationBlocks["1"] == 110)
+    }
+
+    @Test func withoutCreationBlockTheScanKeepsItsOldBound() async {
+        let h = Harness([.increase(block: 110, tokenId: "1"), .init(block: 120, tokenId: "1", amount0: 7)])
+
+        let result = await h.scan(currentBlock: 200, deployBlock: 0)
+
+        #expect(result.fees["1"]?.amount0 == 7)
+        #expect(h.cache?.creationBlocks.isEmpty == true)
+    }
+
+    @Test func oldestTokenIsLookedUpOnceAndCached() async {
+        let h = Harness()
+        h.positions = [position("30"), position("4"), position("100")]
+        h.creationBlock = 150
+        h.maxChunks = 3  // 200→150 is 6 chunks of 10 blocks: two scans
+
+        await h.scan(currentBlock: 200, deployBlock: 0)
+        await h.scan(currentBlock: 200, deployBlock: 0)
+
+        // "4" is the smallest id, so the oldest position, even though "100" sorts first as text.
+        #expect(h.creationLookups == ["4"])
+        #expect(h.cache?.nextScanCeiling == nil)
+    }
+
+    @Test func firstBlockFindsTheMintWithLogarithmicReads() async {
+        var reads = 0
+        let block = await FeeHistoryService.firstBlock(after: 999, upTo: 1_000_000) { b in
+            reads += 1
+            return b >= 24_555
+        }
+        #expect(block == 24_555)
+        #expect(reads <= 20)
+    }
+
+    @Test func firstBlockGivesUpWhenAReadFails() async {
+        let block = await FeeHistoryService.firstBlock(after: 0, upTo: 1_000) { b in
+            if b < 500 { throw ScanFailure() }
+            return b >= 300
+        }
+        #expect(block == nil)
+    }
+}
+
