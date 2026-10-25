@@ -9,5 +9,9 @@
     <!-- Outbound network connections (Infura RPC + GeckoTerminal + CoinGecko) -->
     <key>com.apple.security.network.client</key>
     <true/>
+
+    <!-- Loopback-only page (127.0.0.1) that hands a collect transaction to the browser wallet -->
+    <key>com.apple.security.network.server</key>
+    <true/>
 </dict>
 </plist>

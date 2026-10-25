@@ -5,6 +5,7 @@ import AppKit
 
 struct MenuBarContentView: View {
     @EnvironmentObject var service: UniswapService
+    @EnvironmentObject var collector: FeeCollector
     @ObservedObject private var settings = AppSettings.shared
     @State private var showSettings = false
     @State private var showLogs     = false
@@ -15,6 +16,7 @@ struct MenuBarContentView: View {
             .fixedSize()
             .onGeometryChange(for: CGSize.self) { $0.size } action: { screenSize = $0 }
             .background(MenuWindowSizer(contentSize: screenSize))
+            .onAppear { collector.onSent = { service.refresh() } }
     }
 
     @ViewBuilder
@@ -35,7 +37,9 @@ struct MenuBarContentView: View {
                     quit: { NSApp.terminate(nil) },
                     open: { pos in
                         if let url = pos.uniswapURL { NSWorkspace.shared.open(url) }
-                    }
+                    },
+                    collect: { pos in collector.collect(pos, owner: owner) },
+                    dismissNotice: { collector.dismiss() }
                 )
             )
         }
@@ -50,8 +54,27 @@ struct MenuBarContentView: View {
             lastError: service.lastError,
             feeSummary: settings.trackClaimedFees && !service.positions.isEmpty
                 ? WalletFeeSummary(positions: service.positions)
-                : nil
+                : nil,
+            notice: collector.status.map(Self.notice)
         )
+    }
+
+    private var owner: String {
+        let address = settings.walletAddress
+        return address.hasPrefix("0x") ? address : "0x" + address
+    }
+
+    private static func notice(for status: FeeCollector.Status) -> Notice {
+        switch status {
+        case .checking(let pair):
+            return Notice(kind: .progress, text: "Checking the collect for \(pair)…")
+        case .waitingForWallet(let pair):
+            return Notice(kind: .progress, text: "Confirm the collect for \(pair) in your browser wallet.")
+        case .sent(let pair, let transaction):
+            return Notice(kind: .success, text: "Collect for \(pair) sent. Positions refresh shortly.", link: transaction)
+        case .failed(let message):
+            return Notice(kind: .failure, text: message)
+        }
     }
 }
 

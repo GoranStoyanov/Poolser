@@ -165,6 +165,16 @@ struct EthereumClient {
         return resultData
     }
 
+    /// eth_call as if `from` sent it: a dry run of a transaction that checks `msg.sender`.
+    func ethCall(to: String, data: Data, from: String) async throws -> Data {
+        let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
+        let resultData = try await call(
+            to: to, data: data, label: "eth_call", target: "\(short(to)) \(selector) from \(short(from))", from: from
+        )
+        log("eth_call ← \(resultData.count)B", level: .response)
+        return resultData
+    }
+
     /// eth_call against the state at a past block. Needs a node that serves historical state
     /// (Infura does for Ethereum and Optimism, not for Base).
     func ethCall(to: String, data: Data, block: Int) async throws -> Data {
@@ -204,10 +214,14 @@ struct EthereumClient {
         return results
     }
 
-    private func call(to: String, data: Data, label: String, target: String, blockTag: String = "latest") async throws -> Data {
-        try await rpc(RPCSpec(
+    private func call(
+        to: String, data: Data, label: String, target: String, blockTag: String = "latest", from: String? = nil
+    ) async throws -> Data {
+        var tx = ["to": to, "data": "0x" + data.hexString]
+        if let from { tx["from"] = from }
+        return try await rpc(RPCSpec(
             method: "eth_call",
-            params: [["to": to, "data": "0x" + data.hexString], blockTag],
+            params: [tx, blockTag],
             cost: costEthCall, maxRetries: callMaxRetries, timeout: 15, label: label,
             requestDetail: target,
             noResultDetail: ": \(target)",
