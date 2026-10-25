@@ -406,5 +406,41 @@ struct FeeHistoryCreationBlockTests {
         }
         #expect(block == nil)
     }
-}
 
+    @Test func knownStartIgnoresThePerRefreshCap() async {
+        let h = Harness([.init(block: 120, tokenId: "1", amount0: 3)])
+        h.creationBlock = 100
+        h.maxChunks = 2  // 200→100 is 11 chunks of 10 blocks
+
+        let result = await h.scan(currentBlock: 200, deployBlock: 0)
+
+        #expect(!result.bootstrapInProgress)
+        #expect(result.fees["1"]?.amount0 == 3)
+    }
+
+    @Test func unknownStartKeepsThePerRefreshCap() async {
+        let h = Harness()
+        h.maxChunks = 2
+
+        let result = await h.scan(currentBlock: 200, deployBlock: 0)
+
+        #expect(result.bootstrapInProgress)
+        #expect(h.rpc.requestedRanges.count == 2)
+    }
+
+    @Test func progressIsSavedAfterEveryChunk() async {
+        let h = Harness()
+        h.creationBlock = 100
+        let key = FeeHistoryService.cacheKey(chainID: chainID, wallet: h.wallet)
+        let store = h.store
+        var ceilingsSeen: [Int?] = []
+        h.rpc.beforeRequest = { _, _, _ in
+            ceilingsSeen.append(FeeHistoryService.loadCache(forKey: key, store: store)?.nextScanCeiling)
+        }
+
+        await h.scan(currentBlock: 200, deployBlock: 0)
+
+        // Each request sees the ceiling the previous chunk saved: 200, 190, 180, …
+        #expect(Array(ceilingsSeen.dropFirst().prefix(3)) == [190, 180, 170])
+    }
+}

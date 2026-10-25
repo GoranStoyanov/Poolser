@@ -283,13 +283,10 @@ struct EthereumClient {
                 return result
             } catch {
                 lastError = error
-                if Self.isRateLimit(error) {
-                    if let cps = await limiter.noteRateLimited(pauseFor: providerBackoff) {
-                        log("rate limited — RPC pace lowered to \(Int(cps)) credits/s, recovers gradually", level: .info)
-                    }
-                    if let providerBackoff {
-                        log("rate limited — all requests paused for \(Int(providerBackoff.rounded(.up)))s as the provider asked", level: .info)
-                    }
+                if Self.isRateLimit(error), let cps = await limiter.noteRateLimited(pauseFor: providerBackoff) {
+                    let pause = Int((providerBackoff ?? RPCCreditLimiter.defaultPause).rounded(.up))
+                    let cap = Int(await limiter.ceilingCreditsPerSecond)
+                    log("rate limited — all requests paused \(pause)s, pace lowered to \(Int(cps)) credits/s, recovers up to \(cap)", level: .info)
                 }
                 guard shouldRetry(error), attempt < spec.maxRetries else { throw error }
                 let next = attempt + 1
@@ -423,19 +420,30 @@ actor RPCCreditLimiter {
     static let minThrottle = 0.125
     /// Longest pause a provider's backoff hint can impose.
     static let maxPause: TimeInterval = 60
+    /// Every request waits this long after a rate limit that names no backoff (Infura's doesn't).
+    static let defaultPause: TimeInterval = 2
     static let recoveryStep = 0.125
     static let recoveryInterval: TimeInterval = 15
-    /// Rate limits closer together than this count once, so one burst of parallel requests
-    /// that all get HTTP 429 lowers the rate a single step.
-    static let penaltyWindow: TimeInterval = 1
+    /// Rate limits closer together than this are one episode and lower the rate a single step:
+    /// the retries of one request and the requests that were already waiting hit the same limit.
+    static let penaltyWindow: TimeInterval = 10
+    /// After a rate limit the pace recovers only to this share of the pace that hit it, so it
+    /// settles below the provider's limit instead of swinging between full speed and the floor.
+    static let ceilingFactor = 0.8
+    /// The ceiling rises one `recoveryStep` per this long without another rate limit, so a limit
+    /// that only applied for a while does not slow the rest of the session.
+    static let ceilingRecoveryInterval: TimeInterval = 300
 
     private var creditsPerSecond: Double
     private var maxBurstCredits: Double
     private(set) var availableCredits: Double
     private var lastRefill: TimeInterval
-    /// Fraction of the configured budget currently in use (minThrottle...1).
+    /// Fraction of the configured budget currently in use (minThrottle...ceiling).
     private(set) var throttle: Double = 1
+    /// Highest fraction the pace recovers to (minThrottle...1); lowered by each rate limit.
+    private(set) var ceiling: Double = 1
     private var lastThrottleChange: TimeInterval
+    private var lastCeilingChange: TimeInterval
     private var lastPenalty: TimeInterval = -.infinity
     /// No request starts before this time; set when the provider names a backoff.
     private var pausedUntil: TimeInterval = -.infinity
@@ -452,10 +460,16 @@ actor RPCCreditLimiter {
         self.now = now
         self.lastRefill = now()
         self.lastThrottleChange = lastRefill
+        self.lastCeilingChange = lastRefill
     }
 
     var effectiveCreditsPerSecond: Double {
         creditsPerSecond * throttle
+    }
+
+    /// The pace the limiter recovers to after rate limits.
+    var ceilingCreditsPerSecond: Double {
+        creditsPerSecond * ceiling
     }
 
     var pauseRemaining: TimeInterval {
@@ -464,6 +478,8 @@ actor RPCCreditLimiter {
 
     func configure(creditsPerSecond: Double, maxBurstCredits: Double) {
         refill()
+        // A new budget is a new starting point; what the old one learned no longer applies.
+        if max(1, creditsPerSecond) != self.creditsPerSecond { ceiling = 1 }
         self.creditsPerSecond = max(1, creditsPerSecond)
         self.maxBurstCredits = max(1, maxBurstCredits)
         availableCredits = min(availableCredits, self.maxBurstCredits)
@@ -493,20 +509,21 @@ actor RPCCreditLimiter {
         }
     }
 
-    /// Called when the provider answered with a rate limit. `pauseFor` is the provider's own
-    /// backoff hint: every request waits it out, not only the one being retried. Returns the new
+    /// Called when the provider answered with a rate limit. Every request pauses, for the
+    /// provider's backoff hint when it gives one, not only the one being retried. Returns the new
     /// effective credits/s when the rate was lowered, nil when this limit was already accounted for.
     @discardableResult
     func noteRateLimited(pauseFor backoff: TimeInterval? = nil) -> Double? {
         refill()
         let t = now()
-        if let backoff, backoff > 0 {
-            pausedUntil = max(pausedUntil, t + min(backoff, Self.maxPause))
-        }
+        let pause = min(backoff.flatMap { $0 > 0 ? $0 : nil } ?? Self.defaultPause, Self.maxPause)
+        pausedUntil = max(pausedUntil, t + pause)
         // Requests already waiting must not go out at the old pace.
         availableCredits = 0
         guard t - lastPenalty >= Self.penaltyWindow else { return nil }
         lastPenalty = t
+        ceiling = max(Self.minThrottle, min(ceiling, throttle * Self.ceilingFactor))
+        lastCeilingChange = t
         guard throttle > Self.minThrottle else { return nil }
         throttle = max(Self.minThrottle, throttle / 2)
         lastThrottleChange = t
@@ -523,8 +540,12 @@ actor RPCCreditLimiter {
     }
 
     private func recoverThrottle(at t: TimeInterval) {
-        while throttle < 1, t - lastThrottleChange >= Self.recoveryInterval {
-            throttle = min(1, throttle + Self.recoveryStep)
+        while ceiling < 1, t - lastCeilingChange >= Self.ceilingRecoveryInterval {
+            ceiling = min(1, ceiling + Self.recoveryStep)
+            lastCeilingChange += Self.ceilingRecoveryInterval
+        }
+        while throttle < ceiling, t - lastThrottleChange >= Self.recoveryInterval {
+            throttle = min(ceiling, throttle + Self.recoveryStep)
             lastThrottleChange += Self.recoveryInterval
         }
     }

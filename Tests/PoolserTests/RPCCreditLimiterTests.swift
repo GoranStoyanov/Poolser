@@ -127,7 +127,14 @@ private final class ManualClock: @unchecked Sendable {
         try await limiter.acquire(credits: 1)
         #expect(await limiter.throttle == 0.5 + RPCCreditLimiter.recoveryStep)
 
+        // The pace climbs back only to 80% of the pace that hit the limit...
         clock.advance(RPCCreditLimiter.recoveryInterval * 10)
+        try await limiter.acquire(credits: 1)
+        #expect(await limiter.throttle == RPCCreditLimiter.ceilingFactor)
+        #expect(await limiter.effectiveCreditsPerSecond == 320)
+
+        // ...and that ceiling rises again after a long stretch without rate limits.
+        clock.advance(RPCCreditLimiter.ceilingRecoveryInterval * 2)
         try await limiter.acquire(credits: 1)
         #expect(await limiter.throttle == 1)
         #expect(await limiter.effectiveCreditsPerSecond == 400)
@@ -135,11 +142,32 @@ private final class ManualClock: @unchecked Sendable {
 
     @Test func refillUsesLoweredPace() async throws {
         let clock = ManualClock()
-        let limiter = limiter(clock)
-        await limiter.noteRateLimited()                       // 200 credits/s, bucket empty
-        clock.advance(0.5)
-        try await limiter.acquire(credits: 100)               // exactly 0.5 s × 200
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 10_000, now: { clock.now })
+        await limiter.noteRateLimited()                       // 200 credits/s, bucket empty, 2 s pause
+        clock.advance(RPCCreditLimiter.defaultPause + 0.5)
+        try await limiter.acquire(credits: 500)               // exactly 2.5 s × 200
         #expect(await limiter.availableCredits == 0)
+    }
+
+    @Test func ceilingFollowsThePaceThatHitTheLimit() async {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        await limiter.noteRateLimited()                       // hit at 1.0: ceiling 0.8, pace 0.5
+        #expect(await limiter.ceiling == 0.8)
+        clock.advance(RPCCreditLimiter.penaltyWindow)
+        await limiter.noteRateLimited()                       // hit at 0.5: ceiling 0.4, pace 0.25
+        #expect(await limiter.ceiling == 0.4)
+        #expect(await limiter.ceilingCreditsPerSecond == 160)
+    }
+
+    @Test func newBudgetForgetsTheCeiling() async {
+        let clock = ManualClock()
+        let limiter = limiter(clock)
+        await limiter.noteRateLimited()
+        await limiter.configure(creditsPerSecond: 400, maxBurstCredits: 255)
+        #expect(await limiter.ceiling == 0.8)                 // same budget: kept
+        await limiter.configure(creditsPerSecond: 300, maxBurstCredits: 255)
+        #expect(await limiter.ceiling == 1)
     }
 }
 
@@ -187,11 +215,17 @@ struct RPCCreditLimiterBackoffTests {
         #expect(await limiter.pauseRemaining == RPCCreditLimiter.maxPause)
     }
 
-    @Test func rateLimitWithoutHintDoesNotPause() async {
+    /// Infura's 429 carries no backoff hint; every request still pauses briefly.
+    @Test func rateLimitWithoutHintPausesBriefly() async {
         let clock = ManualClock()
         let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
         await limiter.noteRateLimited()
-        #expect(await limiter.pauseRemaining == 0)
+        #expect(await limiter.pauseRemaining == RPCCreditLimiter.defaultPause)
+        // A 429 in the same episode extends the pause but does not lower the pace again.
+        clock.advance(1)
+        #expect(await limiter.noteRateLimited() == nil)
+        #expect(await limiter.pauseRemaining == RPCCreditLimiter.defaultPause)
+        #expect(await limiter.effectiveCreditsPerSecond == 200)
     }
 
     /// A budget below one getLogs (255 credits) used to leave such requests waiting forever.

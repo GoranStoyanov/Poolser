@@ -237,6 +237,8 @@ struct FeeHistoryService {
     ) async -> Result {
         var cache: FeeHistoryCache = loadCache(forKey: cacheKey, store: store)
             ?? FeeHistoryCache(nextScanCeiling: currentBlock, lastSeenBlock: currentBlock, fees: [:])
+        // Saved after every chunk, so quitting or a refresh that cancels a long scan loses nothing.
+        let checkpoint: (FeeHistoryCache) -> Void = { saveCache($0, forKey: cacheKey, store: store) }
 
         // Only needed while the history is still being bootstrapped.
         if cache.nextScanCeiling != nil, let oldest = context.oldestTokenId, cache.creationBlocks[oldest] == nil,
@@ -244,6 +246,7 @@ struct FeeHistoryService {
             let chainID = context.chainID
             if let block = await findCreationBlock(oldest) {
                 cache.creationBlocks[oldest] = block
+                checkpoint(cache)
                 Task { @MainActor in
                     LogStore.shared.log("feeHistory[\(chainID)]: oldest position #\(oldest) created in block \(block)", level: .info)
                 }
@@ -258,15 +261,21 @@ struct FeeHistoryService {
         // chunk by chunk, so a failure or the maxChunks cap leaves the rest for next time.
         var interrupted = false
         if currentBlock > cache.lastSeenBlock {
-            interrupted = !(await scanForward(to: currentBlock, context: context, cache: &cache))
+            interrupted = !(await scanForward(to: currentBlock, context: context, cache: &cache, checkpoint: checkpoint))
         }
 
         // 2. Historical bootstrap: scan backward from nextScanCeiling.
         // Stop at the earliest known position creation block rather than deployBlock,
         // so we don't scan blocks that predate the wallet.
         let lowerBound = effectiveLowerBound(cache: cache, tokenIds: context.tokenIds, deployBlock: deployBlock)
+        // With the exact start known the remaining work is bounded, so the scan runs to it instead
+        // of stopping at the per-refresh cap and waiting for the next refresh.
+        let knowsStart = context.oldestTokenId.flatMap { cache.creationBlocks[$0] } != nil
         if !interrupted, let ceiling = cache.nextScanCeiling, ceiling >= lowerBound {
-            interrupted = !(await scanBackward(from: ceiling, downTo: lowerBound, context: context, cache: &cache))
+            interrupted = !(await scanBackward(
+                from: ceiling, downTo: lowerBound, maxChunks: knowsStart ? .max : context.maxChunks,
+                context: context, cache: &cache, checkpoint: checkpoint
+            ))
         }
         // Recompute after scan — knownMintBlocks may have been updated.
         let newLower = effectiveLowerBound(cache: cache, tokenIds: context.tokenIds, deployBlock: deployBlock)
@@ -275,7 +284,7 @@ struct FeeHistoryService {
         }
 
         // Cursors only cover completed chunks, so saving after a failure or cancellation is safe.
-        saveCache(cache, forKey: cacheKey, store: store)
+        checkpoint(cache)
         let bootstrapInProgress = cache.nextScanCeiling != nil || cache.lastSeenBlock < currentBlock
         return Result(fees: feeDict(from: cache), bootstrapInProgress: bootstrapInProgress)
     }
@@ -303,7 +312,8 @@ struct FeeHistoryService {
     private static func scanForward(
         to upper: Int,
         context: ScanContext,
-        cache: inout FeeHistoryCache
+        cache: inout FeeHistoryCache,
+        checkpoint: (FeeHistoryCache) -> Void
     ) async -> Bool {
         var chunksScanned = 0
         while cache.lastSeenBlock < upper && chunksScanned < context.maxChunks {
@@ -312,6 +322,7 @@ struct FeeHistoryService {
             guard let logs = await fetchChunk(from: from, to: to, context: context) else { return false }
             parseLogs(logs, decMap: context.decMap, into: &cache)
             cache.lastSeenBlock = to
+            checkpoint(cache)
             chunksScanned += 1
         }
         return true
@@ -322,17 +333,20 @@ struct FeeHistoryService {
     private static func scanBackward(
         from ceiling: Int,
         downTo lowerBound: Int,
+        maxChunks: Int,
         context: ScanContext,
-        cache: inout FeeHistoryCache
+        cache: inout FeeHistoryCache,
+        checkpoint: (FeeHistoryCache) -> Void
     ) async -> Bool {
         var top = ceiling
         var chunksScanned = 0
-        while top >= lowerBound && chunksScanned < context.maxChunks {
+        while top >= lowerBound && chunksScanned < maxChunks {
             let bottom = max(top - context.chunkSize + 1, lowerBound)
             guard let logs = await fetchChunk(from: bottom, to: top, context: context) else { return false }
             parseLogs(logs, decMap: context.decMap, into: &cache)
             top = bottom - 1
             cache.nextScanCeiling = top
+            checkpoint(cache)
             chunksScanned += 1
         }
         return true
