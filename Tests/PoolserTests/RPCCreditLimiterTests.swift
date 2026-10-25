@@ -99,7 +99,7 @@ private final class ManualClock: @unchecked Sendable {
         for _ in 0..<4 { #expect(await limiter.noteRateLimited() == nil) }
         #expect(await limiter.effectiveCreditsPerSecond == 200)
 
-        clock.advance(RPCCreditLimiter.penaltyWindow)
+        clock.advance(RPCCreditLimiter.defaultPause + RPCCreditLimiter.penaltyWindow)
         #expect(await limiter.noteRateLimited() == 100)
     }
 
@@ -108,7 +108,7 @@ private final class ManualClock: @unchecked Sendable {
         let limiter = limiter(clock)
         for _ in 0..<10 {
             await limiter.noteRateLimited()
-            clock.advance(RPCCreditLimiter.penaltyWindow)
+            clock.advance(RPCCreditLimiter.defaultPause + RPCCreditLimiter.penaltyWindow)
         }
         #expect(await limiter.throttle == RPCCreditLimiter.minThrottle)
         #expect(await limiter.effectiveCreditsPerSecond == 400 * RPCCreditLimiter.minThrottle)
@@ -118,8 +118,8 @@ private final class ManualClock: @unchecked Sendable {
     @Test func paceRecoversStepByStepWithoutNewRateLimits() async throws {
         let clock = ManualClock()
         let limiter = limiter(clock)
-        await limiter.noteRateLimited()                       // 0.5
-        clock.advance(RPCCreditLimiter.recoveryInterval - 1)
+        await limiter.noteRateLimited()                       // 0.5, paused for defaultPause
+        clock.advance(RPCCreditLimiter.defaultPause + RPCCreditLimiter.recoveryInterval - 1)
         try await limiter.acquire(credits: 1)                 // triggers refill/recovery
         #expect(await limiter.throttle == 0.5)
 
@@ -154,7 +154,7 @@ private final class ManualClock: @unchecked Sendable {
         let limiter = limiter(clock)
         await limiter.noteRateLimited()                       // hit at 1.0: ceiling 0.8, pace 0.5
         #expect(await limiter.ceiling == 0.8)
-        clock.advance(RPCCreditLimiter.penaltyWindow)
+        clock.advance(RPCCreditLimiter.defaultPause + RPCCreditLimiter.penaltyWindow)
         await limiter.noteRateLimited()                       // hit at 0.5: ceiling 0.4, pace 0.25
         #expect(await limiter.ceiling == 0.4)
         #expect(await limiter.ceilingCreditsPerSecond == 160)
@@ -221,11 +221,41 @@ struct RPCCreditLimiterBackoffTests {
         let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
         await limiter.noteRateLimited()
         #expect(await limiter.pauseRemaining == RPCCreditLimiter.defaultPause)
-        // A 429 in the same episode extends the pause but does not lower the pace again.
+        // A 429 that arrives during the pause was already in flight: nothing changes.
         clock.advance(1)
         #expect(await limiter.noteRateLimited() == nil)
-        #expect(await limiter.pauseRemaining == RPCCreditLimiter.defaultPause)
+        #expect(await limiter.pauseRemaining == 1)
+        // A 429 right after the pause is the same episode: a longer pause, the same pace.
+        clock.advance(1)
+        #expect(await limiter.noteRateLimited() == nil)
+        #expect(await limiter.pauseRemaining == RPCCreditLimiter.defaultPause * 2)
         #expect(await limiter.effectiveCreditsPerSecond == 200)
+    }
+
+    /// Infura kept refusing for ~8 s after a limit; retries 2 s apart used up most of their tries.
+    @Test func pauseDoublesWithinAnEpisode() async {
+        let clock = ManualClock()
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
+        var pauses: [TimeInterval] = []
+        for _ in 0..<6 {
+            await limiter.noteRateLimited()
+            let pause = await limiter.pauseRemaining
+            pauses.append(pause)
+            clock.advance(pause)                              // each retry goes out when the pause ends
+        }
+        #expect(pauses == [2, 4, 8, 16, 30, 30])
+        #expect(await limiter.effectiveCreditsPerSecond == 200)
+    }
+
+    @Test func quietGapStartsANewEpisode() async {
+        let clock = ManualClock()
+        let limiter = RPCCreditLimiter(creditsPerSecond: 400, maxBurstCredits: 255, now: { clock.now })
+        await limiter.noteRateLimited()
+        clock.advance(2)
+        await limiter.noteRateLimited()                       // 4 s pause, same episode
+        clock.advance(4 + RPCCreditLimiter.penaltyWindow)
+        #expect(await limiter.noteRateLimited() == 100)       // new episode: lowered again
+        #expect(await limiter.pauseRemaining == RPCCreditLimiter.defaultPause)
     }
 
     /// A budget below one getLogs (255 credits) used to leave such requests waiting forever.

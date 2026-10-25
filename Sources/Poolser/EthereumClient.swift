@@ -283,10 +283,15 @@ struct EthereumClient {
                 return result
             } catch {
                 lastError = error
-                if Self.isRateLimit(error), let cps = await limiter.noteRateLimited(pauseFor: providerBackoff) {
-                    let pause = Int((providerBackoff ?? RPCCreditLimiter.defaultPause).rounded(.up))
-                    let cap = Int(await limiter.ceilingCreditsPerSecond)
-                    log("rate limited — all requests paused \(pause)s, pace lowered to \(Int(cps)) credits/s, recovers up to \(cap)", level: .info)
+                if Self.isRateLimit(error) {
+                    let lowered = await limiter.noteRateLimited(pauseFor: providerBackoff)
+                    let pause = Int(await limiter.pauseRemaining.rounded(.up))
+                    if let cps = lowered {
+                        let cap = Int(await limiter.ceilingCreditsPerSecond)
+                        log("rate limited — all requests paused \(pause)s, pace lowered to \(Int(cps)) credits/s, recovers up to \(cap)", level: .info)
+                    } else {
+                        log("rate limited — all requests paused \(pause)s", level: .info)
+                    }
                 }
                 guard shouldRetry(error), attempt < spec.maxRetries else { throw error }
                 let next = attempt + 1
@@ -421,11 +426,15 @@ actor RPCCreditLimiter {
     /// Longest pause a provider's backoff hint can impose.
     static let maxPause: TimeInterval = 60
     /// Every request waits this long after a rate limit that names no backoff (Infura's doesn't).
+    /// Each further rate limit in the same episode doubles it, up to `maxEscalatedPause`: Infura
+    /// kept refusing for ~8 s after a limit, longer than a single short pause.
     static let defaultPause: TimeInterval = 2
+    static let maxEscalatedPause: TimeInterval = 30
     static let recoveryStep = 0.125
     static let recoveryInterval: TimeInterval = 15
-    /// Rate limits closer together than this are one episode and lower the rate a single step:
-    /// the retries of one request and the requests that were already waiting hit the same limit.
+    /// A rate limit within this long of the previous one, or of the end of the pause it caused,
+    /// belongs to the same episode, which lowers the rate a single step: the retries of one
+    /// request and the requests that were already waiting hit the same limit.
     static let penaltyWindow: TimeInterval = 10
     /// After a rate limit the pace recovers only to this share of the pace that hit it, so it
     /// settles below the provider's limit instead of swinging between full speed and the floor.
@@ -444,7 +453,9 @@ actor RPCCreditLimiter {
     private(set) var ceiling: Double = 1
     private var lastThrottleChange: TimeInterval
     private var lastCeilingChange: TimeInterval
-    private var lastPenalty: TimeInterval = -.infinity
+    private var lastRateLimit: TimeInterval = -.infinity
+    /// Rate limits so far in the current episode after its first.
+    private var repeatsInEpisode = 0
     /// No request starts before this time; set when the provider names a backoff.
     private var pausedUntil: TimeInterval = -.infinity
     private let now: @Sendable () -> TimeInterval
@@ -516,17 +527,29 @@ actor RPCCreditLimiter {
     func noteRateLimited(pauseFor backoff: TimeInterval? = nil) -> Double? {
         refill()
         let t = now()
-        let pause = min(backoff.flatMap { $0 > 0 ? $0 : nil } ?? Self.defaultPause, Self.maxPause)
-        pausedUntil = max(pausedUntil, t + pause)
-        // Requests already waiting must not go out at the old pace.
+        let newEpisode = t - max(lastRateLimit, pausedUntil) >= Self.penaltyWindow
+        // Requests already in flight when the pause began answer during it; they are the same
+        // limit, not a sign that the pause was too short.
+        let duringPause = t < pausedUntil
+        lastRateLimit = t
+        if newEpisode {
+            repeatsInEpisode = 0
+        } else if !duringPause {
+            repeatsInEpisode += 1
+        }
+        if newEpisode || !duringPause {
+            let escalated = min(Self.defaultPause * pow(2, Double(min(repeatsInEpisode, 10))), Self.maxEscalatedPause)
+            let pause = min(backoff.flatMap { $0 > 0 ? $0 : nil } ?? escalated, Self.maxPause)
+            pausedUntil = max(pausedUntil, t + pause)
+        }
+        // Requests already waiting must not go out at the old pace, and recovery starts over.
         availableCredits = 0
-        guard t - lastPenalty >= Self.penaltyWindow else { return nil }
-        lastPenalty = t
-        ceiling = max(Self.minThrottle, min(ceiling, throttle * Self.ceilingFactor))
+        lastThrottleChange = t
         lastCeilingChange = t
+        guard newEpisode else { return nil }
+        ceiling = max(Self.minThrottle, min(ceiling, throttle * Self.ceilingFactor))
         guard throttle > Self.minThrottle else { return nil }
         throttle = max(Self.minThrottle, throttle / 2)
-        lastThrottleChange = t
         return effectiveCreditsPerSecond
     }
 
@@ -544,6 +567,8 @@ actor RPCCreditLimiter {
             ceiling = min(1, ceiling + Self.recoveryStep)
             lastCeilingChange += Self.ceilingRecoveryInterval
         }
+        // Time spent paused is not time without rate limits.
+        lastThrottleChange = max(lastThrottleChange, pausedUntil)
         while throttle < ceiling, t - lastThrottleChange >= Self.recoveryInterval {
             throttle = min(ceiling, throttle + Self.recoveryStep)
             lastThrottleChange += Self.recoveryInterval
