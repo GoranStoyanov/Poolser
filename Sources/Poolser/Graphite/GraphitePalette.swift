@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Colours for the Graphite popover. Near-monochrome on purpose: green is reserved for fees and
 /// in-range, amber and orange for ranges that need attention, so colour always carries meaning.
+/// The one exception is the logo's green-to-blue gradient, kept for the fee pool and today's bar.
 ///
 /// Plain SwiftUI colours picked by `ColorScheme` rather than dynamic `NSColor`s, so the palette
 /// follows `.preferredColorScheme` in previews and image renders and has no AppKit dependency.
@@ -32,6 +33,11 @@ struct GraphitePalette {
     let strong: Color
     let onStrong: Color
     let onStatus: Color
+    let brandStart: Color
+    let brandEnd: Color
+    /// Opacity of the front and back water layers in the fee pool.
+    let waterFront: Double
+    let waterBack: Double
 
     let inRange: StatusColors
     let nearEdge: StatusColors
@@ -47,6 +53,10 @@ struct GraphitePalette {
         case .fullRange:  return fullRange
         case .unknown:    return unknown
         }
+    }
+
+    var brand: LinearGradient {
+        LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
     }
 
     static func current(_ scheme: ColorScheme) -> GraphitePalette {
@@ -69,6 +79,10 @@ struct GraphitePalette {
         strong: Color(hex: 0x111113),
         onStrong: Color(hex: 0xFFFFFF),
         onStatus: Color(hex: 0xFFFFFF),
+        brandStart: Color(hex: 0x4DBF6A),
+        brandEnd: Color(hex: 0x3B86EC),
+        waterFront: 0.24,
+        waterBack: 0.13,
         inRange: StatusColors(tint: Color(hex: 0x0B7A55), background: Color(hex: 0xE8F4EF),
                               bandFill: Color(hex: 0xF0F1F3), bandEdge: Color(hex: 0xA9ADB5)),
         nearEdge: StatusColors(tint: Color(hex: 0x955800), background: Color(hex: 0xFBF2DC),
@@ -97,6 +111,10 @@ struct GraphitePalette {
         strong: Color(hex: 0xF4F4F5),
         onStrong: Color(hex: 0x111113),
         onStatus: Color(hex: 0x111113),
+        brandStart: Color(hex: 0x5FD27C),
+        brandEnd: Color(hex: 0x5A9EF5),
+        waterFront: 0.30,
+        waterBack: 0.16,
         inRange: StatusColors(tint: Color(hex: 0x4ADE9A), background: Color(hex: 0x16302A),
                               bandFill: Color(hex: 0x26272B), bandEdge: Color(hex: 0x5A5C63)),
         nearEdge: StatusColors(tint: Color(hex: 0xF5C451), background: Color(hex: 0x372E17),

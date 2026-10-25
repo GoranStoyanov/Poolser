@@ -200,11 +200,15 @@ struct GraphitePopover: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Unclaimed fees")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.secondaryText)
+                    HStack(spacing: 5) {
+                        PoolEyes()
+                        Text("Unclaimed fees")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(palette.secondaryText)
+                    }
                     Text(formatUSD(snapshot.unclaimedFeesUSD))
                         .font(.largeTitle.weight(.bold).monospacedDigit())
+                        .fontDesign(.rounded)
                         .foregroundStyle(palette.primaryText)
                     HStack(spacing: 6) {
                         if let today = snapshot.dailyFeesUSD?.last {
@@ -227,6 +231,7 @@ struct GraphitePopover: View {
                         .foregroundStyle(palette.secondaryText)
                     Text(formatUSD(snapshot.totalValueUSD))
                         .font(.title3.weight(.semibold).monospacedDigit())
+                        .fontDesign(.rounded)
                         .foregroundStyle(palette.primaryText)
                     Text(countsLabel)
                         .font(.caption)
@@ -236,24 +241,81 @@ struct GraphitePopover: View {
                 }
                 .padding(.top, 2)
             }
-            if let summary = snapshot.feeSummary, !summary.isSyncing, let line = returnLine(summary) {
-                Text(line)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(palette.secondaryText)
-                    .help("""
-                    Claimed fees come from the v3 Collect history, valued at current prices; v4 claimed fees \
-                    are not tracked. Totals cover every position, including ones hidden by filters.
-                    The return is all-time fees over the current value; the APR weighs each position by its \
-                    value and how long it has been open.
-                    """)
-            }
             if let daily = snapshot.dailyFeesUSD, !daily.isEmpty {
                 FeeHistoryChart(values: daily, days: $chartDays)
             }
+            if let summary = snapshot.feeSummary, !summary.isSyncing {
+                poolStats(summary)
+            }
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
+        .background {
+            ZStack {
+                palette.card
+                if let level = poolLevel {
+                    PoolWater(level: level)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.cardLine, lineWidth: 1))
+    }
+
+    /// How full the fee pool is: all-time fees over the current value. Nil while the claimed
+    /// history is incomplete, since a partial total would show the pool too low.
+    private var poolLevel: Double? {
+        guard let summary = snapshot.feeSummary, !summary.isSyncing else { return nil }
+        return summary.returnOnAssets
+    }
+
+    @ViewBuilder
+    private func poolStats(_ summary: WalletFeeSummary) -> some View {
+        if summary.claimedUSD > 0 || summary.returnOnAssets != nil || summary.realizedAPR != nil {
+            HStack(alignment: .bottom, spacing: 18) {
+                if summary.claimedUSD > 0 {
+                    poolStat("Claimed", formatUSD(summary.claimedUSD))
+                }
+                if let feeReturn = summary.returnOnAssets {
+                    poolStat("Pool level", formatPercent(feeReturn), unit: "of value")
+                }
+                Spacer(minLength: 0)
+                if let apr = summary.realizedAPR {
+                    poolStat("APR since open", formatPercent(apr), tint: palette.fees, alignment: .trailing)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .help("""
+            Claimed fees come from the v3 Collect history, valued at current prices; v4 claimed fees \
+            are not tracked. Totals cover every position, including ones hidden by filters.
+            Pool level is all-time fees over the current value; the card fills to that level. The APR \
+            weighs each position by its value and how long it has been open.
+            """)
+        }
+    }
+
+    private func poolStat(
+        _ label: String,
+        _ value: String,
+        unit: String? = nil,
+        tint: Color? = nil,
+        alignment: HorizontalAlignment = .leading
+    ) -> some View {
+        VStack(alignment: alignment, spacing: 1) {
+            Text(label)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(palette.secondaryText)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value)
+                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .fontDesign(.rounded)
+                    .foregroundStyle(tint ?? palette.primaryText)
+                if let unit {
+                    Text(unit)
+                        .font(.caption2)
+                        .foregroundStyle(palette.secondaryText)
+                }
+            }
+        }
     }
 
     /// One button for a single chain, a menu of chains otherwise. Shown once there are two
@@ -287,14 +349,6 @@ struct GraphitePopover: View {
         let positions = snapshot.positions.count
         let chains = snapshot.chainCount
         return "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
-    }
-
-    private func returnLine(_ summary: WalletFeeSummary) -> String? {
-        var parts: [String] = []
-        if summary.claimedUSD > 0 { parts.append("Claimed \(formatUSD(summary.claimedUSD))") }
-        if let feeReturn = summary.returnOnAssets { parts.append("earned \(formatPercent(feeReturn)) of value") }
-        if let apr = summary.realizedAPR { parts.append("\(formatPercent(apr)) APR since open") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     // MARK: - Positions
@@ -542,31 +596,45 @@ struct FeeHistoryChart: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
+    /// A short history still gets a week of slots, empty before its first day, so the chart
+    /// shows from the first day of recording instead of appearing a day later.
     private var periods: [Int] {
-        let options = [7, 14, 30].filter { $0 <= values.count }
-        return options.isEmpty ? [values.count] : options
+        [7, 14, 30].filter { $0 == 7 || $0 <= values.count }
     }
 
     var body: some View {
         let palette = GraphitePalette.current(colorScheme)
-        let shown = Array(values.suffix(min(days, values.count)))
+        let slots = periods.contains(days) ? days : periods.last ?? 7
+        let shown = Array(values.suffix(slots))
+        let empty = slots - shown.count
         let peak = shown.max() ?? 0
         VStack(spacing: 6) {
             HStack {
                 Spacer()
                 Text(formatUSD(shown.last ?? 0))
                     .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(palette.onBarToday)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
-                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(palette.barToday))
+                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(palette.brand))
             }
-            HStack(alignment: .bottom, spacing: shown.count > 20 ? 2 : 4) {
-                ForEach(Array(shown.enumerated()), id: \.offset) { index, value in
-                    UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3, style: .continuous)
-                        .fill(index == shown.count - 1 ? palette.barToday : palette.bar)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: max(2, peak > 0 ? 48 * value / peak : 2))
+            HStack(alignment: .bottom, spacing: slots > 20 ? 2 : 4) {
+                ForEach(0..<slots, id: \.self) { slot in
+                    let index = slot - empty
+                    let shape = UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3, style: .continuous)
+                    Group {
+                        if index < 0 {
+                            shape.fill(palette.track).frame(height: 3)
+                        } else if index == shown.count - 1 {
+                            shape
+                                .fill(LinearGradient(colors: [palette.brandStart, palette.brandEnd],
+                                                     startPoint: .top, endPoint: .bottom))
+                                .frame(height: barHeight(shown[index], peak: peak))
+                        } else {
+                            shape.fill(palette.bar).frame(height: barHeight(shown[index], peak: peak))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
             }
             .frame(height: 48, alignment: .bottom)
@@ -574,7 +642,11 @@ struct FeeHistoryChart: View {
             .accessibilityLabel("Fees per day, last \(shown.count) days")
             .accessibilityValue("Today \(formatUSD(shown.last ?? 0))")
             HStack {
-                Text(startDate(daysBack: shown.count - 1), format: .dateTime.month(.abbreviated).day())
+                if values.count < 2 {
+                    Text("History starts today")
+                } else {
+                    Text(startDate(daysBack: slots - 1), format: .dateTime.month(.abbreviated).day())
+                }
                 Spacer()
                 if periods.count > 1 {
                     Picker("Period", selection: $days) {
@@ -591,6 +663,10 @@ struct FeeHistoryChart: View {
             .font(.caption2)
             .foregroundStyle(palette.secondaryText)
         }
+    }
+
+    private func barHeight(_ value: Double, peak: Double) -> CGFloat {
+        max(2, peak > 0 ? 48 * value / peak : 2)
     }
 
     private func startDate(daysBack: Int) -> Date {

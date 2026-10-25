@@ -56,7 +56,8 @@ struct MenuBarContentView: View {
         return PortfolioSnapshot(
             walletAddress: settings.walletAddress,
             positions: service.positions,
-            dailyFeesUSD: ledger.walletDailyUSD(service.positions, days: 30, endingAt: now),
+            // One day is enough for the wallet chart, which shows empty slots before it.
+            dailyFeesUSD: ledger.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),
             positionDailyFeesUSD: perPosition,
             lastUpdated: service.lastUpdated,
             isLoading: service.isLoading,
