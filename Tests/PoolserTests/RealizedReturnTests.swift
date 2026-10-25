@@ -46,6 +46,26 @@ struct RealizedReturnTests {
         #expect(p.realizedAPR(at: now) == nil)
     }
 
+    @Test func nothingUnclaimedCountsAsZero() throws {
+        let p = makePosition(value: 1_000, unclaimed: nil, claimed: 150, claimedTokens: 1, openedYearsAgo: 1)
+        #expect(p.allTimeFeesUSD == 150)
+        let apr = try #require(p.realizedAPR(at: now))
+        #expect(abs(apr - 0.15) < 1e-9)
+
+        let summary = WalletFeeSummary(positions: [p], now: now)
+        #expect(summary.returnOnAssets == 0.15)
+    }
+
+    @Test func unpricedOrFailedUnclaimedFeesHideTheReturn() {
+        var unpriced = makePosition(value: 1_000, unclaimed: nil, claimed: 150, claimedTokens: 1, openedYearsAgo: 1)
+        unpriced.fees0 = 3
+        #expect(unpriced.allTimeFeesUSD == nil)
+
+        var failed = makePosition(value: 1_000, unclaimed: nil, claimed: 150, claimedTokens: 1, openedYearsAgo: 1)
+        failed.feesError = "fee read failed"
+        #expect(failed.allTimeFeesUSD == nil)
+    }
+
     @Test func unpricedClaimsHideTheReturn() {
         let p = makePosition(value: 1_000, unclaimed: 50, claimed: nil, claimedTokens: 2, openedYearsAgo: 1)
         #expect(p.allTimeFeesUSD == nil)
