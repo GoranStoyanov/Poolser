@@ -1,0 +1,115 @@
+#if DEBUG
+import SwiftUI
+
+/// Fixed positions for previews: one near the edge, one in range with an inverted pair, one full
+/// range and one out of range, so every status shows at once.
+enum GraphitePreviewData {
+    static let ethPrice = 3_544.0
+
+    static let positions: [Position] = [
+        position(
+            chain: "base", chainName: "Base", chainNumericID: 8453, tokenId: "198220", isV4: true,
+            sym0: "ETH", sym1: "USDC", dec0: 18, dec1: 6, feeRaw: 500,
+            lower: 3_250, upper: 3_570, current: ethPrice,
+            valueUSD: 9_215.10, feesUSD: 191.03, fees0: 0.0287, fees1: 89.30, apr: 41.7
+        ),
+        // USDC sorts before WETH on Ethereum, so the pool prices WETH per USDC and the view inverts it.
+        position(
+            chain: "ethereum", chainName: "Ethereum", chainNumericID: 1, tokenId: "812345",
+            sym0: "USDC", sym1: "WETH", dec0: 6, dec1: 18, feeRaw: 500,
+            lower: 1 / 3_980, upper: 1 / 3_120, current: 1 / ethPrice,
+            valueUSD: 21_480.22, feesUSD: 84.12, fees0: 33.80, fees1: 0.0142, apr: 18.4
+        ),
+        position(
+            chain: "unichain", chainName: "Unichain", chainNumericID: 130, tokenId: "50331",
+            sym0: "UNI", sym1: "WETH", dec0: 18, dec1: 18, feeRaw: 3_000,
+            lower: nil, upper: nil, current: 0.00206,
+            valueUSD: 4_611.33, feesUSD: 25.03, fees0: 1.92, fees1: 0.0031, apr: 9.2
+        ),
+        position(
+            chain: "arbitrum", chainName: "Arbitrum", chainNumericID: 42161, tokenId: "4412870",
+            sym0: "WBTC", sym1: "WETH", dec0: 8, dec1: 18, feeRaw: 3_000,
+            lower: 27.10, upper: 29.40, current: 25.96,
+            valueUSD: 12_906.75, feesUSD: 12.40, fees0: 0.00009, fees1: 0.00116, apr: 6.3
+        ),
+    ]
+
+    static let snapshot = PortfolioSnapshot(
+        walletAddress: "0x8f3c4b1e9d2a7c6f5e0b3a8d1c4e7f2a9b6da21c",
+        positions: positions,
+        dailyFeesUSD: [12, 16, 14, 20, 17, 23, 19, 26, 21, 24, 18, 22, 15, 27,
+                       31, 24, 19, 35, 41, 28, 33, 38, 29, 37, 30, 34, 36, 39, 33, 41.20],
+        positionDailyFeesUSD: [
+            positions[0].id: [22, 25, 19, 28, 31, 27, 30],
+            positions[1].id: [9, 11, 8, 13, 12, 10, 14],
+            positions[2].id: [3, 4, 3, 5, 4, 3, 4],
+            positions[3].id: [6, 5, 3, 1, 0, 0, 0],
+        ],
+        lastUpdated: Date().addingTimeInterval(-120)
+    )
+
+    static let actions = GraphitePopoverActions(
+        refresh: {}, settings: {}, logs: {}, quit: {}, open: { _ in }, collect: { _ in }
+    )
+
+    /// Prices are token1 per token0 in whole tokens; nil bounds make a full-range position.
+    private static func position(
+        chain: String, chainName: String, chainNumericID: Int, tokenId: String, isV4: Bool = false,
+        sym0: String, sym1: String, dec0: Int, dec1: Int, feeRaw: Int,
+        lower: Double?, upper: Double?, current: Double,
+        valueUSD: Double, feesUSD: Double, fees0: Double, fees1: Double, apr: Double
+    ) -> Position {
+        let tickLower = lower.map { tick(price: $0, dec0: dec0, dec1: dec1) } ?? -887_220
+        let tickUpper = upper.map { tick(price: $0, dec0: dec0, dec1: dec1) } ?? 887_220
+        let currentTick = tick(price: current, dec0: dec0, dec1: dec1)
+        var pos = Position(
+            chainID: chain, chainName: chainName, chainNumericID: chainNumericID, tokenId: tokenId,
+            token0: "0x0", token1: "0x1", sym0: sym0, sym1: sym1,
+            feePct: V4Fee.label(feeRaw), feeRaw: feeRaw, fees0: fees0, fees1: fees1,
+            tickLower: tickLower, tickUpper: tickUpper, liquidity: 1
+        )
+        pos.dec0 = dec0
+        pos.dec1 = dec1
+        pos.usd = feesUSD
+        pos.positionUSD = valueUSD
+        pos.currentTick = currentTick
+        pos.inRange = Position.isInRange(tick: currentTick, lower: tickLower, upper: tickUpper)
+        pos.isV4 = isV4
+        pos.feeAPR = apr
+        return pos
+    }
+
+    private static func tick(price: Double, dec0: Int, dec1: Int) -> Int {
+        Int((log(price) - Double(dec0 - dec1) * log(10)) / log(1.0001))
+    }
+}
+
+#Preview("Popover · light") {
+    GraphitePopover(snapshot: GraphitePreviewData.snapshot, actions: GraphitePreviewData.actions)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Popover · dark") {
+    GraphitePopover(snapshot: GraphitePreviewData.snapshot, actions: GraphitePreviewData.actions)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Popover · no fee history") {
+    var snapshot = GraphitePreviewData.snapshot
+    snapshot.dailyFeesUSD = nil
+    snapshot.positionDailyFeesUSD = [:]
+    return GraphitePopover(snapshot: snapshot, actions: GraphitePreviewData.actions)
+}
+
+#Preview("Menu bar label") {
+    VStack(alignment: .leading, spacing: 12) {
+        GraphiteMenuBarLabel(
+            totalValueUSD: GraphitePreviewData.snapshot.totalValueUSD,
+            unclaimedFeesUSD: GraphitePreviewData.snapshot.unclaimedFeesUSD,
+            needsAttention: true
+        )
+        GraphiteMenuBarLabel(totalValueUSD: 4_611.33, unclaimedFeesUSD: 25.03)
+    }
+    .padding()
+}
+#endif

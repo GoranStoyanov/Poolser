@@ -268,7 +268,9 @@ private struct MenuWindowSizer: NSViewRepresentable {
     }
 }
 
-private struct BrandMark: View {
+struct BrandMark: View {
+    var size: CGFloat = 32
+
     var body: some View {
         Group {
             if let image = brandImage {
@@ -277,15 +279,15 @@ private struct BrandMark: View {
                     .interpolation(.high)
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
                         .fill(Color.secondary.opacity(0.18))
                     Text("👀")
-                        .font(.system(size: 18))
+                        .font(.system(size: size * 0.56))
                 }
             }
         }
-        .frame(width: 32, height: 32)
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
         .shadow(color: Color.black.opacity(0.18), radius: 3, y: 1)
     }
 
