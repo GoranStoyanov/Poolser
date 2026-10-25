@@ -56,7 +56,8 @@ enum GraphitePreviewData {
     )
 
     static let actions = GraphitePopoverActions(
-        refresh: {}, settings: {}, logs: {}, quit: {}, open: { _ in }, collect: { _ in }
+        refresh: {}, settings: {}, logs: {}, quit: {}, open: { _ in }, collect: { _ in },
+        collectAll: { _ in }
     )
 
     /// Prices are token1 per token0 in whole tokens; nil bounds make a full-range position.

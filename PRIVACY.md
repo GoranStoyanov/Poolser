@@ -27,7 +27,9 @@ When you click **Collect** on a position, Poolser:
 2. Starts a temporary web server on `127.0.0.1`, reachable only from your Mac, and opens its page in your default browser.
 3. The page passes the transaction to your browser wallet (for example MetaMask or Rabby), which asks you to confirm and signs it. The page reports the transaction hash back to Poolser so it can refresh.
 
-Poolser never sees or stores your private keys and does not sign anything. The temporary server stops once the transaction is sent or after 15 minutes.
+**Collect all** works the same way for every position on one chain, with one transaction per Uniswap version. Poolser also estimates the network fee (`eth_estimateGas`, `eth_gasPrice`) through Infura, and may look up the chain's native token price from the price sources above. When you leave positions out on the page, it sends the chosen position IDs to Poolser on `127.0.0.1`, which builds and checks the transactions again. If your wallet supports batched calls (EIP-5792), both transactions can go to it as one batch.
+
+Poolser never sees or stores your private keys and does not sign anything. The temporary server stops once the transactions are sent or after 15 minutes.
 
 ## Local Storage
 

@@ -17,8 +17,15 @@ struct HTTPRequestTests {
     @Test func resultBodies() {
         let hash = "0x" + String(repeating: "ab", count: 32)
         #expect(WalletBridgeServer.event(fromResultBody: Data("{\"hash\":\"\(hash.uppercased().replacingOccurrences(of: "0X", with: "0x"))\"}".utf8))
-                == .sent(hash: hash))
+                == .sent(hashes: [hash]))
         #expect(WalletBridgeServer.event(fromResultBody: Data("{\"hash\":\"0x12\"}".utf8)) == nil)
+        let other = "0x" + String(repeating: "cd", count: 32)
+        #expect(WalletBridgeServer.event(fromResultBody: Data("{\"hashes\":[\"\(hash)\",\"\(other)\"]}".utf8))
+                == .sent(hashes: [hash, other]))
+        #expect(WalletBridgeServer.event(fromResultBody: Data("{\"hashes\":[\"\(hash)\"],\"pending\":true}".utf8))
+                == .partlySent(hashes: [hash]))
+        #expect(WalletBridgeServer.event(fromResultBody: Data("{\"hashes\":[]}".utf8)) == .sent(hashes: []))
+        #expect(WalletBridgeServer.event(fromResultBody: Data("{\"hashes\":[\"\(hash)\",\"0x12\"]}".utf8)) == nil)
         #expect(WalletBridgeServer.event(fromResultBody: Data("{\"error\":\"Cancelled\"}".utf8)) == .failed("Cancelled"))
         #expect(WalletBridgeServer.event(fromResultBody: Data("nope".utf8)) == nil)
     }
@@ -68,8 +75,10 @@ struct CollectPageTests {
 @Suite("Wallet bridge server")
 struct WalletBridgeServerTests {
     /// Starts a server and returns its page URL plus a stream of what it reports.
-    private func start() async throws -> (WalletBridgeServer, URL, AsyncStream<WalletBridgeServer.Event>) {
-        let server = try WalletBridgeServer { nonce in "<p>page \(nonce)</p>" }
+    private func start(
+        build: WalletBridgeServer.BuildHandler? = nil
+    ) async throws -> (WalletBridgeServer, URL, AsyncStream<WalletBridgeServer.Event>) {
+        let server = try WalletBridgeServer(page: { nonce in "<p>page \(nonce)</p>" }, build: build)
         let (events, continuation) = AsyncStream.makeStream(of: WalletBridgeServer.Event.self)
         let url = await withCheckedContinuation { ready in
             server.start(onReady: { ready.resume(returning: $0) }, onEvent: { continuation.yield($0) })
@@ -96,7 +105,38 @@ struct WalletBridgeServerTests {
         #expect((postResponse as? HTTPURLResponse)?.statusCode == 204)
 
         var iterator = events.makeAsyncIterator()
-        #expect(await iterator.next() == .sent(hash: hash))
+        #expect(await iterator.next() == .sent(hashes: [hash]))
+    }
+
+    @Test func answersBuildRequestsFromThePageOnly() async throws {
+        let (server, url, _) = try await start { body in
+            Data("{\"echo\":".utf8) + body + Data("}".utf8)
+        }
+        defer { server.stop() }
+
+        var build = URLRequest(url: url.appendingPathComponent("build"))
+        build.httpMethod = "POST"
+        build.setValue("http://127.0.0.1:\(url.port ?? 0)", forHTTPHeaderField: "Origin")
+        build.httpBody = Data("{\"ids\":[\"a\"]}".utf8)
+        let (body, response) = try await URLSession.shared.data(for: build)
+        #expect((response as? HTTPURLResponse)?.statusCode == 200)
+        #expect((response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") == "application/json")
+        #expect(String(decoding: body, as: UTF8.self) == "{\"echo\":{\"ids\":[\"a\"]}}")
+
+        build.setValue("https://evil.example", forHTTPHeaderField: "Origin")
+        let (_, forbidden) = try await URLSession.shared.data(for: build)
+        #expect((forbidden as? HTTPURLResponse)?.statusCode == 403)
+    }
+
+    @Test func noBuildEndpointForASinglePositionPage() async throws {
+        let (server, url, _) = try await start()
+        defer { server.stop() }
+        var build = URLRequest(url: url.appendingPathComponent("build"))
+        build.httpMethod = "POST"
+        build.setValue("http://127.0.0.1:\(url.port ?? 0)", forHTTPHeaderField: "Origin")
+        build.httpBody = Data("{}".utf8)
+        let (_, response) = try await URLSession.shared.data(for: build)
+        #expect((response as? HTTPURLResponse)?.statusCode == 403)
     }
 
     @Test func rejectsOtherPathsOriginsAndHosts() async throws {

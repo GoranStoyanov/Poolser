@@ -24,6 +24,8 @@ struct EthereumClient {
     private let costEthBlockNumber = 80
     private let costEthChainId = 80
     private let costEthGetBlock = 80
+    private let costEthEstimateGas = 300
+    private let costEthGasPrice = 80
     private let callMaxRetries = 3
     private let logsMaxRetries = 4
     private let blockNumberMaxRetries = 2
@@ -173,6 +175,28 @@ struct EthereumClient {
         )
         log("eth_call ← \(resultData.count)B", level: .response)
         return resultData
+    }
+
+    /// eth_estimateGas for a transaction from `from`. It executes the transaction, so a revert
+    /// throws `Err.reverted` like a dry run.
+    func ethEstimateGas(to: String, data: Data, from: String) async throws -> Int {
+        let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
+        let target = "\(short(to)) \(selector) from \(short(from))"
+        let gas = try await rpc(RPCSpec(
+            method: "eth_estimateGas", params: [["to": to, "data": "0x" + data.hexString, "from": from]],
+            cost: costEthEstimateGas, maxRetries: callMaxRetries, timeout: 15, label: "eth_estimateGas",
+            requestDetail: target, noResultDetail: ": \(target)", retryDetail: " \(target)", detectsRevert: true
+        ), decode: decodeQuantity)
+        log("eth_estimateGas ← \(gas)", level: .response)
+        return gas
+    }
+
+    /// Current gas price in wei.
+    func ethGasPrice() async throws -> Int {
+        try await rpc(RPCSpec(
+            method: "eth_gasPrice", params: [], cost: costEthGasPrice,
+            maxRetries: callMaxRetries, timeout: 15, label: "eth_gasPrice"
+        ), decode: decodeQuantity)
     }
 
     /// eth_call against the state at a past block. Needs a node that serves historical state
@@ -329,7 +353,7 @@ struct EthereumClient {
         throw lastError ?? Err.rpc("unknown")
     }
 
-    /// Hex quantity result (eth_blockNumber, eth_chainId). A non-string is `noResult`;
+    /// Hex quantity result (eth_blockNumber, eth_chainId, gas). A non-string is `noResult`;
     /// a string that is not hex is `badJSON`.
     private func decodeQuantity(_ raw: Any) throws -> Int? {
         guard let result = raw as? String else { return nil }

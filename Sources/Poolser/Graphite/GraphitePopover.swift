@@ -24,9 +24,14 @@ struct PortfolioSnapshot {
 
 struct Notice: Equatable {
     enum Kind { case progress, success, failure }
+    struct Link: Equatable, Hashable {
+        let title: String
+        let url: URL
+    }
     let kind: Kind
     let text: String
-    var link: URL?
+    /// One per transaction sent.
+    var links: [Link] = []
 }
 
 struct GraphitePopoverActions {
@@ -37,6 +42,8 @@ struct GraphitePopoverActions {
     var open: ((Position) -> Void)?
     /// Offered only on positions `CollectRequest.canCollect` accepts.
     var collect: ((Position) -> Void)?
+    /// Collects every collectable position on a chain, by chain ID.
+    var collectAll: ((String) -> Void)?
     var dismissNotice: (() -> Void)?
 }
 
@@ -165,8 +172,8 @@ struct GraphitePopover: View {
                 Text(notice.text)
                     .foregroundStyle(palette.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                if let link = notice.link {
-                    Link("View transaction", destination: link)
+                ForEach(notice.links, id: \.self) { link in
+                    Link(link.title, destination: link.url)
                         .foregroundStyle(tint)
                 }
             }
@@ -224,6 +231,8 @@ struct GraphitePopover: View {
                     Text(countsLabel)
                         .font(.caption)
                         .foregroundStyle(palette.secondaryText)
+                    collectAllButton
+                        .padding(.top, 6)
                 }
                 .padding(.top, 2)
             }
@@ -245,6 +254,33 @@ struct GraphitePopover: View {
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.cardLine, lineWidth: 1))
+    }
+
+    /// One button for a single chain, a menu of chains otherwise. Shown once there are two
+    /// positions to collect, since one is the card's own Collect.
+    @ViewBuilder
+    private var collectAllButton: some View {
+        let chains = CollectBatch.chains(in: snapshot.positions)
+        if let collectAll = actions.collectAll, chains.map(\.count).reduce(0, +) > 1 {
+            if chains.count == 1, let chain = chains.first {
+                Button("Collect all") { collectAll(chain.chainID) }
+                    .buttonStyle(GraphiteStrongButtonStyle())
+                    .help("Collect \(chain.label) in one transaction per Uniswap version")
+            } else {
+                Menu {
+                    ForEach(chains) { chain in
+                        Button(chain.label) { collectAll(chain.chainID) }
+                    }
+                } label: {
+                    Text("Collect all")
+                }
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+                .buttonStyle(GraphiteStrongButtonStyle())
+                .fixedSize()
+                .help("Collect a chain's fees in one transaction per Uniswap version")
+            }
+        }
     }
 
     private var countsLabel: String {

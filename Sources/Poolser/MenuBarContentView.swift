@@ -39,6 +39,7 @@ struct MenuBarContentView: View {
                         if let url = pos.uniswapURL { NSWorkspace.shared.open(url) }
                     },
                     collect: { pos in collector.collect(pos, owner: owner) },
+                    collectAll: { chainID in collector.collectAll(on: chainID, positions: service.positions, owner: owner) },
                     dismissNotice: { collector.dismiss() }
                 )
             )
@@ -74,15 +75,24 @@ struct MenuBarContentView: View {
 
     private static func notice(for status: FeeCollector.Status) -> Notice {
         switch status {
-        case .checking(let pair):
-            return Notice(kind: .progress, text: "Checking the collect for \(pair)…")
-        case .waitingForWallet(let pair):
-            return Notice(kind: .progress, text: "Confirm the collect for \(pair) in your browser wallet.")
-        case .sent(let pair, let transaction):
-            return Notice(kind: .success, text: "Collect for \(pair) sent. Positions refresh shortly.", link: transaction)
-        case .failed(let message):
-            return Notice(kind: .failure, text: message)
+        case .checking(let subject):
+            return Notice(kind: .progress, text: "Checking the collect for \(subject)…")
+        case .waitingForWallet(let subject):
+            return Notice(kind: .progress, text: "Confirm the collect for \(subject) in your browser wallet.")
+        case .partlySent(let subject, let transactions):
+            return Notice(
+                kind: .progress, text: "First transaction for \(subject) sent. Confirm the next one in your browser wallet.",
+                links: links(transactions)
+            )
+        case .sent(let subject, let transactions):
+            return Notice(kind: .success, text: "Collect for \(subject) sent. Positions refresh shortly.", links: links(transactions))
+        case .failed(let message, let transactions):
+            return Notice(kind: .failure, text: message, links: links(transactions))
         }
+    }
+
+    private static func links(_ transactions: [FeeCollector.SentTransaction]) -> [Notice.Link] {
+        transactions.compactMap { transaction in transaction.url.map { Notice.Link(title: transaction.label, url: $0) } }
     }
 }
 
