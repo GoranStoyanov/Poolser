@@ -33,6 +33,7 @@ struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
+                assetsRow(info)
                 if let line = realizedLine {
                     Text(line)
                         .font(.caption.monospacedDigit())
@@ -90,9 +91,6 @@ struct GraphitePositionCard: View {
                 Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
                     .font(.body.weight(.semibold).monospacedDigit())
                     .foregroundStyle(palette.primaryText)
-                    .help(position.poolStateError == nil && !position.distributionLabel.isEmpty
-                          ? "Current assets: \(position.distributionLabel)"
-                          : "")
                 feesLabel
             }
         }
@@ -143,14 +141,29 @@ struct GraphitePositionCard: View {
         }
     }
 
+    /// Tokens the position holds now, base token first, and its NFT ID.
+    private func assetsRow(_ info: PositionPresentation) -> some View {
+        HStack(spacing: 8) {
+            Text(assetsLabel(info))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 8)
+            Text("#\(position.tokenId)")
+                .textSelection(.enabled)
+        }
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(palette.secondaryText)
+    }
+
     private func footer(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
         HStack(spacing: 8) {
             StatusPill(status: info.status, colors: colors)
-            if let yield = yieldLabel(info) {
-                Text(yield)
+            if let stats = poolStatsLabel {
+                Text(stats)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(palette.secondaryText)
-                    .help(yieldHelp)
+                    .lineLimit(1)
+                    .help(poolStatsHelp)
             }
             Spacer(minLength: 4)
             if let recentDailyFees, !recentDailyFees.isEmpty {
@@ -209,6 +222,28 @@ struct GraphitePositionCard: View {
         return "\(chainName) · \(position.versionLabel) · \(fee)"
     }
 
+    private func assetsLabel(_ info: PositionPresentation) -> String {
+        // Without pool state the amounts are unknown, not zero.
+        guard position.poolStateError == nil else { return "Assets –" }
+        let tokens = [
+            (amount: position.amount0, label: position.amount0Label, symbol: position.sym0),
+            (amount: position.amount1, label: position.amount1Label, symbol: position.sym1),
+        ]
+        let parts = (info.isInverted ? tokens.reversed() : tokens)
+            .filter { $0.amount > 0 }
+            .map { "\($0.label) \($0.symbol)" }
+        return "Assets " + (parts.isEmpty ? "0" : parts.joined(separator: " + "))
+    }
+
+    /// The pool's last 24 hours, from GeckoTerminal.
+    private var poolStatsLabel: String? {
+        var parts: [String] = []
+        if let volume = position.volumeUSD24h { parts.append("Vol \(PositionPresentation.compactUSD(volume))") }
+        if let apr = position.feeAPR { parts.append(String(format: "Yield %.1f%%", apr)) }
+        if let tvl = position.tvlUSD { parts.append("TVL \(PositionPresentation.compactUSD(tvl))") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     /// Claimed fees and the realized return, once the claimed-fee history is known.
     private var realizedLine: String? {
         var parts: [String] = []
@@ -230,33 +265,26 @@ struct GraphitePositionCard: View {
         let opened = position.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
         return """
         All-time fees (claimed + unclaimed) as a share of the position's current value, and that \
-        return per year since the position was opened\(opened). Compare with the 24h yield below, \
-        the pool's estimate from the last 24 hours, also per year.
+        return per year since the position was opened\(opened). Compare with Yield below, the \
+        pool's estimate from the last 24 hours, also per year.
         Claimed fees are valued at today's prices. If liquidity was added or removed, the current \
         value is not the capital the fees were earned on.
         """
     }
 
-    private var yieldHelp: String {
-        var lines = [
-            "If the last 24h repeated for a year, this is the estimated return.",
-            "Calculated from 24h trading volume × fee rate, divided by total pool liquidity (TVL).",
-        ]
-        let stats = [position.volumeLabel, position.tvlLabel].compactMap { $0 }
-        if !stats.isEmpty { lines.append(stats.joined(separator: " · ")) }
-        return lines.joined(separator: "\n")
+    private var poolStatsHelp: String {
+        """
+        The pool over the last 24 hours: trading volume, yield and total liquidity (TVL).
+        Yield: if the last 24h repeated for a year, this is the estimated return. Calculated from \
+        24h trading volume × fee rate, divided by TVL. It is the pool's figure; an out-of-range \
+        position earns none of it.
+        """
     }
 
     private func feeHistoryHelp(_ values: [Double]) -> String {
         let today = formatUSD(values.last ?? 0)
         let best = formatUSD(values.max() ?? 0)
         return "Fees this position earned per day, last \(values.count) days.\nToday \(today) · best day \(best). The rightmost bar is today."
-    }
-
-    /// The pool's yield is not this position's while it earns nothing.
-    private func yieldLabel(_ info: PositionPresentation) -> String? {
-        if info.status == .outOfRange { return nil }
-        return position.feeAPR.map { String(format: "24h yield %.1f%%", $0) }
     }
 }
 
