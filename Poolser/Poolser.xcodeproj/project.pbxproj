@@ -22,6 +22,11 @@
 		53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */; };
 		53A0B3192FB0C0DE00B5EC27 /* V4PositionLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */; };
 		53A0B31B2FB0C0DE00B5EC27 /* UniswapMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */; };
+		53C0A1022FC0C0DE00B5EC27 /* GraphitePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */; };
+		53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */; };
+		53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */; };
+		53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */; };
+		53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */; };
 		53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11F2F8F628F00C82982 /* AppSettings.swift */; };
 		5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */; };
 		53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1232F8F628F00C82982 /* Keccak256.swift */; };
@@ -70,6 +75,11 @@
 		53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4OwnershipTracker.swift; path = ../Sources/Poolser/Loading/V4OwnershipTracker.swift; sourceTree = SOURCE_ROOT; };
 		53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4PositionLoader.swift; path = ../Sources/Poolser/Loading/V4PositionLoader.swift; sourceTree = SOURCE_ROOT; };
 		53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapMath.swift; path = ../Sources/Poolser/Math/UniswapMath.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePalette.swift; path = ../Sources/Poolser/Graphite/GraphitePalette.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionPresentation.swift; path = ../Sources/Poolser/Graphite/PositionPresentation.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
+		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
 		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -126,6 +136,11 @@
 				53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */,
 				53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */,
 				53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */,
+				53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */,
+				53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */,
+				53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */,
+				53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */,
+				53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */,
 				53FAE0EB2F8ECAC700C82982 /* Poolser */,
 				53FAE0EA2F8ECAC700C82982 /* Products */,
 			);
@@ -237,6 +252,11 @@
 				53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */,
 				53A0B3192FB0C0DE00B5EC27 /* V4PositionLoader.swift in Sources */,
 				53A0B31B2FB0C0DE00B5EC27 /* UniswapMath.swift in Sources */,
+				53C0A1022FC0C0DE00B5EC27 /* GraphitePalette.swift in Sources */,
+				53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */,
+				53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */,
+				53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */,
+				53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */,
 				53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */,
 				5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */,
 				5351F34A2F992BDB0013F91C /* NotificationService.swift in Sources */,
