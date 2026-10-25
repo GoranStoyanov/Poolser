@@ -18,7 +18,8 @@ enum GraphitePreviewData {
             chain: "ethereum", chainName: "Ethereum", chainNumericID: 1, tokenId: "812345",
             sym0: "USDC", sym1: "WETH", dec0: 6, dec1: 18, feeRaw: 500,
             lower: 1 / 3_980, upper: 1 / 3_120, current: 1 / ethPrice,
-            valueUSD: 21_480.22, feesUSD: 84.12, fees0: 33.80, fees1: 0.0142, apr: 18.4
+            valueUSD: 21_480.22, feesUSD: 84.12, fees0: 33.80, fees1: 0.0142, apr: 18.4,
+            claimedUSD: 1_086.20, openedDaysAgo: 214
         ),
         position(
             chain: "unichain", chainName: "Unichain", chainNumericID: 130, tokenId: "50331",
@@ -30,7 +31,8 @@ enum GraphitePreviewData {
             chain: "arbitrum", chainName: "Arbitrum", chainNumericID: 42161, tokenId: "4412870",
             sym0: "WBTC", sym1: "WETH", dec0: 8, dec1: 18, feeRaw: 3_000,
             lower: 27.10, upper: 29.40, current: 25.96,
-            valueUSD: 12_906.75, feesUSD: 12.40, fees0: 0.00009, fees1: 0.00116, apr: 6.3
+            valueUSD: 12_906.75, feesUSD: 12.40, fees0: 0.00009, fees1: 0.00116, apr: 6.3,
+            claimedUSD: 22.15, openedDaysAgo: 41
         ),
     ]
 
@@ -45,7 +47,8 @@ enum GraphitePreviewData {
             positions[2].id: [3, 4, 3, 5, 4, 3, 4],
             positions[3].id: [6, 5, 3, 1, 0, 0, 0],
         ],
-        lastUpdated: Date().addingTimeInterval(-120)
+        lastUpdated: Date().addingTimeInterval(-120),
+        feeSummary: WalletFeeSummary(positions: positions)
     )
 
     static let actions = GraphitePopoverActions(
@@ -57,7 +60,8 @@ enum GraphitePreviewData {
         chain: String, chainName: String, chainNumericID: Int, tokenId: String, isV4: Bool = false,
         sym0: String, sym1: String, dec0: Int, dec1: Int, feeRaw: Int,
         lower: Double?, upper: Double?, current: Double,
-        valueUSD: Double, feesUSD: Double, fees0: Double, fees1: Double, apr: Double
+        valueUSD: Double, feesUSD: Double, fees0: Double, fees1: Double, apr: Double,
+        claimedUSD: Double? = nil, openedDaysAgo: Double? = nil
     ) -> Position {
         let tickLower = lower.map { tick(price: $0, dec0: dec0, dec1: dec1) } ?? -887_220
         let tickUpper = upper.map { tick(price: $0, dec0: dec0, dec1: dec1) } ?? 887_220
@@ -76,6 +80,11 @@ enum GraphitePreviewData {
         pos.inRange = Position.isInRange(tick: currentTick, lower: tickLower, upper: tickUpper)
         pos.isV4 = isV4
         pos.feeAPR = apr
+        if let claimedUSD {
+            pos.claimedUSD = claimedUSD
+            pos.claimedFees1 = claimedUSD / ethPrice
+        }
+        pos.openedAt = openedDaysAgo.map { Date().addingTimeInterval(-$0 * 86_400) }
         return pos
     }
 
@@ -84,32 +93,37 @@ enum GraphitePreviewData {
     }
 }
 
+/// Holds the list options in state so filters and sorting work in the canvas.
+private struct PreviewPopover: View {
+    var snapshot = GraphitePreviewData.snapshot
+    @State private var options = PositionListOptions()
+
+    var body: some View {
+        GraphitePopover(snapshot: snapshot, listOptions: $options, actions: GraphitePreviewData.actions)
+    }
+}
+
 #Preview("Popover · light") {
-    GraphitePopover(snapshot: GraphitePreviewData.snapshot, actions: GraphitePreviewData.actions)
+    PreviewPopover()
         .preferredColorScheme(.light)
 }
 
 #Preview("Popover · dark") {
-    GraphitePopover(snapshot: GraphitePreviewData.snapshot, actions: GraphitePreviewData.actions)
+    PreviewPopover()
         .preferredColorScheme(.dark)
 }
 
-#Preview("Popover · no fee history") {
+#Preview("Popover · live data shape") {
+    // What the app passes today: no daily history, no collect handler.
     var snapshot = GraphitePreviewData.snapshot
     snapshot.dailyFeesUSD = nil
     snapshot.positionDailyFeesUSD = [:]
-    return GraphitePopover(snapshot: snapshot, actions: GraphitePreviewData.actions)
+    snapshot.lastError = "Arbitrum: HTTP 429: rate exceeded"
+    return PreviewPopover(snapshot: snapshot)
 }
 
-#Preview("Menu bar label") {
-    VStack(alignment: .leading, spacing: 12) {
-        GraphiteMenuBarLabel(
-            totalValueUSD: GraphitePreviewData.snapshot.totalValueUSD,
-            unclaimedFeesUSD: GraphitePreviewData.snapshot.unclaimedFeesUSD,
-            needsAttention: true
-        )
-        GraphiteMenuBarLabel(totalValueUSD: 4_611.33, unclaimedFeesUSD: 25.03)
-    }
-    .padding()
+#Preview("Popover · loading") {
+    PreviewPopover(snapshot: PortfolioSnapshot(walletAddress: "0x8f3c4b1e9d2a7c6f5e0b3a8d1c4e7f2a9b6da21c",
+                                               positions: [], isLoading: true))
 }
 #endif

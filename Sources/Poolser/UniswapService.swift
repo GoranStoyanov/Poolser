@@ -232,12 +232,14 @@ final class UniswapService: ObservableObject {
             titleText = "$0.00 👀"
         } else {
             let total = snapshot.reduce(0.0) { $0 + $1.feesUSD }
-            let baseTitle = "\(formatUSD(total)) 👀"
+            let value = all.compactMap(\.positionUSD).reduce(0, +)
+            let outOfRange = MenuBarTitle.hasOutOfRange(all)
+            let baseTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total, outOfRange: outOfRange)
             titleText = baseTitle
             let displayChanged = String(format: "%.2f", total) != String(format: "%.2f", previousTotal)
             if previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
                 let flashEmoji = total > previousTotal ? "🔼" : "🔽"
-                let flashTitle = "\(formatUSD(total)) \(flashEmoji)"
+                let flashTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total, outOfRange: outOfRange, trend: flashEmoji)
                 flashTask?.cancel()
                 flashTask = Task {
                     for i in 0..<10 {

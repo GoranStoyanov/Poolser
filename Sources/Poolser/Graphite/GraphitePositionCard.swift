@@ -1,4 +1,16 @@
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#endif
+
+enum Clipboard {
+    static func copy(_ string: String) {
+        #if canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+        #endif
+    }
+}
 
 struct GraphitePositionCard: View {
     let position: Position
@@ -6,6 +18,8 @@ struct GraphitePositionCard: View {
     var recentDailyFees: [Double]? = nil
     var onOpen: (() -> Void)? = nil
     var onCollect: (() -> Void)? = nil
+    /// Nil when every position is on one chain or the list is already filtered to this one.
+    var onShowOnlyChain: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
@@ -19,6 +33,12 @@ struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
+                if let line = realizedLine {
+                    Text(line)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(palette.secondaryText)
+                        .help(realizedReturnHelp)
+                }
                 footer(info, colors: colors)
             }
             .padding(12)
@@ -29,8 +49,25 @@ struct GraphitePositionCard: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .onTapGesture { onOpen?() }
+            .contextMenu { cardMenu }
             .accessibilityElement(children: .contain)
             .accessibilityAction(named: "Open in Uniswap") { onOpen?() }
+        }
+    }
+
+    @ViewBuilder
+    private var cardMenu: some View {
+        if let onOpen {
+            Button("Open in Uniswap", action: onOpen)
+            Divider()
+        }
+        Button("Copy Position ID") { Clipboard.copy(position.tokenId) }
+        if let poolRef = position.poolReference {
+            Button(position.isV4 ? "Copy Pool ID" : "Copy Pool Address") { Clipboard.copy(poolRef) }
+        }
+        if let onShowOnlyChain {
+            Divider()
+            Button("Show Only \(chainName) Positions", action: onShowOnlyChain)
         }
     }
 
@@ -53,6 +90,9 @@ struct GraphitePositionCard: View {
                 Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
                     .font(.body.weight(.semibold).monospacedDigit())
                     .foregroundStyle(palette.primaryText)
+                    .help(position.poolStateError == nil && !position.distributionLabel.isEmpty
+                          ? "Current assets: \(position.distributionLabel)"
+                          : "")
                 feesLabel
             }
         }
@@ -106,11 +146,11 @@ struct GraphitePositionCard: View {
     private func footer(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
         HStack(spacing: 8) {
             StatusPill(status: info.status, colors: colors)
-            if let apr = aprLabel(info) {
-                Text(apr)
+            if let yield = yieldLabel(info) {
+                Text(yield)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(palette.secondaryText)
-                    .help("If the last 24h repeated for a year, this is the estimated return.\nCalculated from 24h trading volume × fee rate, divided by total pool liquidity (TVL).")
+                    .help(yieldHelp)
             }
             Spacer(minLength: 4)
             if let recentDailyFees, !recentDailyFees.isEmpty {
@@ -152,14 +192,59 @@ struct GraphitePositionCard: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(palette.outOfRange.bandEdge, lineWidth: 1)
         )
+        .contextMenu {
+            Button("Copy Error") { Clipboard.copy(error) }
+            Button("Copy Position ID") { Clipboard.copy(position.tokenId) }
+        }
     }
 
     // MARK: - Labels
 
+    private var chainName: String {
+        SupportedChain.byID(position.chainID)?.displayName ?? position.chainName
+    }
+
     private var metaLabel: String {
-        let chain = SupportedChain.byID(position.chainID)?.displayName ?? position.chainName
         let fee = position.feeFraction == nil ? "dynamic fee" : "\(position.feePct)%"
-        return "\(chain) · \(position.versionLabel) · \(fee)"
+        return "\(chainName) · \(position.versionLabel) · \(fee)"
+    }
+
+    /// Claimed fees and the realized return, once the claimed-fee history is known.
+    private var realizedLine: String? {
+        var parts: [String] = []
+        if let claimed = position.claimedUSDLabel ?? position.claimedFeesLabel {
+            parts.append("Claimed \(claimed)")
+        } else if position.feeHistoryBootstrapping {
+            parts.append("Claimed: syncing…")
+        }
+        if let feeReturn = position.feeReturnOnAssets {
+            parts.append("earned \(formatPercent(feeReturn)) of value")
+        }
+        if let apr = position.realizedAPR() {
+            parts.append("\(formatPercent(apr)) APR since open")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var realizedReturnHelp: String {
+        let opened = position.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
+        return """
+        All-time fees (claimed + unclaimed) as a share of the position's current value, and that \
+        return per year since the position was opened\(opened). Compare with the 24h yield below, \
+        the pool's estimate from the last 24 hours, also per year.
+        Claimed fees are valued at today's prices. If liquidity was added or removed, the current \
+        value is not the capital the fees were earned on.
+        """
+    }
+
+    private var yieldHelp: String {
+        var lines = [
+            "If the last 24h repeated for a year, this is the estimated return.",
+            "Calculated from 24h trading volume × fee rate, divided by total pool liquidity (TVL).",
+        ]
+        let stats = [position.volumeLabel, position.tvlLabel].compactMap { $0 }
+        if !stats.isEmpty { lines.append(stats.joined(separator: " · ")) }
+        return lines.joined(separator: "\n")
     }
 
     private func feeHistoryHelp(_ values: [Double]) -> String {
@@ -169,9 +254,9 @@ struct GraphitePositionCard: View {
     }
 
     /// The pool's yield is not this position's while it earns nothing.
-    private func aprLabel(_ info: PositionPresentation) -> String? {
-        if info.status == .outOfRange { return "APR —" }
-        return position.feeAPR.map { String(format: "APR %.1f%%", $0) }
+    private func yieldLabel(_ info: PositionPresentation) -> String? {
+        if info.status == .outOfRange { return nil }
+        return position.feeAPR.map { String(format: "24h yield %.1f%%", $0) }
     }
 }
 

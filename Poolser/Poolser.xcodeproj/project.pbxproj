@@ -26,7 +26,6 @@
 		53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */; };
 		53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */; };
 		53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */; };
-		53C0A10A2FC0C0DE00B5EC27 /* GraphiteMenuBarLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1092FC0C0DE00B5EC27 /* GraphiteMenuBarLabel.swift */; };
 		53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */; };
 		53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11F2F8F628F00C82982 /* AppSettings.swift */; };
 		5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */; };
@@ -80,7 +79,6 @@
 		53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionPresentation.swift; path = ../Sources/Poolser/Graphite/PositionPresentation.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1092FC0C0DE00B5EC27 /* GraphiteMenuBarLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphiteMenuBarLabel.swift; path = ../Sources/Poolser/Graphite/GraphiteMenuBarLabel.swift; sourceTree = SOURCE_ROOT; };
 		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
 		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -142,7 +140,6 @@
 				53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */,
 				53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */,
 				53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */,
-				53C0A1092FC0C0DE00B5EC27 /* GraphiteMenuBarLabel.swift */,
 				53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */,
 				53FAE0EB2F8ECAC700C82982 /* Poolser */,
 				53FAE0EA2F8ECAC700C82982 /* Products */,
@@ -259,7 +256,6 @@
 				53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */,
 				53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */,
 				53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */,
-				53C0A10A2FC0C0DE00B5EC27 /* GraphiteMenuBarLabel.swift in Sources */,
 				53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */,
 				53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */,
 				5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */,

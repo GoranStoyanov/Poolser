@@ -68,6 +68,38 @@ struct RangeGaugeLayout: Equatable {
     }
 }
 
+/// Status item text. `MenuBarExtra` labels draw plain text, so the out-of-range mark is a
+/// text glyph rather than a coloured dot.
+enum MenuBarTitle {
+    /// "$48.2k │ $312.58", with `trend` (an arrow while the fees change) and a warning sign
+    /// while a position is out of range.
+    static func text(valueUSD: Double, feesUSD: Double, outOfRange: Bool, trend: String? = nil) -> String {
+        var title = "\(PositionPresentation.compactUSD(valueUSD)) │ \(formatUSD(feesUSD))"
+        if let trend { title += " \(trend)" }
+        if outOfRange { title += " ⚠︎" }
+        return title
+    }
+
+    static func hasOutOfRange(_ positions: [Position]) -> Bool {
+        positions.contains { $0.error == nil && !$0.isFullRange && $0.inRange == false }
+    }
+}
+
+extension Position {
+    /// The position's page on app.uniswap.org.
+    var uniswapURL: URL? {
+        let slug = SupportedChain.byID(chainID)?.uniswapChainSlug ?? chainID
+        return URL(string: isV4
+            ? "https://app.uniswap.org/positions/v4/\(slug)/\(tokenId)"
+            : "https://app.uniswap.org/pools/\(tokenId)?chain=\(slug)")
+    }
+
+    /// v4 pools have no contract of their own; they are identified by the PoolKey hash.
+    var poolReference: String? {
+        isV4 ? poolId.map { "0x" + $0.hexString } : poolAddress
+    }
+}
+
 /// Display values for one position: which token prices the other, range bounds as prices,
 /// status and gauge geometry.
 struct PositionPresentation {

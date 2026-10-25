@@ -111,6 +111,28 @@ struct RangeGaugeLayoutTests {
     }
 }
 
+@Suite("Menu bar title")
+struct MenuBarTitleTests {
+    @Test func valueThenFees() {
+        #expect(MenuBarTitle.text(valueUSD: 48_213.40, feesUSD: 312.58, outOfRange: false) == "$48.2k │ $312.58")
+    }
+
+    @Test func trendAndWarningAreAppended() {
+        #expect(MenuBarTitle.text(valueUSD: 48_213.40, feesUSD: 312.58, outOfRange: true, trend: "🔼")
+                == "$48.2k │ $312.58 🔼 ⚠︎")
+    }
+
+    @Test func onlyRangedPositionsCountAsOutOfRange() {
+        let inRange = makePosition(tick: 500)
+        let out = makePosition(tick: -1)
+        let fullRange = makePosition(lower: -887_220, upper: 887_220, tick: 10)
+        var failed = makePosition(tick: -1)
+        failed.error = "boom"
+        #expect(!MenuBarTitle.hasOutOfRange([inRange, fullRange, failed]))
+        #expect(MenuBarTitle.hasOutOfRange([inRange, out]))
+    }
+}
+
 @Suite("Presentation formatting")
 struct PresentationFormattingTests {
     @Test(arguments: [
