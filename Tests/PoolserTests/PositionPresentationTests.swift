@@ -46,8 +46,10 @@ struct PriceOrientationTests {
 struct RangeStatusTests {
     @Test(arguments: [
         (500, RangeStatus.inRange),
-        (50, .nearMin),
-        (950, .nearMax),
+        (50, .inRange),
+        (950, .inRange),
+        (20, .nearMin),
+        (980, .nearMax),
         (-1, .outOfRange),
         (1_000, .outOfRange),  // tickUpper itself is out of range
     ])
@@ -56,7 +58,7 @@ struct RangeStatusTests {
     }
 
     @Test func invertedPairSwapsNearMinAndMax() {
-        let pos = makePosition(sym0: "USDC", sym1: "WETH", tick: 50)
+        let pos = makePosition(sym0: "USDC", sym1: "WETH", tick: 20)
         #expect(PositionPresentation(pos).status == .nearMax)
     }
 
