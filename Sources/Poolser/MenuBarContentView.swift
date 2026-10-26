@@ -48,16 +48,16 @@ struct MenuBarContentView: View {
 
     private var snapshot: PortfolioSnapshot {
         let now = Date()
-        let ledger = service.feeLedger
+        let dailyFees = service.dailyFees
         var perPosition: [String: [Double]] = [:]
         for pos in service.positions {
-            perPosition[pos.id] = ledger.dailyUSD(for: pos, days: 7, endingAt: now)
+            perPosition[pos.id] = dailyFees.dailyUSD(for: pos, days: 7, endingAt: now)
         }
         return PortfolioSnapshot(
             walletAddress: settings.walletAddress,
             positions: service.positions,
             // One day is enough for the wallet chart, which shows empty slots before it.
-            dailyFeesUSD: ledger.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),
+            dailyFeesUSD: dailyFees.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),
             positionDailyFeesUSD: perPosition,
             lastUpdated: service.lastUpdated,
             isLoading: service.isLoading,

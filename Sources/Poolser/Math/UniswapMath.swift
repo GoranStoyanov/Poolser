@@ -66,15 +66,10 @@ func v4UnclaimedFees(
     let fg0Global = globD.readWord(at: 0)
     let fg1Global = globD.readWord(at: 32)
 
-    // Standard feeGrowthInside = global − feeGrowthBelow(lower) − feeGrowthAbove(upper)
-    // All subtractions wrap mod 2^256, matching Solidity unchecked arithmetic.
-    let fg0Below = currentTick >= tickLower ? fg0OutLo : u256Sub(fg0Global, fg0OutLo)
-    let fg1Below = currentTick >= tickLower ? fg1OutLo : u256Sub(fg1Global, fg1OutLo)
-    let fg0Above = currentTick <  tickUpper ? fg0OutHi : u256Sub(fg0Global, fg0OutHi)
-    let fg1Above = currentTick <  tickUpper ? fg1OutHi : u256Sub(fg1Global, fg1OutHi)
-
-    let fg0Inside = u256Sub(u256Sub(fg0Global, fg0Below), fg0Above)
-    let fg1Inside = u256Sub(u256Sub(fg1Global, fg1Below), fg1Above)
+    let fg0Inside = feeGrowthInside(global: fg0Global, outsideLower: fg0OutLo, outsideUpper: fg0OutHi,
+                                    currentTick: currentTick, tickLower: tickLower, tickUpper: tickUpper)
+    let fg1Inside = feeGrowthInside(global: fg1Global, outsideLower: fg1OutLo, outsideUpper: fg1OutHi,
+                                    currentTick: currentTick, tickLower: tickLower, tickUpper: tickUpper)
 
     // Delta since last collection (wrapping — handles the fgInside < fgLast case gracefully)
     let delta0 = u256Sub(fg0Inside, fg0Last)
@@ -85,6 +80,88 @@ func v4UnclaimedFees(
     let fees0 = u256ToDouble(delta0) * liquidityRaw / pow(2.0, 128)
     let fees1 = u256ToDouble(delta1) * liquidityRaw / pow(2.0, 128)
     return (fees0: fees0, fees1: fees1)
+}
+
+// MARK: - Fee growth inside a range
+
+/// Standard feeGrowthInside = global − feeGrowthBelow(lower) − feeGrowthAbove(upper), for one
+/// token, from the ticks' feeGrowthOutside. All subtractions wrap mod 2^256, matching Solidity
+/// unchecked arithmetic.
+func feeGrowthInside(
+    global: Data, outsideLower: Data, outsideUpper: Data,
+    currentTick: Int, tickLower: Int, tickUpper: Int
+) -> Data {
+    let below = currentTick >= tickLower ? outsideLower : u256Sub(global, outsideLower)
+    let above = currentTick <  tickUpper ? outsideUpper : u256Sub(global, outsideUpper)
+    return u256Sub(u256Sub(global, below), above)
+}
+
+/// A v3 position's fee state at one block. Two of them tell what the position earned in
+/// between without Collect events: collect() moves owed tokens, never fee growth.
+struct FeeGrowthSnapshot: Codable, Equatable {
+    var liquidity: Double
+    var inside0: Data
+    var inside1: Data
+    /// feeGrowthInside when the position's liquidity last changed or it last collected.
+    var insideLast0: Data
+    var insideLast1: Data
+
+    /// Raw token amounts earned since `start`; a nil `start` means the position was minted in
+    /// between. With one liquidity change in between, `insideLast` marks when it happened: the
+    /// new liquidity earned after it and the old one before. A collect after that change moves
+    /// `insideLast` too, so that rare case is approximate.
+    func earned(since start: FeeGrowthSnapshot?) -> (amount0: Double, amount1: Double) {
+        guard let start else {
+            return (Self.grown(from: insideLast0, to: inside0, liquidity: liquidity),
+                    Self.grown(from: insideLast1, to: inside1, liquidity: liquidity))
+        }
+        if start.liquidity == liquidity {
+            return (Self.grown(from: start.inside0, to: inside0, liquidity: liquidity),
+                    Self.grown(from: start.inside1, to: inside1, liquidity: liquidity))
+        }
+        return (
+            Self.grown(from: insideLast0, to: inside0, liquidity: liquidity)
+                + Self.grown(from: start.inside0, to: insideLast0, liquidity: start.liquidity),
+            Self.grown(from: insideLast1, to: inside1, liquidity: liquidity)
+                + Self.grown(from: start.inside1, to: insideLast1, liquidity: start.liquidity)
+        )
+    }
+
+    /// liquidity × Δgrowth ÷ 2¹²⁸. A delta with the top bit set is a "negative" one: the two
+    /// reads do not describe the same accumulator (e.g. a tick was cleared and re-initialised),
+    /// so it counts as nothing rather than as an enormous amount.
+    private static func grown(from start: Data, to end: Data, liquidity: Double) -> Double {
+        guard liquidity > 0 else { return 0 }
+        let delta = u256Sub(end, start)
+        guard let top = delta.first, top < 0x80 else { return 0 }
+        return u256ToDouble(delta) * liquidity / pow(2.0, 128)
+    }
+}
+
+extension FeeGrowthSnapshot {
+    /// From a NonfungiblePositionManager positions() result and the pool's slot0(),
+    /// feeGrowthGlobal0X128(), feeGrowthGlobal1X128() and ticks() at both ends of the range,
+    /// all read at the same block.
+    init?(positions pos: Data, slot0: Data, global0: Data, global1: Data, lowerTick: Data, upperTick: Data) {
+        guard pos.count >= 12 * 32, slot0.count >= 64, global0.count >= 32, global1.count >= 32,
+              lowerTick.count >= 128, upperTick.count >= 128 else { return nil }
+        // positions(): word 5 tickLower, 6 tickUpper, 7 liquidity, 8–9 feeGrowthInside{0,1}LastX128.
+        // ticks(): word 2–3 feeGrowthOutside{0,1}X128.
+        let tickLower = pos.readInt24(wordAt: 160)
+        let tickUpper = pos.readInt24(wordAt: 192)
+        let tick = slot0.readInt24(wordAt: 32)
+        liquidity = pos.readAmount(wordAt: 224, decimals: 0)
+        insideLast0 = pos.readWord(at: 256)
+        insideLast1 = pos.readWord(at: 288)
+        inside0 = feeGrowthInside(
+            global: global0.readWord(at: 0), outsideLower: lowerTick.readWord(at: 64), outsideUpper: upperTick.readWord(at: 64),
+            currentTick: tick, tickLower: tickLower, tickUpper: tickUpper
+        )
+        inside1 = feeGrowthInside(
+            global: global1.readWord(at: 0), outsideLower: lowerTick.readWord(at: 96), outsideUpper: upperTick.readWord(at: 96),
+            currentTick: tick, tickLower: tickLower, tickUpper: tickUpper
+        )
+    }
 }
 
 // MARK: - Exact uint256 arithmetic (for feeGrowth accumulators)

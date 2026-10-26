@@ -18,7 +18,7 @@ Poolser shows your total value and unclaimed fees at a glance, flags the ranges 
 
 - Total value and unclaimed fees in the menu bar (`$8.64k │ $63.93`), refreshed every 10 minutes by default and on demand
 - A summary card with unclaimed fees, total value, today's fees and all-time fees
-- A daily fee chart for the last 7, 14 or 30 days, recorded locally from each refresh
+- A daily fee chart for the last 7, 14 or 30 days. For v3 positions it is read from on-chain history, so it is full from the first launch; v4 positions are recorded from each refresh
 - Claimed fees, the share of value earned back in fees ("pool level") and APR since you opened each position
 
 ### Position cards

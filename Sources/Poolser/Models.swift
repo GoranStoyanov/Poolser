@@ -59,6 +59,8 @@ struct Position: Identifiable {
     var currency0: String? = nil
     var currency1: String? = nil
     var feesError: String? = nil  // set when fee computation fails
+    /// v3 fee growth at the last refresh: the end point of today's on-chain daily fees.
+    var feeGrowth: FeeGrowthSnapshot? = nil
     /// Why the pool's price could not be read; amounts and range are unknown while set.
     var poolStateError: String? = nil
     // pool stats (GeckoTerminal)

@@ -23,6 +23,8 @@ struct ContractReader {
     let multicall3: String?
     /// Keeps each aggregate3 well inside providers' eth_call gas and response-size caps.
     var maxCallsPerBatch = 100
+    /// Past block to read at; nil reads the latest state.
+    var block: Int?
 
     /// One result per call, in call order. Identical calls are sent once.
     /// A sub-call that reverts inside Multicall3 fails with `EthereumClient.Err.reverted`,
@@ -82,7 +84,8 @@ struct ContractReader {
             let results = try await eth.aggregate3(
                 calls.map { Call3(target: $0.target, allowFailure: true, data: $0.data) },
                 multicall3: multicall3,
-                context: context
+                context: context,
+                block: block
             )
             return results.map { result in
                 result.success
@@ -116,6 +119,9 @@ struct ContractReader {
 
     private func single(_ call: ContractCall) async -> Result<Data, Error> {
         do {
+            if let block {
+                return .success(try await eth.ethCall(to: call.target, data: call.data, block: block))
+            }
             return .success(try await eth.ethCall(to: call.target, data: call.data))
         } catch {
             return .failure(error)

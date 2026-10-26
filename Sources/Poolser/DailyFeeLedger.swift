@@ -102,6 +102,32 @@ struct DailyFeeLedger: Codable, Equatable {
 
     // MARK: - Series
 
+    /// Each position's days, by `Position.id`.
+    var dailyFees: DailyFees { DailyFees(byPosition: entries.mapValues(\.days)) }
+
+    func dailyUSD(
+        for position: Position, days: Int, minDays: Int = 2, endingAt now: Date, calendar: Calendar = .current
+    ) -> [Double]? {
+        dailyFees.dailyUSD(for: position, days: days, minDays: minDays, endingAt: now, calendar: calendar)
+    }
+
+    func walletDailyUSD(
+        _ positions: [Position], days: Int, minDays: Int = 2, endingAt now: Date, calendar: Calendar = .current
+    ) -> [Double]? {
+        dailyFees.walletDailyUSD(positions, days: days, minDays: minDays, endingAt: now, calendar: calendar)
+    }
+}
+
+/// Fees earned per position and calendar day, in token units: days keyed by
+/// `DailyFeeLedger.dayKey`, positions by `Position.id`. A missing day means unknown.
+struct DailyFees: Equatable {
+    var byPosition: [String: [String: DailyFeeLedger.Amounts]] = [:]
+
+    /// Per position, the chain history where it has one, the refresh ledger otherwise.
+    func overlaid(with other: DailyFees) -> DailyFees {
+        DailyFees(byPosition: byPosition.merging(other.byPosition) { _, preferred in preferred })
+    }
+
     /// USD earned per day for the last `days` days ending today, oldest first, starting at the
     /// first day with data. Nil with fewer than `minDays` days, or without a price for either token.
     func dailyUSD(
@@ -126,13 +152,13 @@ struct DailyFeeLedger: Codable, Equatable {
     }
 
     private func rawDailyUSD(for position: Position, days: Int, endingAt now: Date, calendar: Calendar) -> [Double?]? {
-        guard let entry = entries[position.id],
+        guard let positionDays = byPosition[position.id],
               position.price0USD != nil || position.price1USD != nil else { return nil }
         let price0 = position.price0USD ?? 0
         let price1 = position.price1USD ?? 0
         return (0..<days).reversed().map { offset in
             guard let date = calendar.date(byAdding: .day, value: -offset, to: now) else { return nil }
-            return entry.days[Self.dayKey(date, calendar: calendar)].map { $0.token0 * price0 + $0.token1 * price1 }
+            return positionDays[DailyFeeLedger.dayKey(date, calendar: calendar)].map { $0.token0 * price0 + $0.token1 * price1 }
         }
     }
 

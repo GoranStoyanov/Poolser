@@ -10,8 +10,13 @@ final class UniswapService: ObservableObject {
     @Published var isLoading      = false
     @Published var lastError:     String?
     @Published var lastUpdated:   Date? = nil
+    /// Fees earned per day: the chain history for v3 positions where the node serves past
+    /// state, otherwise what the ledger saw between refreshes.
+    @Published private(set) var dailyFees = DailyFees()
     /// Fees earned per day, from the unclaimed fees seen at each refresh.
-    @Published private(set) var feeLedger = DailyFeeLedger.load()
+    private var feeLedger = DailyFeeLedger.load()
+    /// Fees earned per day from chain state, by position id.
+    private var chainDailyFees = DailyFees()
     private var previousTotal: Double = -1
     private var flashTask: Task<Void, Never>?
 
@@ -23,6 +28,7 @@ final class UniswapService: ObservableObject {
     private var activeLoadTask: Task<Void, Never>?
     private var bootstrapFollowUpTask: Task<Void, Never>?
     private var feeHistoryTask: Task<Void, Never>?
+    private var dailyFeeTask: Task<Void, Never>?
     private var bootstrapCountdownTimer: Timer?
     private var bootstrapFollowUpDeadlineByChainID: [String: Date] = [:]
     private var loadGeneration: UInt64 = 0
@@ -33,6 +39,7 @@ final class UniswapService: ObservableObject {
         refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
             .removeDuplicates()
             .sink { [weak self] _ in self?.configureTimer() }
+        dailyFees = feeLedger.dailyFees
         startLoad()
     }
 
@@ -40,6 +47,7 @@ final class UniswapService: ObservableObject {
 
     func refreshForWalletChange() {
         positions = []
+        chainDailyFees = DailyFees()
         titleText = "… 👀"
         previousTotal = -1
         chainResultsByID = [:]
@@ -52,6 +60,7 @@ final class UniswapService: ObservableObject {
         activeLoadTask?.cancel()
         bootstrapFollowUpTask?.cancel()
         feeHistoryTask?.cancel()
+        dailyFeeTask?.cancel()
         bootstrapFollowUpDeadlineByChainID = [:]
         stopBootstrapCountdownTimer()
         loadGeneration &+= 1
@@ -110,6 +119,7 @@ final class UniswapService: ObservableObject {
         if !v3Positions.isEmpty && AppSettings.shared.trackClaimedFees {
             startFeeHistoryLoad(v3Positions: v3Positions, wallet: wallet, generation: generation)
         }
+        startDailyFeeLoad(v3Positions: v3Positions.filter { $0.poolAddress != nil }, generation: generation)
     }
 
     private func scheduleBootstrapFollowUpIfNeeded(chainIDs: [String], generation: UInt64) {
@@ -226,6 +236,7 @@ final class UniswapService: ObservableObject {
         positions = all
         feeLedger.record(all, at: Date())
         feeLedger.save()
+        dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
 
         let errors = snapshot.compactMap(\.error)
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
@@ -300,6 +311,28 @@ final class UniswapService: ObservableObject {
                 } else {
                     LogStore.shared.log("fee history [\(chain.displayName)]: complete", level: .info)
                 }
+            }
+        }
+    }
+
+    private func startDailyFeeLoad(v3Positions: [Position], generation: UInt64) {
+        dailyFeeTask?.cancel()
+        guard !v3Positions.isEmpty else { return }
+        dailyFeeTask = Task { [weak self] in
+            guard let self else { return }
+            for (chainID, chainPositions) in Dictionary(grouping: v3Positions, by: \.chainID) {
+                guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
+                guard let chain = SupportedChain.byID(chainID),
+                      let nfpm = chain.v3NFPM,
+                      let rpcURL = AppSettings.shared.infuraRPCURL(for: chain) else { continue }
+                let days = await DailyFeeHistory.refresh(
+                    positions: chainPositions, chain: chain, nfpm: nfpm, eth: EthereumClient(rpcURL: rpcURL)
+                )
+                guard isCurrentGeneration(generation) else { return }
+                for pos in chainPositions {
+                    chainDailyFees.byPosition[pos.id] = days.byPosition[pos.id]
+                }
+                dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
             }
         }
     }
