@@ -1,8 +1,12 @@
 # 👀 Poolser
 
-**👀 Poolser** — for Uniswap positions.
+Your Uniswap v3 and v4 positions in the macOS menu bar.
 
-A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [Uniswap v4](https://uniswap.org) liquidity positions. See unclaimed fees in USD at a glance, check whether positions are in range, and open positions directly in the Uniswap app.
+Poolser shows your total value and unclaimed fees at a glance, flags the ranges that need attention, and lets you collect fees with your browser wallet. It reads everything straight from the chain through your own Infura key: no account, no indexer, no tracking.
+
+[Download on the Mac App Store](https://apps.apple.com/app/poolser/id6762252798)
+
+<img src="docs/screenshots/appstore/1-menu-bar.jpg" width="720" alt="Poolser in the macOS menu bar with its positions open">
 
 > **Disclaimer:** This is an independent hobby project with no affiliation, association, or connection to Uniswap Labs or the Uniswap Protocol. "Uniswap" is a trademark of Uniswap Labs.
 
@@ -10,61 +14,72 @@ A macOS menu bar app for monitoring your [Uniswap v3](https://uniswap.org) and [
 
 ## Features
 
-- Live unclaimed fee totals in the menu bar (auto-refresh every 10 minutes + manual refresh)
-- Multi-chain Uniswap v3 support on Infura-backed EVM networks:
-  - Ethereum
-  - Base
-  - Arbitrum
-  - Optimism
-  - Polygon
-- Uniswap v4 position loading + fee calculation on:
-  - Ethereum
-  - Base
-  - Arbitrum
-  - Optimism
-  - Polygon
-  - Blast
-  - Unichain
-- Per-position breakdown: token pair, fee tier, in/out-of-range status, position value, unclaimed fees
-- Tick range visualization with:
-  - in/out-of-range styling
-  - current tick needle and boundary markers
-  - compact out-of-range distance labels
-- Robust RPC handling:
-  - retries with backoff + jitter
-  - request pacing with a shared credit-based limiter
-  - clearer RPC error surfacing in-app logs/UI
-  - stale refresh protection (older in-flight loads cannot override newer refreshes)
-- Incremental v4 ownership discovery:
-  - bootstrap scan is chunked and resumable
-  - bootstrap follow-ups run per chain (accelerated while in progress)
-  - in-app bootstrap status shows live countdown to next auto-refresh
-  - ownership cache avoids rescanning full history every refresh
-- **Out-of-range notifications** (opt-in): sends a macOS notification whenever a position moves in or out of range. Enable via *Settings → Range Change Notifications*. Disabled by default. macOS will prompt for notification permission the first time the app launches.
-- **Claimed fee history** (opt-in): scans on-chain `Collect` events to show total historical claimed fees per v3 position. Enable via *Settings → Track Claimed Fees*. Disabled by default — the scan makes many `eth_getLogs` requests and can be noticeably request-heavy on fast-block chains like Base or Arbitrum. Results are cached locally and only new blocks are re-scanned on subsequent refreshes.
-- Chain icons in UI (downloaded once from CoinGecko and cached locally)
-- Reads data directly from chain RPC (Infura endpoints derived from your API key), with no third-party indexer
-- Click any position to open it on app.uniswap.org
-- Launch at Login support (toggle in Settings)
-- Native macOS app — no Electron, no web view
+### At a glance
 
-## Product Screenshots
+- Total value and unclaimed fees in the menu bar (`$8.64k │ $63.93`), refreshed every 10 minutes by default and on demand
+- A summary card with unclaimed fees, total value, today's fees and all-time fees
+- A daily fee chart for the last 7, 14 or 30 days, recorded locally from each refresh
+- Claimed fees, the share of value earned back in fees ("pool level") and APR since you opened each position
 
-Main menu bar popup:
+### Position cards
 
-<img src="docs/screenshots/positions.png" width="403" alt="Poolser main popup">
+- A range gauge with the current price and Min and Max shown as prices, not ticks
+- Status: in range, near the edge (within 3% of a bound), out of range (with how far the price has moved) or full range
+- Current token amounts, position ID, pool volume, TVL and 24h yield
+- Token logos (DefiLlama) and chain badges (CoinGecko), cached locally
+- A 7-day fee bar chart per position
+- Filter by chain, by version or by positions that need attention; sort by value, unclaimed fees, 24h yield or pair
+- Right-click to open the position on app.uniswap.org or copy its position ID or pool
 
-Menu bar overview:
+### Collect fees
 
-<img src="docs/screenshots/menubar-overview.png" width="417" alt="Poolser menu bar overview">
+- Collect one position, or every position on a chain at once (one transaction per Uniswap version, batched when the wallet supports EIP-5792)
+- Poolser dry-runs the transaction, then opens a local page in your default browser that hands it to your wallet extension (MetaMask, Rabby and others) to confirm and sign
+- Poolser never sees your keys and never signs anything; see [PRIVACY.md](PRIVACY.md)
 
-Settings:
+### Chains
 
-<img src="docs/screenshots/settings.png" width="432" alt="Poolser settings">
+| Network | v3 | v4 |
+|---|---|---|
+| Ethereum, Base, Arbitrum, Optimism, Polygon, Blast, Unichain | ✓ | ✓ |
+| Avalanche, BNB Chain, Celo, zkSync, Monad, MegaETH | ✓ | |
 
-Logs:
+All networks go through Infura endpoints derived from one API key. Networks your Infura project cannot access are turned off automatically.
 
-<img src="docs/screenshots/logs.png" width="406" alt="Poolser logs">
+### Optional
+
+- **Range change notifications:** a macOS notification when a position moves in or out of range (*Settings → Range Change Notifications*, off by default)
+- **Claimed fee history:** scans on-chain `Collect` events for each v3 position (*Settings → Track Claimed Fees*, off by default). It makes many `eth_getLogs` requests and can be request-heavy on fast-block chains like Base or Arbitrum; results are cached and only new blocks are scanned afterwards
+- **Flash on value change:** the menu bar title blinks with 🔼 or 🔽 when unclaimed fees change after a refresh
+- **Launch at Login**
+- **Logs:** every RPC request, response, retry and error, from the popover footer
+
+### Under the hood
+
+- Per-position contract reads batched with Multicall3; token prices cached briefly and shared between requests
+- A credit-based request limiter that backs off automatically after HTTP 429s
+- Incremental v4 ownership discovery from `Transfer` logs: the first scan is chunked and resumable, later refreshes only scan new blocks
+- Native SwiftUI, no dependencies, no web views (the collect page opens in your own browser)
+
+## Screenshots
+
+<img src="docs/screenshots/popover-light.png" width="380" alt="Poolser popover in light mode"> <img src="docs/screenshots/popover-dark.png" width="380" alt="Poolser popover in dark mode">
+
+<img src="docs/screenshots/appstore/3-ranges.jpg" width="720" alt="Position cards near the edge and out of range">
+
+<img src="docs/screenshots/appstore/4-collect.jpg" width="720" alt="Collecting fees with a browser wallet">
+
+Settings and logs:
+
+<img src="docs/screenshots/settings.png" width="380" alt="Poolser settings"> <img src="docs/screenshots/logs.png" width="380" alt="Poolser logs">
+
+The App Store screenshots and the popover images are rendered from the app's own views with a demo wallet. To make them again after a UI change:
+
+```bash
+POOLSER_SCREENSHOTS=docs/screenshots swift run
+```
+
+The debug build writes the images and quits. Captions live in `Sources/Poolser/Graphite/StoreScreenshots.swift`; the listing text is in [docs/app-store.md](docs/app-store.md).
 
 ## Requirements
 
@@ -135,7 +150,7 @@ Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 Important behavior:
 - Setting edits are draft-only until you press **Save & Refresh**
 - Closing settings with `X`/`Esc` discards unsaved changes
-- Saved settings are persisted in `UserDefaults`
+- Settings are saved in `UserDefaults`; the Infura API key is saved in the macOS Keychain
 - Some Infura networks are gated per project; enable the network in your Infura dashboard first if needed
 
 ## How Position Discovery Works
@@ -195,12 +210,13 @@ If your provider still rate-limits frequently:
 
 Poolser communicates only with:
 
-- Infura RPC endpoints derived from your API key (on-chain reads)
-- [CoinGecko](https://coingecko.com) and [DefiLlama](https://defillama.com) public APIs (token USD pricing)
-- CoinGecko asset-platform metadata/icons (for chain icon rendering + local cache)
+- Infura RPC endpoints derived from your API key (on-chain reads, and gas estimates before a collect)
+- [CoinGecko](https://coingecko.com) and [DefiLlama](https://defillama.com) public APIs (token USD prices, token logos and chain icons)
+- [GeckoTerminal](https://geckoterminal.com) (pool volume, TVL and yield)
+- A temporary server on `127.0.0.1` and your own browser, only while you collect fees
 
-No analytics, no tracking, no data leaves your machine beyond those requests.
+No analytics and no tracking. Details are in [PRIVACY.md](PRIVACY.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

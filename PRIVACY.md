@@ -2,7 +2,7 @@
 
 **Poolser** is a macOS menu bar app for monitoring Uniswap v3 and v4 liquidity positions.
 
-_Last updated: October 25, 2026_
+_Last updated: October 26, 2026_
 
 ## Data Collection
 
@@ -33,7 +33,7 @@ Poolser never sees or stores your private keys and does not sign anything. The t
 
 ## Local Storage
 
-Your wallet address, Infura API key, and app settings are stored locally in macOS `UserDefaults`. This data never leaves your device except as part of the RPC and pricing requests described above.
+Your wallet address, app settings, the daily fee history behind the fee charts and cached chain data are stored locally in macOS `UserDefaults`. Your Infura API key is stored in the macOS Keychain. Token logos and chain icons are cached in the app's Application Support folder. This data never leaves your device except as part of the RPC and pricing requests described above.
 
 ## Contact
 
