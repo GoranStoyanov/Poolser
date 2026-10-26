@@ -602,9 +602,15 @@ struct FeeHistoryChart: View {
         [7, 14, 30].filter { $0 == 7 || $0 <= values.count }
     }
 
+    private var slots: Int {
+        periods.contains(days) ? days : periods.last ?? 7
+    }
+
+    /// Value labels fit over a week of bars; longer periods show them on hover only.
+    private var labelsBars: Bool { slots <= 7 }
+
     var body: some View {
         let palette = GraphitePalette.current(colorScheme)
-        let slots = periods.contains(days) ? days : periods.last ?? 7
         let shown = Array(values.suffix(slots))
         let empty = slots - shown.count
         let peak = shown.max() ?? 0
@@ -622,7 +628,7 @@ struct FeeHistoryChart: View {
                 ForEach(0..<slots, id: \.self) { slot in
                     let index = slot - empty
                     let shape = UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3, style: .continuous)
-                    Group {
+                    VStack(spacing: 2) {
                         if index < 0 {
                             shape.fill(palette.track).frame(height: 3)
                         } else if index == shown.count - 1 {
@@ -631,13 +637,23 @@ struct FeeHistoryChart: View {
                                                      startPoint: .top, endPoint: .bottom))
                                 .frame(height: barHeight(shown[index], peak: peak))
                         } else {
+                            // Today's value is in the badge above; past days get their own label
+                            // while the slots are wide enough to hold one.
+                            if labelsBars {
+                                Text(formatUSD(shown[index]))
+                                    .font(.system(size: 9, weight: .semibold).monospacedDigit())
+                                    .foregroundStyle(palette.secondaryText)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
+                            }
                             shape.fill(palette.bar).frame(height: barHeight(shown[index], peak: peak))
                         }
                     }
                     .frame(maxWidth: .infinity)
+                    .help(index < 0 ? "" : "\(startDate(daysBack: shown.count - 1 - index).formatted(.dateTime.month(.abbreviated).day())): \(formatUSD(shown[index]))")
                 }
             }
-            .frame(height: 48, alignment: .bottom)
+            .frame(height: labelsBars ? 62 : 48, alignment: .bottom)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Fees per day, last \(shown.count) days")
             .accessibilityValue("Today \(formatUSD(shown.last ?? 0))")
