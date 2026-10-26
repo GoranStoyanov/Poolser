@@ -96,7 +96,7 @@ extension Position {
 /// status and gauge geometry.
 struct PositionPresentation {
     /// Share of the range width next to either bound that counts as near the edge.
-    static let nearEdgeFraction = 0.1
+    static let nearEdgeFraction = 0.03
 
     /// Quote tokens, strongest first. A pair is priced in whichever token ranks higher, so
     /// WETH/USDC reads in USDC and WBTC/WETH in WETH.

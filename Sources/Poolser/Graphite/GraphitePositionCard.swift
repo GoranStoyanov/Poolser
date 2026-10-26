@@ -376,8 +376,9 @@ struct PriceRangeGauge: View {
 // MARK: - Fee pool
 
 /// The fee pool: water in the logo's colours filling its container from the bottom to `level`,
-/// the share of the value already earned back in fees. Pours in when shown or when the level
-/// changes; it stays still otherwise, so an open popover costs nothing.
+/// the share of the value already earned back in fees. Pours in and sloshes from side to side
+/// when shown or when the level changes, then settles; it stays still otherwise, so an open
+/// popover costs nothing.
 struct PoolWater: View {
     /// All-time fees over value, clamped to 0…1. Drawn above a fixed `base` so the bottom of the
     /// container always sits in water; 1 fills it.
@@ -386,30 +387,46 @@ struct PoolWater: View {
     var amplitude: CGFloat = 3.5
 
     @State private var shownLevel = 0.0
-    @State private var phase = 0.0
+    @State private var restPhase = 0.0
+    @State private var sloshStart: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let palette = GraphitePalette.current(colorScheme)
-        GeometryReader { geo in
-            let height = geo.size.height * shownLevel
-            ZStack(alignment: .bottom) {
-                Wave(phase: phase + .pi * 0.8, amplitude: amplitude)
-                    .fill(palette.brand)
-                    .opacity(palette.waterBack)
-                    .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
-                Wave(phase: phase, amplitude: amplitude)
-                    .fill(palette.brand)
-                    .opacity(palette.waterFront)
-                    .frame(height: height)
+        TimelineView(.animation(paused: sloshStart == nil)) { context in
+            let elapsed = sloshStart.map { context.date.timeIntervalSince($0) }
+            let front = Slosh(elapsed: elapsed)
+            // The back layer trails the front a little, which reads as depth.
+            let back = Slosh(elapsed: elapsed.map { max($0 - 0.12, 0) })
+            GeometryReader { geo in
+                let height = geo.size.height * shownLevel
+                ZStack(alignment: .bottom) {
+                    Wave(phase: restPhase + back.travel + .pi * 0.8,
+                         amplitude: amplitude * back.swell, tilt: back.tilt)
+                        .fill(palette.brand)
+                        .opacity(palette.waterBack)
+                        .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
+                    Wave(phase: restPhase + front.travel,
+                         amplitude: amplitude * front.swell, tilt: front.tilt)
+                        .fill(palette.brand)
+                        .opacity(palette.waterFront)
+                        .frame(height: height)
+                }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
             }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .onAppear { pour() }
         .onChange(of: level) { pour() }
+        .task(id: sloshStart) {
+            guard sloshStart != nil else { return }
+            try? await Task.sleep(for: .seconds(Slosh.duration))
+            guard !Task.isCancelled else { return }
+            restPhase = (restPhase + Slosh.fullTravel).truncatingRemainder(dividingBy: .pi * 2)
+            sloshStart = nil
+        }
     }
 
     private var target: Double { Self.fill(level: level, base: base) }
@@ -426,30 +443,52 @@ struct PoolWater: View {
         }
         withAnimation(.easeOut(duration: 1.2)) {
             shownLevel = target
-            phase += .pi * 2
         }
+        sloshStart = .now
     }
 }
 
-/// A filled shape whose top edge is a sine wave, one and a half periods across.
+/// The surface's motion `elapsed` seconds into a slosh: a damped side-to-side tilt, waves that
+/// start tall and calm down, and a crest that drifts across and slows to a stop. Nil is at rest.
+struct Slosh {
+    static let duration: TimeInterval = 3
+    static let fullTravel = Double.pi * 3
+
+    /// Points the right edge sits below the middle of the surface; negative tilts the other way.
+    var tilt: CGFloat = 0
+    /// Multiplier on the resting wave height.
+    var swell: CGFloat = 1
+    /// Phase the waves have moved so far, reaching `fullTravel` at the end; at rest it is folded
+    /// into `PoolWater.restPhase`.
+    var travel: Double = 0
+
+    init(elapsed: TimeInterval?) {
+        guard let t = elapsed.map({ min($0, Self.duration) }) else { return }
+        tilt = 9 * CGFloat(exp(-t / 0.7) * sin(2 * .pi * t / 0.95))
+        swell = 1 + 1.3 * CGFloat(exp(-t / 0.8))
+        let progress = t / Self.duration
+        travel = Self.fullTravel * (1 - pow(1 - progress, 3))
+    }
+}
+
+/// A filled shape whose top edge is a sine wave, one and a half periods across, tilted by `tilt`
+/// points from the middle to each side.
 struct Wave: Shape {
     var phase: Double
     var amplitude: CGFloat
-
-    var animatableData: Double {
-        get { phase }
-        set { phase = newValue }
-    }
+    var tilt: CGFloat = 0
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
         guard rect.height > 0 else { return path }
         let wavelength = rect.width / 1.5
         let crest = min(amplitude, rect.height / 2)
+        let halfWidth = max(rect.width / 2, 1)
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         for x in stride(from: rect.minX, through: rect.maxX, by: 2) {
             let angle = Double((x - rect.minX) / wavelength) * 2 * .pi + phase
-            path.addLine(to: CGPoint(x: x, y: rect.minY + crest + crest * CGFloat(sin(angle))))
+            let lean = tilt * (x - rect.midX) / halfWidth
+            path.addLine(to: CGPoint(x: x, y: rect.minY + crest + crest * CGFloat(sin(angle)) + lean))
         }
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()
