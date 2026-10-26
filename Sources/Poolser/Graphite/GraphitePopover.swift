@@ -606,23 +606,28 @@ struct FeeHistoryChart: View {
         periods.contains(days) ? days : periods.last ?? 7
     }
 
-    /// Value labels fit over a week of bars; longer periods show them on hover only.
+    /// Value labels fit over a week of bars; longer periods label only their best day and show
+    /// the others on hover.
     private var labelsBars: Bool { slots <= 7 }
+
+    @State private var hovered: Int?
 
     var body: some View {
         let palette = GraphitePalette.current(colorScheme)
         let shown = Array(values.suffix(slots))
         let empty = slots - shown.count
         let peak = shown.max() ?? 0
+        let peakIndex = peak > 0 ? shown.lastIndex(of: peak) : nil
+        let total = shown.reduce(0, +)
         VStack(spacing: 6) {
             HStack {
+                if shown.count > 1 {
+                    Text("\(shown.count) days: \(formatUSD(total)) · avg \(formatUSD(total / Double(shown.count)))/day")
+                        .font(.caption2.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(palette.secondaryText)
+                }
                 Spacer()
-                Text(formatUSD(shown.last ?? 0))
-                    .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(palette.brand))
+                badge(shown: shown, palette: palette)
             }
             HStack(alignment: .bottom, spacing: slots > 20 ? 2 : 4) {
                 ForEach(0..<slots, id: \.self) { slot in
@@ -635,28 +640,45 @@ struct FeeHistoryChart: View {
                             shape
                                 .fill(LinearGradient(colors: [palette.brandStart, palette.brandEnd],
                                                      startPoint: .top, endPoint: .bottom))
+                                .opacity(hovered == nil || hovered == index ? 1 : 0.6)
                                 .frame(height: barHeight(shown[index], peak: peak))
                         } else {
                             // Today's value is in the badge above; past days get their own label
                             // while the slots are wide enough to hold one.
                             if labelsBars {
-                                Text(formatUSD(shown[index]))
-                                    .font(.system(size: 9, weight: .semibold).monospacedDigit())
-                                    .foregroundStyle(palette.secondaryText)
-                                    .lineLimit(1)
+                                barLabel(shown[index], palette: palette)
                                     .minimumScaleFactor(0.6)
                             }
-                            shape.fill(palette.bar).frame(height: barHeight(shown[index], peak: peak))
+                            shape
+                                .fill(hovered == index ? palette.secondaryText : palette.bar)
+                                .frame(height: barHeight(shown[index], peak: peak))
+                                .overlay(alignment: .top) {
+                                    // Narrower slots label only the best day. It is the tallest
+                                    // bar, so its label clears the others; as an overlay it does
+                                    // not widen its slot.
+                                    if !labelsBars && index == peakIndex {
+                                        barLabel(shown[index], palette: palette)
+                                            .fixedSize()
+                                            .offset(y: -13)
+                                    }
+                                }
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .help(index < 0 ? "" : "\(startDate(daysBack: shown.count - 1 - index).formatted(.dateTime.month(.abbreviated).day())): \(formatUSD(shown[index]))")
+                    .contentShape(Rectangle())
+                    .onHover { inside in
+                        if inside, index >= 0 {
+                            hovered = index
+                        } else if hovered == index {
+                            hovered = nil
+                        }
+                    }
                 }
             }
-            .frame(height: labelsBars ? 62 : 48, alignment: .bottom)
+            .frame(height: 62, alignment: .bottom)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Fees per day, last \(shown.count) days")
-            .accessibilityValue("Today \(formatUSD(shown.last ?? 0))")
+            .accessibilityValue("Today \(formatUSD(shown.last ?? 0)), total \(formatUSD(total))")
             HStack {
                 if values.count < 2 {
                     Text("History starts today")
@@ -679,6 +701,31 @@ struct FeeHistoryChart: View {
             .font(.caption2)
             .foregroundStyle(palette.secondaryText)
         }
+        .onChange(of: slots) { hovered = nil }
+    }
+
+    private func barLabel(_ value: Double, palette: GraphitePalette) -> some View {
+        Text(formatUSD(value))
+            .font(.system(size: 9, weight: .semibold).monospacedDigit())
+            .foregroundStyle(palette.secondaryText)
+            .lineLimit(1)
+    }
+
+    /// Today's fees, or the hovered day's with its date.
+    private func badge(shown: [Double], palette: GraphitePalette) -> some View {
+        let index = hovered.flatMap { shown.indices.contains($0) ? $0 : nil } ?? shown.count - 1
+        let isToday = index == shown.count - 1
+        let value = formatUSD(shown.indices.contains(index) ? shown[index] : 0)
+        let date = startDate(daysBack: shown.count - 1 - index).formatted(.dateTime.month(.abbreviated).day())
+        return Text(isToday ? value : "\(date) · \(value)")
+            .font(.caption2.weight(.bold).monospacedDigit())
+            .foregroundStyle(isToday ? .white : palette.primaryText)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+                if isToday { shape.fill(palette.brand) } else { shape.fill(palette.bar) }
+            }
     }
 
     /// A day that earned anything stays taller than the 3pt empty-slot track, so a small day
