@@ -665,8 +665,11 @@ struct FeeHistoryChart: View {
         }
     }
 
+    /// A day that earned anything stays taller than the 3pt empty-slot track, so a small day
+    /// next to a large one still reads as data.
     private func barHeight(_ value: Double, peak: Double) -> CGFloat {
-        max(2, peak > 0 ? 48 * value / peak : 2)
+        guard value > 0, peak > 0 else { return 2 }
+        return max(6, 48 * value / peak)
     }
 
     private func startDate(daysBack: Int) -> Date {
