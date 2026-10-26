@@ -59,6 +59,11 @@ private func makeChain(_ chain: SupportedChain) async -> FakeChain {
     await fake.set(factory, ABI.callGetPool(token0: usdc, token1: weth, fee: 500), .value(ABI.encodeAddress(pool1)))
     await fake.set(factory, ABI.callGetPool(token0: usdc, token1: odd, fee: 3000), .value(ABI.encodeAddress(pool2)))
     await fake.set(pool1, ABI.callSlot0(), .value(slot0Result(tick: 50)))
+    await fake.set(pool1, ABI.callFeeGrowthGlobal0(), .value(word(900)))
+    await fake.set(pool1, ABI.callFeeGrowthGlobal1(), .value(word(0)))
+    for tick in [-100, 100, 200, 300] {
+        await fake.set(pool1, ABI.callTicks(tick), .value(Data(count: 32 * 8)))
+    }
     await fake.set(pool2, ABI.callSlot0(), .revert("locked"))
 
     await fake.set(usdc, ABI.callSymbol(), .value(abiString("USDC")))
@@ -144,6 +149,10 @@ struct V3PositionLoaderTests {
         #expect(inRange.inRange == true && inRange.currentTick == 50)
         #expect(inRange.poolAddress == pool1)
         #expect(inRange.usd == 1.5 + 0.002 * 3000)
+
+        // Fee growth comes with the pool state batch; without slot0 there is none.
+        #expect(inRange.feeGrowth?.inside0 == word(900))
+        #expect(byId["13"]?.feeGrowth == nil)
 
         #expect(byId["12"]?.inRange == false)
         #expect(byId["12"]?.fees0 == 0.25)

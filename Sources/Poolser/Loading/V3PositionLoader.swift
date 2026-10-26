@@ -127,7 +127,9 @@ struct V3PositionLoader {
             defiLlamaChainKey: chain.defiLlamaChainKey
         )
 
-        // 5 · slot0 of every pool that still has a position, in one batch
+        // 5 · pool state in one batch: slot0 of every pool that still has a position, plus the
+        // fee growth reads that let the daily fee history measure today without its own request.
+        // Without Multicall3 each of those would be a request of its own, so only slot0 is read.
         var poolByTokenId: [String: String] = [:]
         for p in rawPositions where p.error == nil {
             guard let tokenId = UInt64(p.tokenId),
@@ -136,12 +138,14 @@ struct V3PositionLoader {
             guard pool.dropFirst(2).lowercased() != String(repeating: "0", count: 40) else { continue }
             poolByTokenId[p.tokenId] = pool.lowercased()
         }
-        let pools = Set(poolByTokenId.values).sorted()
-        let slot0Results = await reader.readRetryingFailures(
-            pools.map { ContractCall(target: $0, data: ABI.callSlot0()) },
-            context: "\(context) slot0"
-        )
-        let slot0ByPool = Dictionary(uniqueKeysWithValues: zip(pools, slot0Results))
+        let stateCalls = rawPositions.flatMap { p -> [ContractCall] in
+            guard let pool = poolByTokenId[p.tokenId] else { return [] }
+            guard reader.multicall3 != nil else { return [V3FeeGrowthReads.slot0(pool)] }
+            return V3FeeGrowthReads.calls(pool: pool, tickLower: p.tickLower, tickUpper: p.tickUpper)
+        }
+        let stateResults = await reader.readRetryingFailures(stateCalls, context: "\(context) pool state")
+        let stateByCall = Dictionary(zip(stateCalls, stateResults), uniquingKeysWith: { first, _ in first })
+        let positionsByTokenId = Dictionary(fields.map { (String($0.tokenId), $0.raw) }, uniquingKeysWith: { first, _ in first })
 
         // 6 · USD + in-range + amounts
         var totalFeesUSD = 0.0
@@ -158,17 +162,23 @@ struct V3PositionLoader {
             if hasUsd { p.usd = usd; totalFeesUSD += usd }
 
             // A failed getPool or slot0 read leaves inRange nil.
-            if let pool = poolByTokenId[p.tokenId], case .success(let s0)? = slot0ByPool[pool] {
+            if let pool = poolByTokenId[p.tokenId], case .success(let s0)? = stateByCall[V3FeeGrowthReads.slot0(pool)] {
                 let tick      = s0.readInt24(wordAt: 32)
                 let sqrtPrice = s0.readAmount(wordAt: 0, decimals: 0) / pow(2.0, 96)
                 p.currentTick = tick
                 p.inRange = Position.isInRange(tick: tick, lower: p.tickLower, upper: p.tickUpper)
                 p.poolAddress = pool
                 computeAmounts(position: &p, sqrtPrice: sqrtPrice, metaCache: metadata.cache, priceMap: priceMap)
+                if let positionsData = positionsByTokenId[p.tokenId] {
+                    p.feeGrowth = V3FeeGrowthReads.snapshot(
+                        positions: positionsData, pool: pool, tickLower: p.tickLower, tickUpper: p.tickUpper,
+                        results: stateByCall
+                    )
+                }
             } else {
                 p.poolStateError = Self.poolStateError(
                     pool: UInt64(p.tokenId).flatMap { poolResultByTokenId[$0] },
-                    slot0: poolByTokenId[p.tokenId].flatMap { slot0ByPool[$0] }
+                    slot0: poolByTokenId[p.tokenId].flatMap { stateByCall[V3FeeGrowthReads.slot0($0)] }
                 )
             }
 
@@ -232,12 +242,14 @@ private struct V3PositionFields {
     let tickUpper: Int
     let liqZero: Bool
     let liquidity: Double
+    let raw: Data
 
     // positions() returns 12 × 32-byte words:
     //  0:nonce 1:operator 2:token0 3:token1 4:fee
     //  5:tickLower 6:tickUpper 7:liquidity 8-9:feeGrowth 10-11:tokensOwed
     init(tokenId: UInt64, positions pos: Data) {
         self.tokenId = tokenId
+        raw       = pos
         token0    = pos.readAddress(wordAt: 64)
         token1    = pos.readAddress(wordAt: 96)
         feeRaw    = Int(pos.readUInt64(wordAt: 128))
@@ -245,5 +257,38 @@ private struct V3PositionFields {
         tickUpper = pos.readInt24(wordAt: 192)
         liqZero   = pos.isZeroWord(at: 224)
         liquidity = liqZero ? 0.0 : pos.readAmount(wordAt: 224, decimals: 0)
+    }
+}
+
+/// The pool reads behind a `FeeGrowthSnapshot`, shared by the loader (latest state) and the
+/// daily fee history (state at the start of each day).
+enum V3FeeGrowthReads {
+    static func slot0(_ pool: String) -> ContractCall {
+        ContractCall(target: pool, data: ABI.callSlot0())
+    }
+
+    /// slot0, both fee growth globals and the ticks at both ends of the range. Positions in the
+    /// same pool share the pool reads; ContractReader sends each identical call once.
+    static func calls(pool: String, tickLower: Int, tickUpper: Int) -> [ContractCall] {
+        [
+            slot0(pool),
+            ContractCall(target: pool, data: ABI.callFeeGrowthGlobal0()),
+            ContractCall(target: pool, data: ABI.callFeeGrowthGlobal1()),
+            ContractCall(target: pool, data: ABI.callTicks(tickLower)),
+            ContractCall(target: pool, data: ABI.callTicks(tickUpper)),
+        ]
+    }
+
+    /// nil unless every read behind it succeeded.
+    static func snapshot(
+        positions: Data, pool: String, tickLower: Int, tickUpper: Int,
+        results: [ContractCall: Result<Data, Error>]
+    ) -> FeeGrowthSnapshot? {
+        let reads = calls(pool: pool, tickLower: tickLower, tickUpper: tickUpper).map { try? results[$0]?.get() }
+        guard let slot0 = reads[0], let global0 = reads[1], let global1 = reads[2],
+              let lower = reads[3], let upper = reads[4] else { return nil }
+        return FeeGrowthSnapshot(
+            positions: positions, slot0: slot0, global0: global0, global1: global1, lowerTick: lower, upperTick: upper
+        )
     }
 }

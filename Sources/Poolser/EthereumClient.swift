@@ -212,12 +212,14 @@ struct EthereumClient {
     }
 
     /// Runs `calls` as one Multicall3 `aggregate3` eth_call: one request and one eth_call's
-    /// credits however many sub-calls it carries. Results are in call order.
-    func aggregate3(_ calls: [Call3], multicall3: String, context: String) async throws -> [Call3Result] {
+    /// credits however many sub-calls it carries. Results are in call order. With `block`, it
+    /// runs against that past block's state, like `ethCall(to:data:block:)`.
+    func aggregate3(_ calls: [Call3], multicall3: String, context: String, block: Int? = nil) async throws -> [Call3Result] {
         let label = "aggregate3"
         let raw = try await call(
             to: multicall3, data: ABI.encodeAggregate3(calls), label: label,
-            target: "\(short(multicall3)) ×\(calls.count) \(context)"
+            target: "\(short(multicall3)) ×\(calls.count) \(context)\(block.map { " @\($0)" } ?? "")",
+            blockTag: block.map { "0x" + String($0, radix: 16) } ?? "latest"
         )
         let results: [Call3Result]
         do {

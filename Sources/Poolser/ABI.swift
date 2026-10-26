@@ -197,6 +197,18 @@ extension ABI {
     static func callSlot0()    -> Data { sel_slot0 }
     static func callSymbol()   -> Data { sel_symbol }
     static func callDecimals() -> Data { sel_decimals }
+
+    private static let sel_feeGrowthGlobal0X128: Data = keccak256(Data("feeGrowthGlobal0X128()".utf8)).prefix(4)
+    private static let sel_feeGrowthGlobal1X128: Data = keccak256(Data("feeGrowthGlobal1X128()".utf8)).prefix(4)
+    private static let sel_ticks: Data = keccak256(Data("ticks(int24)".utf8)).prefix(4)
+
+    static func callFeeGrowthGlobal0() -> Data { sel_feeGrowthGlobal0X128 }
+    static func callFeeGrowthGlobal1() -> Data { sel_feeGrowthGlobal1X128 }
+
+    /// v3 pool ticks(int24): liquidityGross, liquidityNet, feeGrowthOutside{0,1}X128, …
+    static func callTicks(_ tick: Int) -> Data {
+        sel_ticks + encodeInt24(tick)
+    }
 }
 
 // MARK: - Uniswap v4 calldata builders
