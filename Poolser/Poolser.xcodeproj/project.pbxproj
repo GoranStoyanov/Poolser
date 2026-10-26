@@ -7,38 +7,38 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */; };
+		5327A1312FA1C0DE00B5EC27 /* PositionListOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A1302FA1C0DE00B5EC27 /* PositionListOptions.swift */; };
 		5351F34A2F992BDB0013F91C /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5351F3492F992BDB0013F91C /* NotificationService.swift */; };
 		539897972F950BA300679111 /* FeeHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539897962F950BA300679111 /* FeeHistoryService.swift */; };
-		53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1202F8F628F00C82982 /* ChainConfig.swift */; };
-		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
-		53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */; };
-		53FAE1F12F8F628F00C82982 /* TokenIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */; };
-		53FAE1342F8F628F00C82982 /* PoolStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */; };
-		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
-		53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1302F8F628F00C82982 /* UniswapService.swift */; };
 		53A0B3112FB0C0DE00B5EC27 /* ChainLoadResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3102FB0C0DE00B5EC27 /* ChainLoadResult.swift */; };
-		53A0B31D2FB0C0DE00B5EC27 /* ContractReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */; };
 		53A0B3132FB0C0DE00B5EC27 /* TokenMetadataResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3122FB0C0DE00B5EC27 /* TokenMetadataResolver.swift */; };
 		53A0B3152FB0C0DE00B5EC27 /* V3PositionLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3142FB0C0DE00B5EC27 /* V3PositionLoader.swift */; };
 		53A0B3172FB0C0DE00B5EC27 /* V4OwnershipTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */; };
 		53A0B3192FB0C0DE00B5EC27 /* V4PositionLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */; };
 		53A0B31B2FB0C0DE00B5EC27 /* UniswapMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */; };
-		53C0A1322FC0C0DE00B5EC27 /* CollectRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1312FC0C0DE00B5EC27 /* CollectRequest.swift */; };
-		53C0A1342FC0C0DE00B5EC27 /* WalletBridgeServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1332FC0C0DE00B5EC27 /* WalletBridgeServer.swift */; };
-		53C0A1362FC0C0DE00B5EC27 /* CollectPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */; };
-		53C0A1382FC0C0DE00B5EC27 /* FeeCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1372FC0C0DE00B5EC27 /* FeeCollector.swift */; };
-		53C0A13A2FC0C0DE00B5EC27 /* CollectBatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1392FC0C0DE00B5EC27 /* CollectBatch.swift */; };
-		53C0A13C2FC0C0DE00B5EC27 /* BatchCollectPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */; };
-		53C0A1242FC0C0DE00B5EC27 /* DailyFeeHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1232FC0C0DE00B5EC27 /* DailyFeeHistory.swift */; };
-		53C0A1222FC0C0DE00B5EC27 /* DailyFeeLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */; };
+		53A0B31D2FB0C0DE00B5EC27 /* ContractReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */; };
 		53C0A1022FC0C0DE00B5EC27 /* GraphitePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */; };
 		53C0A1042FC0C0DE00B5EC27 /* PositionPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */; };
 		53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */; };
 		53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */; };
 		53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */; };
 		53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */; };
+		53C0A1222FC0C0DE00B5EC27 /* DailyFeeLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */; };
+		53C0A1242FC0C0DE00B5EC27 /* DailyFeeHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1232FC0C0DE00B5EC27 /* DailyFeeHistory.swift */; };
+		53C0A1322FC0C0DE00B5EC27 /* CollectRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1312FC0C0DE00B5EC27 /* CollectRequest.swift */; };
+		53C0A1342FC0C0DE00B5EC27 /* WalletBridgeServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1332FC0C0DE00B5EC27 /* WalletBridgeServer.swift */; };
+		53C0A1362FC0C0DE00B5EC27 /* CollectPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */; };
+		53C0A1382FC0C0DE00B5EC27 /* FeeCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1372FC0C0DE00B5EC27 /* FeeCollector.swift */; };
+		53C0A13A2FC0C0DE00B5EC27 /* CollectBatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1392FC0C0DE00B5EC27 /* CollectBatch.swift */; };
+		53C0A13C2FC0C0DE00B5EC27 /* BatchCollectPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */; };
+		53FAE1312F8F628F00C82982 /* ChainConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1202F8F628F00C82982 /* ChainConfig.swift */; };
+		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
+		53FAE1332F8F628F00C82982 /* NetworkIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */; };
+		53FAE1342F8F628F00C82982 /* PoolStatsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */; };
+		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
+		53FAE1362F8F628F00C82982 /* UniswapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1302F8F628F00C82982 /* UniswapService.swift */; };
 		53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11F2F8F628F00C82982 /* AppSettings.swift */; };
-		5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */; };
 		53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1232F8F628F00C82982 /* Keccak256.swift */; };
 		53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1212F8F628F00C82982 /* ChainIconView.swift */; };
 		53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11E2F8F628F00C82982 /* AppDelegate.swift */; };
@@ -49,18 +49,41 @@
 		53FAE13F2F8F628F00C82982 /* PriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12C2F8F628F00C82982 /* PriceService.swift */; };
 		53FAE1402F8F628F00C82982 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1242F8F628F00C82982 /* LogStore.swift */; };
 		53FAE1412F8F628F00C82982 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1272F8F628F00C82982 /* Models.swift */; };
-		5327A1312FA1C0DE00B5EC27 /* PositionListOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A1302FA1C0DE00B5EC27 /* PositionListOptions.swift */; };
 		53FAE1422F8F628F00C82982 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 53FAE12D2F8F628F00C82982 /* Assets.xcassets */; };
+		53FAE1F12F8F628F00C82982 /* TokenIconStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
+		5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SecretStore.swift; path = ../Sources/Poolser/SecretStore.swift; sourceTree = SOURCE_ROOT; };
+		5327A1302FA1C0DE00B5EC27 /* PositionListOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionListOptions.swift; path = ../Sources/Poolser/PositionListOptions.swift; sourceTree = SOURCE_ROOT; };
 		5351F3492F992BDB0013F91C /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationService.swift; path = ../Sources/Poolser/NotificationService.swift; sourceTree = SOURCE_ROOT; };
 		539897962F950BA300679111 /* FeeHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeeHistoryService.swift; path = ../Sources/Poolser/FeeHistoryService.swift; sourceTree = SOURCE_ROOT; };
+		53A0B3102FB0C0DE00B5EC27 /* ChainLoadResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainLoadResult.swift; path = ../Sources/Poolser/Loading/ChainLoadResult.swift; sourceTree = SOURCE_ROOT; };
+		53A0B3122FB0C0DE00B5EC27 /* TokenMetadataResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenMetadataResolver.swift; path = ../Sources/Poolser/Loading/TokenMetadataResolver.swift; sourceTree = SOURCE_ROOT; };
+		53A0B3142FB0C0DE00B5EC27 /* V3PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V3PositionLoader.swift; path = ../Sources/Poolser/Loading/V3PositionLoader.swift; sourceTree = SOURCE_ROOT; };
+		53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4OwnershipTracker.swift; path = ../Sources/Poolser/Loading/V4OwnershipTracker.swift; sourceTree = SOURCE_ROOT; };
+		53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4PositionLoader.swift; path = ../Sources/Poolser/Loading/V4PositionLoader.swift; sourceTree = SOURCE_ROOT; };
+		53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapMath.swift; path = ../Sources/Poolser/Math/UniswapMath.swift; sourceTree = SOURCE_ROOT; };
+		53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContractReader.swift; path = ../Sources/Poolser/Loading/ContractReader.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePalette.swift; path = ../Sources/Poolser/Graphite/GraphitePalette.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionPresentation.swift; path = ../Sources/Poolser/Graphite/PositionPresentation.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
+		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
+		53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreScreenshots.swift; path = ../Sources/Poolser/Graphite/StoreScreenshots.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFeeLedger.swift; path = ../Sources/Poolser/DailyFeeLedger.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1232FC0C0DE00B5EC27 /* DailyFeeHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFeeHistory.swift; path = ../Sources/Poolser/DailyFeeHistory.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1312FC0C0DE00B5EC27 /* CollectRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectRequest.swift; path = ../Sources/Poolser/Collect/CollectRequest.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1332FC0C0DE00B5EC27 /* WalletBridgeServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WalletBridgeServer.swift; path = ../Sources/Poolser/Collect/WalletBridgeServer.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectPage.swift; path = ../Sources/Poolser/Collect/CollectPage.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1372FC0C0DE00B5EC27 /* FeeCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeeCollector.swift; path = ../Sources/Poolser/Collect/FeeCollector.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1392FC0C0DE00B5EC27 /* CollectBatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectBatch.swift; path = ../Sources/Poolser/Collect/CollectBatch.swift; sourceTree = SOURCE_ROOT; };
+		53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BatchCollectPage.swift; path = ../Sources/Poolser/Collect/BatchCollectPage.swift; sourceTree = SOURCE_ROOT; };
 		53FAE0E92F8ECAC700C82982 /* Poolser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poolser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FAE11D2F8F628F00C82982 /* ABI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ABI.swift; path = ../Sources/Poolser/ABI.swift; sourceTree = SOURCE_ROOT; };
 		53FAE11E2F8F628F00C82982 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ../Sources/Poolser/AppDelegate.swift; sourceTree = SOURCE_ROOT; };
 		53FAE11F2F8F628F00C82982 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppSettings.swift; path = ../Sources/Poolser/AppSettings.swift; sourceTree = SOURCE_ROOT; };
-		5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SecretStore.swift; path = ../Sources/Poolser/SecretStore.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1202F8F628F00C82982 /* ChainConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainConfig.swift; path = ../Sources/Poolser/ChainConfig.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1212F8F628F00C82982 /* ChainIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainIconView.swift; path = ../Sources/Poolser/ChainIconView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1222F8F628F00C82982 /* EthereumClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EthereumClient.swift; path = ../Sources/Poolser/EthereumClient.swift; sourceTree = SOURCE_ROOT; };
@@ -69,9 +92,7 @@
 		53FAE1252F8F628F00C82982 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LogsView.swift; path = ../Sources/Poolser/LogsView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MenuBarContentView.swift; path = ../Sources/Poolser/MenuBarContentView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1272F8F628F00C82982 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Models.swift; path = ../Sources/Poolser/Models.swift; sourceTree = SOURCE_ROOT; };
-		5327A1302FA1C0DE00B5EC27 /* PositionListOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionListOptions.swift; path = ../Sources/Poolser/PositionListOptions.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1282F8F628F00C82982 /* NetworkIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NetworkIconStore.swift; path = ../Sources/Poolser/NetworkIconStore.swift; sourceTree = SOURCE_ROOT; };
-		53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenIconStore.swift; path = ../Sources/Poolser/TokenIconStore.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1292F8F628F00C82982 /* Poolser.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Poolser.entitlements; path = ../Sources/Poolser/Poolser.entitlements; sourceTree = SOURCE_ROOT; };
 		53FAE12A2F8F628F00C82982 /* PoolserApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PoolserApp.swift; path = ../Sources/Poolser/PoolserApp.swift; sourceTree = SOURCE_ROOT; };
 		53FAE12B2F8F628F00C82982 /* PoolStatsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PoolStatsService.swift; path = ../Sources/Poolser/PoolStatsService.swift; sourceTree = SOURCE_ROOT; };
@@ -79,28 +100,7 @@
 		53FAE12D2F8F628F00C82982 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		53FAE12F2F8F628F00C82982 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = ../Sources/Poolser/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1302F8F628F00C82982 /* UniswapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapService.swift; path = ../Sources/Poolser/UniswapService.swift; sourceTree = SOURCE_ROOT; };
-		53A0B3102FB0C0DE00B5EC27 /* ChainLoadResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainLoadResult.swift; path = ../Sources/Poolser/Loading/ChainLoadResult.swift; sourceTree = SOURCE_ROOT; };
-		53A0B31C2FB0C0DE00B5EC27 /* ContractReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContractReader.swift; path = ../Sources/Poolser/Loading/ContractReader.swift; sourceTree = SOURCE_ROOT; };
-		53A0B3122FB0C0DE00B5EC27 /* TokenMetadataResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenMetadataResolver.swift; path = ../Sources/Poolser/Loading/TokenMetadataResolver.swift; sourceTree = SOURCE_ROOT; };
-		53A0B3142FB0C0DE00B5EC27 /* V3PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V3PositionLoader.swift; path = ../Sources/Poolser/Loading/V3PositionLoader.swift; sourceTree = SOURCE_ROOT; };
-		53A0B3162FB0C0DE00B5EC27 /* V4OwnershipTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4OwnershipTracker.swift; path = ../Sources/Poolser/Loading/V4OwnershipTracker.swift; sourceTree = SOURCE_ROOT; };
-		53A0B3182FB0C0DE00B5EC27 /* V4PositionLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = V4PositionLoader.swift; path = ../Sources/Poolser/Loading/V4PositionLoader.swift; sourceTree = SOURCE_ROOT; };
-		53A0B31A2FB0C0DE00B5EC27 /* UniswapMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UniswapMath.swift; path = ../Sources/Poolser/Math/UniswapMath.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1312FC0C0DE00B5EC27 /* CollectRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectRequest.swift; path = ../Sources/Poolser/Collect/CollectRequest.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1332FC0C0DE00B5EC27 /* WalletBridgeServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WalletBridgeServer.swift; path = ../Sources/Poolser/Collect/WalletBridgeServer.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectPage.swift; path = ../Sources/Poolser/Collect/CollectPage.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1372FC0C0DE00B5EC27 /* FeeCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeeCollector.swift; path = ../Sources/Poolser/Collect/FeeCollector.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1392FC0C0DE00B5EC27 /* CollectBatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectBatch.swift; path = ../Sources/Poolser/Collect/CollectBatch.swift; sourceTree = SOURCE_ROOT; };
-		53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BatchCollectPage.swift; path = ../Sources/Poolser/Collect/BatchCollectPage.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1232FC0C0DE00B5EC27 /* DailyFeeHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFeeHistory.swift; path = ../Sources/Poolser/DailyFeeHistory.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1212FC0C0DE00B5EC27 /* DailyFeeLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFeeLedger.swift; path = ../Sources/Poolser/DailyFeeLedger.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1012FC0C0DE00B5EC27 /* GraphitePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePalette.swift; path = ../Sources/Poolser/Graphite/GraphitePalette.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1032FC0C0DE00B5EC27 /* PositionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PositionPresentation.swift; path = ../Sources/Poolser/Graphite/PositionPresentation.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
-		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
-		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
-		53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreScreenshots.swift; path = ../Sources/Poolser/Graphite/StoreScreenshots.swift; sourceTree = SOURCE_ROOT; };
-		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
+		53FAE1F02F8F628F00C82982 /* TokenIconStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenIconStore.swift; path = ../Sources/Poolser/TokenIconStore.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -449,7 +449,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -488,7 +488,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
