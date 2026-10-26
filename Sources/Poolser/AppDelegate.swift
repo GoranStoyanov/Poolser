@@ -5,5 +5,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Hide the dock icon; the app lives only in the menu bar
         NSApp.setActivationPolicy(.accessory)
         NotificationService.requestAuthorization()
+#if DEBUG
+        StoreScreenshots.runIfRequested()
+#endif
     }
 }

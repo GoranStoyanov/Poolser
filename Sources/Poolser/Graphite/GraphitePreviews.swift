@@ -61,8 +61,9 @@ enum GraphitePreviewData {
     )
 
     /// Prices are token1 per token0 in whole tokens; nil bounds make a full-range position.
-    private static func position(
+    static func position(
         chain: String, chainName: String, chainNumericID: Int, tokenId: String, isV4: Bool = false,
+        token0: String = "0x0", token1: String = "0x1",
         sym0: String, sym1: String, dec0: Int, dec1: Int, feeRaw: Int,
         lower: Double?, upper: Double?, current: Double,
         valueUSD: Double, feesUSD: Double, fees0: Double, fees1: Double, apr: Double,
@@ -74,7 +75,7 @@ enum GraphitePreviewData {
         let currentTick = tick(price: current, dec0: dec0, dec1: dec1)
         var pos = Position(
             chainID: chain, chainName: chainName, chainNumericID: chainNumericID, tokenId: tokenId,
-            token0: "0x0", token1: "0x1", sym0: sym0, sym1: sym1,
+            token0: token0, token1: token1, sym0: sym0, sym1: sym1,
             feePct: V4Fee.label(feeRaw), feeRaw: feeRaw, fees0: fees0, fees1: fees1,
             tickLower: tickLower, tickUpper: tickUpper, liquidity: 1
         )
@@ -85,6 +86,10 @@ enum GraphitePreviewData {
         pos.currentTick = currentTick
         pos.inRange = Position.isInRange(tick: currentTick, lower: tickLower, upper: tickUpper)
         pos.isV4 = isV4
+        if isV4 {
+            pos.currency0 = token0
+            pos.currency1 = token1
+        }
         pos.feeAPR = apr
         pos.amount0 = amounts.0
         pos.amount1 = amounts.1

@@ -52,8 +52,20 @@ Configuration (wallet address, Infura key, networks) lives in the app's Settings
 `UserDefaults`; never write a real API key into source, tests or commits — the gitleaks
 pre-commit hook (`.githooks/pre-commit`) blocks it.
 
+## Screenshots
+
+App Store and README screenshots are rendered from the real views with a demo wallet
+(`StoreScreenshots.swift`, debug builds only), not captured from the screen:
+
+```bash
+POOLSER_SCREENSHOTS=docs/screenshots swift run
+```
+
+The app writes `appstore/*.jpg` (2880×1800, no alpha) and `popover-*.png`, then quits. Look
+at every image afterwards; a layout change in the popover can crop them. Copy rules for the
+captions are in the `marketing-copy` skill.
+
 ## Tests
 
-There is no test target yet. When adding one, use Swift Testing (`swift-testing-pro` skill)
-and a separate `testTarget` in `Package.swift`; run with `swift test`. Pure functions first:
-ABI encode/decode, tick/price math, fee-growth wrapping.
+`swift test` runs the `PoolserTests` target (Swift Testing, `swift-testing-pro` skill). Pure
+functions first: ABI encode/decode, tick/price math, fee-growth wrapping.
