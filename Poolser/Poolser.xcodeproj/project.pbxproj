@@ -35,6 +35,7 @@
 		53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */; };
 		53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */; };
 		53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */; };
+		53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */; };
 		53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11F2F8F628F00C82982 /* AppSettings.swift */; };
 		5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5327A11E2FA1C0DE00B5EC27 /* SecretStore.swift */; };
 		53FAE1382F8F628F00C82982 /* Keccak256.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1232F8F628F00C82982 /* Keccak256.swift */; };
@@ -96,6 +97,7 @@
 		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
 		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
+		53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreScreenshots.swift; path = ../Sources/Poolser/Graphite/StoreScreenshots.swift; sourceTree = SOURCE_ROOT; };
 		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -165,6 +167,7 @@
 				53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */,
 				53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */,
 				53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */,
+				53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */,
 				53FAE0EB2F8ECAC700C82982 /* Poolser */,
 				53FAE0EA2F8ECAC700C82982 /* Products */,
 			);
@@ -289,6 +292,7 @@
 				53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */,
 				53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */,
 				53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */,
+				53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */,
 				53FAE1372F8F628F00C82982 /* AppSettings.swift in Sources */,
 				5327A11F2FA1C0DE00B5EC27 /* SecretStore.swift in Sources */,
 				5351F34A2F992BDB0013F91C /* NotificationService.swift in Sources */,
