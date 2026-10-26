@@ -74,7 +74,8 @@ struct V3PositionLoader {
                 let m1 = metadata.metadata(f.token1)
 
                 var fees0 = 0.0, fees1 = 0.0
-                if let c = owed[f.tokenId], c.count >= 64 {
+                let owedData = owed[f.tokenId].flatMap { $0.count >= 64 ? $0 : nil }
+                if let c = owedData {
                     fees0 = c.readAmount(wordAt: 0,  decimals: m0.decimals)
                     fees1 = c.readAmount(wordAt: 32, decimals: m1.decimals)
                 }
@@ -84,7 +85,7 @@ struct V3PositionLoader {
                 tokenAddrs.insert(f.token0.lowercased())
                 tokenAddrs.insert(f.token1.lowercased())
 
-                rawPositions.append(Position(
+                var position = Position(
                     chainID: chain.id,
                     chainName: chain.displayName,
                     chainNumericID: chain.chainId,
@@ -98,7 +99,11 @@ struct V3PositionLoader {
                     liquidity: f.liquidity,
                     dec0:      m0.decimals,
                     dec1:      m1.decimals
-                ))
+                )
+                // Zero from a failed read is not zero owed: shown as $0 it reads as a collect,
+                // and the daily ledger then counts the whole balance as earned once it reappears.
+                if owedData == nil { position.feesError = "Unclaimed fees could not be read (collect simulation failed)" }
+                rawPositions.append(position)
             case .failure(let error):
                 rawPositions.append(Position(
                     chainID: chain.id,

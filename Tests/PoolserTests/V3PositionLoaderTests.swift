@@ -111,6 +111,27 @@ struct V3PositionLoaderTests {
         #expect(singleRequests.count == 25)
     }
 
+    @Test func failedFeeReadIsAnErrorNotZeroOwed() async throws {
+        var chain = SupportedChain.byID("base")!
+        chain.multicall3 = SupportedChain.canonicalMulticall3
+        let fake = await makeChain(chain)
+        await fake.set(chain.v3NFPM!, ABI.callCollectStatic(tokenId: 12, recipient: wallet), .revert("rate limited"))
+        let output = await V3PositionLoader(
+            eth: fake.client(), chain: chain, prices: prices(), trackClaimedFees: false
+        ).load(wallet: wallet)
+        let byId = Dictionary(uniqueKeysWithValues: output.positions.map { ($0.tokenId, $0) })
+
+        let unread = try #require(byId["12"])
+        #expect(unread.feesError != nil)
+        #expect(byId["11"]?.feesError == nil)
+
+        // The daily ledger skips the unread position instead of recording a drop to zero.
+        var ledger = DailyFeeLedger()
+        ledger.record(output.positions, at: Date())
+        #expect(ledger.entries[unread.id] == nil)
+        #expect(ledger.entries[byId["11"]!.id] != nil)
+    }
+
     @Test func degradedReadsAffectOnlyTheirOwnPosition() async throws {
         let (output, requests) = await load(multicall3: SupportedChain.canonicalMulticall3)
         let byId = Dictionary(uniqueKeysWithValues: output.positions.map { ($0.tokenId, $0) })
