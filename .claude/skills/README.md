@@ -9,6 +9,7 @@ Project skills loaded automatically for this repo. Each folder has a `SKILL.md`.
 | `evm-rpc-optimization` | Fewer/cheaper RPC calls: Multicall3, block pinning, caching, `eth_getLogs` discipline, Infura credits |
 | `uniswap-position-math` | v3/v4 tick/price/amount math, unclaimed fees, v4 StateView & PositionInfo, USD valuation |
 | `run-poolser` | Build, launch and verify the macOS menu bar app |
+| `marketing-copy` | App Store listing, What's New, README and release copy: voice, banned phrasing, store limits, checks |
 
 ## Vendored third-party skills (MIT, copied verbatim; review before updating)
 
