@@ -13,5 +13,11 @@
     <!-- Loopback-only page (127.0.0.1) that hands a collect transaction to the browser wallet -->
     <key>com.apple.security.network.server</key>
     <true/>
+
+    <!-- Container shared with the widget, which shows the last portfolio snapshot -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>$(POOLSER_APP_GROUP)</string>
+    </array>
 </dict>
 </plist>

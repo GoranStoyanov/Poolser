@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 /// Drives refreshes across the enabled chains and publishes the merged result to the UI.
 /// Reading positions is delegated to `V3PositionLoader` and `V4PositionLoader`.
@@ -33,6 +36,7 @@ public final class UniswapService: ObservableObject {
     private var bootstrapFollowUpDeadlineByChainID: [String: Date] = [:]
     private var loadGeneration: UInt64 = 0
     private var chainResultsByID: [String: ChainLoadResult] = [:]
+    private var widgetReload = WidgetReloadThrottle()
 
     public init() {
         configureTimer()
@@ -87,6 +91,7 @@ public final class UniswapService: ObservableObject {
             chainResultsByID = [:]
             positions = []
             titleText = "– 👀"
+            publishWidgetSnapshot(nil, updatedAt: Date())
             lastError = "Configure wallet, Infura API key, and at least one enabled network in Settings (⌘,)"
             return
         }
@@ -222,6 +227,26 @@ public final class UniswapService: ObservableObject {
         }
     }
 
+    /// Hands the widgets what the menu shows, with a week of daily fees. Nil clears them.
+    private func publishWidgetSnapshot(_ positions: [Position]?, updatedAt: Date) {
+        guard let url = PortfolioSnapshotStore.fileURL else { return }
+        let now = Date()
+        let snapshot = positions.map {
+            PortfolioSnapshot(
+                positions: $0,
+                dailyFeesUSD: dailyFees.walletDailyUSD($0, days: 7, minDays: 1, endingAt: now),
+                updatedAt: updatedAt
+            )
+        }
+        if !PortfolioSnapshotStore.save(snapshot, to: url) {
+            LogStore.shared.log("Could not write the widget snapshot", level: .error)
+        }
+        guard widgetReload.shouldReload(for: snapshot, now: now) else { return }
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
     private func applyChainResults(_ results: [ChainLoadResult], activeChains: [SupportedChain]) {
         let activeIDs = Set(activeChains.map(\.id))
         for result in results {
@@ -242,6 +267,10 @@ public final class UniswapService: ObservableObject {
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
         lastError = errorText
         if let err = errorText { LogStore.shared.log(err, level: .error) }
+        // A failed refresh leaves the widgets on the last good snapshot and its timestamp.
+        if !(all.isEmpty && errorText != nil) {
+            publishWidgetSnapshot(all, updatedAt: Date())
+        }
 
         if all.isEmpty {
             titleText = "$0.00 👀"
@@ -333,6 +362,7 @@ public final class UniswapService: ObservableObject {
                     chainDailyFees.byPosition[pos.id] = days.byPosition[pos.id]
                 }
                 dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
+                publishWidgetSnapshot(positions, updatedAt: lastUpdated ?? Date())
             }
         }
     }

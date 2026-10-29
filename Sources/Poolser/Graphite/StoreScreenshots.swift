@@ -214,8 +214,8 @@ enum DemoWallet {
         ),
     ]
 
-    static var snapshot: PortfolioSnapshot {
-        PortfolioSnapshot(
+    static var snapshot: PopoverSnapshot {
+        PopoverSnapshot(
             walletAddress: address,
             positions: positions,
             dailyFeesUSD: [4.8, 5.6, 5.1, 6.3, 5.9, 4.4, 5.2, 6.8, 7.1, 5.5, 4.9, 6.2, 5.8, 6.6, 7.4,
@@ -295,7 +295,7 @@ private struct Backdrop: View {
 
 /// The popover with its menu window's rounded corners and shadow.
 private struct PopoverArt: View {
-    let snapshot: PortfolioSnapshot
+    let snapshot: PopoverSnapshot
     var scale: CGFloat = 1
     /// Unscaled points of the popover to show from its top; nil shows all of it.
     var visibleHeight: CGFloat? = nil
@@ -317,7 +317,7 @@ private struct PopoverArt: View {
 /// A menu bar across the top with the popover hanging under Poolser's title.
 private struct MenuBarScene: View {
     let menuTitle: String
-    let snapshot: PortfolioSnapshot
+    let snapshot: PopoverSnapshot
 
     var body: some View {
         VStack(spacing: 6) {
@@ -410,7 +410,7 @@ private struct CardsArt: View {
 
 /// The popover alone with transparent corners, for the README.
 private struct PopoverCutout: View {
-    let snapshot: PortfolioSnapshot
+    let snapshot: PopoverSnapshot
     @State private var options = PositionListOptions()
 
     var body: some View {

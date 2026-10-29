@@ -31,13 +31,14 @@ public enum Clipboard {
 }
 
 public enum PoolserDefaults {
-    /// Where settings and caches persist. An app that shares them with a widget names its App
-    /// Group under `PoolserAppGroup` in Info.plist; the Mac app names none and keeps `.standard`.
-    public static let store: UserDefaults = {
-        if let group = Bundle.main.object(forInfoDictionaryKey: "PoolserAppGroup") as? String,
-           let suite = UserDefaults(suiteName: group) {
-            return suite
-        }
-        return .standard
+    /// The App Group shared with the widgets, named under `PoolserAppGroup` in Info.plist; nil in
+    /// the SwiftPM build, which has no Info.plist.
+    public static let appGroup: String? = {
+        let group = Bundle.main.object(forInfoDictionaryKey: "PoolserAppGroup") as? String
+        return group?.isEmpty == false ? group : nil
     }()
+
+    /// Where settings and caches persist. Widgets read only the snapshot file in the App Group
+    /// container, so settings stay in `.standard`, where existing installs already keep them.
+    public static let store: UserDefaults = .standard
 }
