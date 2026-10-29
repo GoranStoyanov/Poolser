@@ -46,6 +46,8 @@ struct PortfolioEntryView: View {
             date: entry.date
         )
         .containerBackground(GraphitePalette.current(colorScheme).popover, for: .widget)
+        // Without a URL a click only activates the app, and a menu bar app has no window to show.
+        .widgetURL(URL(string: "poolser://open"))
     }
 }
 
