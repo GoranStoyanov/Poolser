@@ -3,10 +3,18 @@ import PackageDescription
 
 let package = Package(
     name: "Poolser",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v17)],
+    products: [
+        .library(name: "PoolserKit", targets: ["PoolserKit"])
+    ],
     targets: [
+        .target(
+            name: "PoolserKit",
+            path: "Sources/PoolserKit"
+        ),
         .executableTarget(
             name: "Poolser",
+            dependencies: ["PoolserKit"],
             path: "Sources/Poolser",
             resources: [
                 .process("Resources")
@@ -17,7 +25,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PoolserTests",
-            dependencies: ["Poolser"],
+            dependencies: ["Poolser", "PoolserKit"],
             path: "Tests/PoolserTests"
         )
     ]

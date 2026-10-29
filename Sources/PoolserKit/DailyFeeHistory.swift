@@ -185,7 +185,7 @@ extension DailyFeeHistory {
         eth: EthereumClient,
         now: Date = Date(),
         calendar: Calendar = .current,
-        store: UserDefaults = .standard
+        store: UserDefaults = PoolserDefaults.store
     ) async -> DailyFees {
         var cache = load(chainID: chain.id, calendar: calendar, from: store)
         if cache.retryAfter.map({ now < $0 }) != true {
@@ -248,7 +248,7 @@ extension DailyFeeHistory {
 extension DailyFeeHistory {
     private static let keyPrefix = "dailyFeeHistory.v1."
 
-    static func load(chainID: String, calendar: Calendar, from store: UserDefaults = .standard) -> Cache {
+    static func load(chainID: String, calendar: Calendar, from store: UserDefaults = PoolserDefaults.store) -> Cache {
         let zone = calendar.timeZone.identifier
         guard let data = store.data(forKey: keyPrefix + chainID),
               let cache = try? JSONDecoder().decode(Cache.self, from: data),
@@ -256,7 +256,7 @@ extension DailyFeeHistory {
         return cache
     }
 
-    static func save(_ cache: Cache, chainID: String, to store: UserDefaults = .standard) {
+    static func save(_ cache: Cache, chainID: String, to store: UserDefaults = PoolserDefaults.store) {
         guard let data = try? JSONEncoder().encode(cache) else { return }
         store.set(data, forKey: keyPrefix + chainID)
     }

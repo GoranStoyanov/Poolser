@@ -1,16 +1,5 @@
 import SwiftUI
-#if canImport(AppKit)
-import AppKit
-#endif
-
-enum Clipboard {
-    static func copy(_ string: String) {
-        #if canImport(AppKit)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(string, forType: .string)
-        #endif
-    }
-}
+import PoolserKit
 
 struct GraphitePositionCard: View {
     let position: Position
@@ -621,11 +610,10 @@ struct TokenPairAvatar: View {
         let style = Self.style(for: token.symbol)
         return ZStack {
             Circle().fill(style.color)
-#if canImport(AppKit)
             if let icon = iconStore.icon(chainID: chainID, address: token.address) {
                 // Logos with transparent corners sit on white rather than the letter's colour.
                 Circle().fill(.white)
-                Image(nsImage: icon)
+                Image(platformImage: icon)
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
@@ -633,9 +621,6 @@ struct TokenPairAvatar: View {
             } else {
                 glyph(style.glyph)
             }
-#else
-            glyph(style.glyph)
-#endif
         }
         .frame(width: 26, height: 26)
         .overlay(Circle().strokeBorder(ring, lineWidth: 2))

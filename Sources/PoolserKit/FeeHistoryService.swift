@@ -83,7 +83,7 @@ struct FeeHistoryService {
     private static let scanQueue = ScanQueue()
 
     private static let legacyCachesRemoved: Void = {
-        let ud = UserDefaults.standard
+        let ud = PoolserDefaults.store
         for key in ud.dictionaryRepresentation().keys
         where key.hasPrefix("v3FeeHistory.") && !key.hasPrefix(cacheKeyPrefix) {
             ud.removeObject(forKey: key)
@@ -135,7 +135,7 @@ struct FeeHistoryService {
             wallet: wallet,
             chunkSize: chunkSize,
             maxChunks: maxChunks,
-            store: .standard,
+            store: PoolserDefaults.store,
             findCreationBlock: findCreationBlock,
             blockTimestamp: { try? await eth.ethBlockTimestamp($0) }
         ) { topics, fromBlock, toBlock in
@@ -446,7 +446,7 @@ struct FeeHistoryService {
         }
     }
 
-    static func loadCache(forKey key: String, store: UserDefaults = .standard) -> FeeHistoryCache? {
+    static func loadCache(forKey key: String, store: UserDefaults = PoolserDefaults.store) -> FeeHistoryCache? {
         guard let data = store.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(FeeHistoryCache.self, from: data)
     }
@@ -463,7 +463,7 @@ struct FeeHistoryService {
 
     /// Clears ALL cached fee history (call when scan logic changes to force a fresh scan).
     static func clearAllCaches() {
-        let ud = UserDefaults.standard
+        let ud = PoolserDefaults.store
         for key in ud.dictionaryRepresentation().keys where key.hasPrefix("v3FeeHistory.") {
             ud.removeObject(forKey: key)
         }
@@ -473,7 +473,7 @@ struct FeeHistoryService {
     static func clearCache(wallet: String) {
         let prefix = cacheKeyPrefix
         let suffix = ".\(wallet.lowercased())"
-        let ud = UserDefaults.standard
+        let ud = PoolserDefaults.store
         for key in ud.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key.hasSuffix(suffix) {
             ud.removeObject(forKey: key)
         }

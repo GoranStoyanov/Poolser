@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import Poolser
+@testable import PoolserKit
 
 @Suite("Wallet bridge HTTP")
 struct HTTPRequestTests {

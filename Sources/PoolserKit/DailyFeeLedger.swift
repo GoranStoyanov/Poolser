@@ -120,7 +120,7 @@ struct DailyFeeLedger: Codable, Equatable {
 
 /// Fees earned per position and calendar day, in token units: days keyed by
 /// `DailyFeeLedger.dayKey`, positions by `Position.id`. A missing day means unknown.
-struct DailyFees: Equatable {
+public struct DailyFees: Equatable {
     var byPosition: [String: [String: DailyFeeLedger.Amounts]] = [:]
 
     /// Per position, the chain history where it has one, the refresh ledger otherwise.
@@ -130,7 +130,7 @@ struct DailyFees: Equatable {
 
     /// USD earned per day for the last `days` days ending today, oldest first, starting at the
     /// first day with data. Nil with fewer than `minDays` days, or without a price for either token.
-    func dailyUSD(
+    public func dailyUSD(
         for position: Position, days: Int, minDays: Int = 2, endingAt now: Date, calendar: Calendar = .current
     ) -> [Double]? {
         guard let values = rawDailyUSD(for: position, days: days, endingAt: now, calendar: calendar) else { return nil }
@@ -138,7 +138,7 @@ struct DailyFees: Equatable {
     }
 
     /// The same summed over positions; a day counts once any position has data for it.
-    func walletDailyUSD(
+    public func walletDailyUSD(
         _ positions: [Position], days: Int, minDays: Int = 2, endingAt now: Date, calendar: Calendar = .current
     ) -> [Double]? {
         var sums = [Double?](repeating: nil, count: days)
@@ -175,13 +175,13 @@ struct DailyFees: Equatable {
 extension DailyFeeLedger {
     private static let defaultsKey = "dailyFeeLedger.v1"
 
-    static func load(from defaults: UserDefaults = .standard) -> DailyFeeLedger {
+    static func load(from defaults: UserDefaults = PoolserDefaults.store) -> DailyFeeLedger {
         guard let data = defaults.data(forKey: defaultsKey),
               let ledger = try? JSONDecoder().decode(DailyFeeLedger.self, from: data) else { return DailyFeeLedger() }
         return ledger
     }
 
-    func save(to defaults: UserDefaults = .standard) {
+    func save(to defaults: UserDefaults = PoolserDefaults.store) {
         guard let data = try? JSONEncoder().encode(self) else { return }
         defaults.set(data, forKey: Self.defaultsKey)
     }

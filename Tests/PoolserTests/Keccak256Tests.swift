@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 @Suite("Keccak256")
 struct Keccak256Tests {

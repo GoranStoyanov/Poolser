@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private final class InMemorySecretStore: SecretStore {
     var items: [String: String] = [:]

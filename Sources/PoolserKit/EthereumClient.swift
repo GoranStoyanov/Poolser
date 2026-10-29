@@ -1,8 +1,8 @@
 import Foundation
 
-struct EthereumClient {
+public struct EthereumClient {
     /// Sends one HTTP request and returns the raw response; injectable so tests can replace the network.
-    typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    public typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     let rpcURL: URL
     private let transport: Transport
@@ -32,7 +32,7 @@ struct EthereumClient {
     private let chainIdMaxRetries = 2
 
     /// Every client shares one limiter unless a test passes its own.
-    init(
+    public init(
         rpcURL: URL,
         limiter: RPCCreditLimiter? = nil,
         transport: @escaping Transport = { try await URLSession.shared.data(for: $0) }
@@ -160,7 +160,7 @@ struct EthereumClient {
         return logs
     }
 
-    func ethCall(to: String, data: Data) async throws -> Data {
+    public func ethCall(to: String, data: Data) async throws -> Data {
         let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
         let resultData = try await call(to: to, data: data, label: "eth_call", target: "\(short(to)) \(selector)")
         log("eth_call ← \(resultData.count)B", level: .response)
@@ -168,7 +168,7 @@ struct EthereumClient {
     }
 
     /// eth_call as if `from` sent it: a dry run of a transaction that checks `msg.sender`.
-    func ethCall(to: String, data: Data, from: String) async throws -> Data {
+    public func ethCall(to: String, data: Data, from: String) async throws -> Data {
         let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
         let resultData = try await call(
             to: to, data: data, label: "eth_call", target: "\(short(to)) \(selector) from \(short(from))", from: from
@@ -201,7 +201,7 @@ struct EthereumClient {
 
     /// eth_call against the state at a past block. Needs a node that serves historical state
     /// (Infura does for Ethereum and Optimism, not for Base).
-    func ethCall(to: String, data: Data, block: Int) async throws -> Data {
+    public func ethCall(to: String, data: Data, block: Int) async throws -> Data {
         let selector = data.count >= 4 ? data.prefix(4).hexString : data.hexString
         let resultData = try await call(
             to: to, data: data, label: "eth_call",
@@ -474,7 +474,7 @@ struct EthereumClient {
 /// response halves the effective rate (down to `minThrottle` of the configured budget) and
 /// empties the bucket, and the rate climbs back by `recoveryStep` every `recoveryInterval`
 /// seconds without another rate limit.
-actor RPCCreditLimiter {
+public actor RPCCreditLimiter {
     static let minThrottle = 0.125
     /// Longest pause a provider's backoff hint can impose.
     static let maxPause: TimeInterval = 60

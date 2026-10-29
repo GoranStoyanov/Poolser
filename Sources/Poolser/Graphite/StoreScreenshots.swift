@@ -3,6 +3,7 @@ import AppKit
 import ImageIO
 import SwiftUI
 import UniformTypeIdentifiers
+import PoolserKit
 
 /// Renders the App Store and README screenshots from the app's own views and a demo wallet, so
 /// they can be made again for each release:

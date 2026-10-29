@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let now = Date(timeIntervalSince1970: 1_800_000_000)
 private let year: TimeInterval = 365.25 * 24 * 3600

@@ -49,5 +49,8 @@ enable repo hooks once with `git config core.hooksPath .githooks`.
 
 - Never commit secrets (API keys, Infura project IDs, signing config). `gitleaks` runs in
   `.githooks/pre-commit`; `Poolser/CodeSigning.xcconfig` is gitignored.
-- Keep both build paths working: `swift build` and the Xcode project (new source files must be
-  added to `project.pbxproj` too).
+- Keep both build paths working: `swift build` and the Xcode project. Chain reading, math,
+  models and settings live in `Sources/PoolserKit`, a SwiftPM library the Xcode project links as
+  a local package; it must also build for iOS, so no AppKit there outside `#if canImport(AppKit)`.
+  macOS UI and the Collect flow stay in `Sources/Poolser`, whose new files must be added to
+  `project.pbxproj` too.

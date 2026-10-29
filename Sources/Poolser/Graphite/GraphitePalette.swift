@@ -1,4 +1,5 @@
 import SwiftUI
+import PoolserKit
 
 /// Colours for the Graphite popover. Near-monochrome on purpose: green is reserved for fees and
 /// in-range, amber and orange for ranges that need attention, so colour always carries meaning.

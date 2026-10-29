@@ -1,5 +1,5 @@
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 @Suite("Position in-range check")
 struct PositionRangeTests {

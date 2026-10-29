@@ -1,32 +1,34 @@
 import Foundation
 import Combine
+#if os(macOS)
 import ServiceManagement
+#endif
 
 /// Main-actor isolated: SwiftUI writes these values on the main thread. Network code must not
 /// read them directly; callers snapshot what a load needs and pass the values down.
 @MainActor
-final class AppSettings: ObservableObject {
-    static let shared = AppSettings()
+public final class AppSettings: ObservableObject {
+    public static let shared = AppSettings()
 
-    enum Defaults {
-        static let refreshIntervalMinutes = 10
+    public enum Defaults {
+        public static let refreshIntervalMinutes = 10
         static let enabledChainIDs = ["ethereum"]
-        static let rpcCreditsPerSecondBudget = 400
-        static let v4LogChunkSize = 10_000
-        static let v4LogMaxConcurrentRequests = 3
-        static let v4BootstrapMaxChunksPerRefresh = 120
+        public static let rpcCreditsPerSecondBudget = 400
+        public static let v4LogChunkSize = 10_000
+        public static let v4LogMaxConcurrentRequests = 3
+        public static let v4BootstrapMaxChunksPerRefresh = 120
         /// Infura rejects eth_getLogs spanning more than 10,000 blocks
         /// ("range 11999 exceeds limit of 10000"), so larger chunks can never succeed.
-        static let v4LogChunkSizeRange = 1_000...10_000
+        public static let v4LogChunkSizeRange = 1_000...10_000
     }
 
     nonisolated static func clampLogChunkSize(_ value: Int) -> Int {
         Swift.max(Defaults.v4LogChunkSizeRange.lowerBound, Swift.min(value, Defaults.v4LogChunkSizeRange.upperBound))
     }
 
-    @Published var walletAddress: String {
+    @Published public var walletAddress: String {
         didSet {
-            UserDefaults.standard.set(walletAddress, forKey: "walletAddress")
+            PoolserDefaults.store.set(walletAddress, forKey: "walletAddress")
             if walletAddress != oldValue {
                 Task { @MainActor in LogStore.shared.clear() }
                 let old = oldValue
@@ -36,7 +38,7 @@ final class AppSettings: ObservableObject {
     }
     /// Persisted in the Keychain. Read once at launch and kept here, so request paths never
     /// touch the Keychain.
-    @Published var infuraAPIKey: String {
+    @Published public var infuraAPIKey: String {
         didSet {
             guard infuraAPIKey != oldValue else { return }
             if !secrets.set(infuraAPIKey, forAccount: Self.infuraKeyAccount) {
@@ -44,88 +46,88 @@ final class AppSettings: ObservableObject {
             }
         }
     }
-    @Published var enabledChainIDs: Set<String> {
+    @Published public var enabledChainIDs: Set<String> {
         didSet {
             let persisted = Array(enabledChainIDs).sorted().joined(separator: ",")
-            UserDefaults.standard.set(persisted, forKey: "enabledChainIDs")
+            PoolserDefaults.store.set(persisted, forKey: "enabledChainIDs")
         }
     }
-    @Published var refreshIntervalMinutes: Int {
+    @Published public var refreshIntervalMinutes: Int {
         didSet {
             let clamped = Self.clamp(refreshIntervalMinutes, min: 1, max: 120)
             if clamped != refreshIntervalMinutes {
                 refreshIntervalMinutes = clamped
                 return
             }
-            UserDefaults.standard.set(refreshIntervalMinutes, forKey: "refreshIntervalMinutes")
+            PoolserDefaults.store.set(refreshIntervalMinutes, forKey: "refreshIntervalMinutes")
         }
     }
-    @Published var rpcCreditsPerSecondBudget: Int {
+    @Published public var rpcCreditsPerSecondBudget: Int {
         didSet {
             let clamped = Self.clamp(rpcCreditsPerSecondBudget, min: 50, max: 5_000)
             if clamped != rpcCreditsPerSecondBudget {
                 rpcCreditsPerSecondBudget = clamped
                 return
             }
-            UserDefaults.standard.set(rpcCreditsPerSecondBudget, forKey: "rpcCreditsPerSecondBudget")
+            PoolserDefaults.store.set(rpcCreditsPerSecondBudget, forKey: "rpcCreditsPerSecondBudget")
         }
     }
-    @Published var v4LogChunkSize: Int {
+    @Published public var v4LogChunkSize: Int {
         didSet {
             let clamped = Self.clampLogChunkSize(v4LogChunkSize)
             if clamped != v4LogChunkSize {
                 v4LogChunkSize = clamped
                 return
             }
-            UserDefaults.standard.set(v4LogChunkSize, forKey: "v4LogChunkSize")
+            PoolserDefaults.store.set(v4LogChunkSize, forKey: "v4LogChunkSize")
         }
     }
-    @Published var v4LogMaxConcurrentRequests: Int {
+    @Published public var v4LogMaxConcurrentRequests: Int {
         didSet {
             let clamped = Self.clamp(v4LogMaxConcurrentRequests, min: 1, max: 8)
             if clamped != v4LogMaxConcurrentRequests {
                 v4LogMaxConcurrentRequests = clamped
                 return
             }
-            UserDefaults.standard.set(v4LogMaxConcurrentRequests, forKey: "v4LogMaxConcurrentRequests")
+            PoolserDefaults.store.set(v4LogMaxConcurrentRequests, forKey: "v4LogMaxConcurrentRequests")
         }
     }
-    @Published var v4BootstrapMaxChunksPerRefresh: Int {
+    @Published public var v4BootstrapMaxChunksPerRefresh: Int {
         didSet {
             let clamped = Self.clamp(v4BootstrapMaxChunksPerRefresh, min: 5, max: 200)
             if clamped != v4BootstrapMaxChunksPerRefresh {
                 v4BootstrapMaxChunksPerRefresh = clamped
                 return
             }
-            UserDefaults.standard.set(v4BootstrapMaxChunksPerRefresh, forKey: "v4BootstrapMaxChunksPerRefresh")
+            PoolserDefaults.store.set(v4BootstrapMaxChunksPerRefresh, forKey: "v4BootstrapMaxChunksPerRefresh")
         }
     }
-    @Published var launchAtLogin: Bool {
-        didSet { UserDefaults.standard.set(launchAtLogin, forKey: "launchAtLogin") }
+    @Published public var launchAtLogin: Bool {
+        didSet { PoolserDefaults.store.set(launchAtLogin, forKey: "launchAtLogin") }
     }
-    @Published var flashOnValueChange: Bool {
-        didSet { UserDefaults.standard.set(flashOnValueChange, forKey: "flashOnValueChange") }
+    @Published public var flashOnValueChange: Bool {
+        didSet { PoolserDefaults.store.set(flashOnValueChange, forKey: "flashOnValueChange") }
     }
-    @Published var trackClaimedFees: Bool {
-        didSet { UserDefaults.standard.set(trackClaimedFees, forKey: "trackClaimedFees") }
+    @Published public var trackClaimedFees: Bool {
+        didSet { PoolserDefaults.store.set(trackClaimedFees, forKey: "trackClaimedFees") }
     }
-    @Published var notifyOnRangeChange: Bool {
-        didSet { UserDefaults.standard.set(notifyOnRangeChange, forKey: "notifyOnRangeChange") }
+    @Published public var notifyOnRangeChange: Bool {
+        didSet { PoolserDefaults.store.set(notifyOnRangeChange, forKey: "notifyOnRangeChange") }
     }
-    @Published var positionListOptions: PositionListOptions {
+    @Published public var positionListOptions: PositionListOptions {
         didSet {
             guard positionListOptions != oldValue else { return }
-            positionListOptions.save(to: .standard)
+            positionListOptions.save(to: PoolserDefaults.store)
         }
     }
-    @Published var loginItemError: String?
+    @Published public var loginItemError: String?
 
     nonisolated static let infuraKeyAccount = "infuraAPIKey"
     private let secrets: SecretStore
 
     private init(secrets: SecretStore = KeychainStore()) {
         self.secrets = secrets
-        let ud = UserDefaults.standard
+        let ud = PoolserDefaults.store
         // Older builds saved the field verbatim, so a pasted newline or space could be stored.
         let storedWallet = ud.string(forKey: "walletAddress") ?? ""
         let wallet = WalletAddress.normalize(storedWallet)
@@ -153,13 +155,18 @@ final class AppSettings: ObservableObject {
         notifyOnRangeChange = ud.object(forKey: "notifyOnRangeChange") as? Bool ?? false
         positionListOptions = PositionListOptions(defaults: ud)
 
+        #if os(macOS)
         // Sync stored preference with the actual service status on launch
         let actuallyEnabled = SMAppService.mainApp.status == .enabled
+        #else
+        let actuallyEnabled = false
+        #endif
         launchAtLogin = actuallyEnabled
         ud.set(actuallyEnabled, forKey: "launchAtLogin")
     }
 
-    func setLaunchAtLogin(_ enabled: Bool) async {
+    #if os(macOS)
+    public func setLaunchAtLogin(_ enabled: Bool) async {
         loginItemError = nil
         do {
             if enabled {
@@ -173,6 +180,7 @@ final class AppSettings: ObservableObject {
             launchAtLogin = !enabled  // revert toggle to reflect actual state
         }
     }
+    #endif
 
     func isChainEnabled(_ chainID: String) -> Bool {
         enabledChainIDs.contains(chainID)
@@ -187,7 +195,7 @@ final class AppSettings: ObservableObject {
         SupportedChain.all.filter { enabledChainIDs.contains($0.id) }
     }
 
-    func infuraRPCURL(for chain: SupportedChain) -> URL? {
+    public func infuraRPCURL(for chain: SupportedChain) -> URL? {
         let key = infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return nil }
         return URL(string: "https://\(chain.infuraHost).infura.io/v3/\(key)")
@@ -230,10 +238,10 @@ final class AppSettings: ObservableObject {
     }
 }
 
-enum WalletAddress {
+public enum WalletAddress {
     /// Returns the address as `0x` + 40 hex digits, without surrounding whitespace, or nil if
     /// the input is not an address. `ABI.encodeAddress` turns anything else into the zero address.
-    static func normalize(_ raw: String) -> String? {
+    public static func normalize(_ raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let hex = trimmed.hasPrefix("0x") || trimmed.hasPrefix("0X") ? trimmed.dropFirst(2) : Substring(trimmed)
         // isHexDigit alone also accepts fullwidth digits and letters.
@@ -242,7 +250,7 @@ enum WalletAddress {
     }
 
     /// Message for the Settings field, or nil when the input can be saved (an empty field is allowed).
-    static func validationError(for raw: String) -> String? {
+    public static func validationError(for raw: String) -> String? {
         if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return nil }
         return normalize(raw) == nil ? "Enter a valid address: 0x followed by 40 hex characters." : nil
     }

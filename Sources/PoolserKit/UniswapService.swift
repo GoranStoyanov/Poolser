@@ -4,15 +4,15 @@ import Combine
 /// Drives refreshes across the enabled chains and publishes the merged result to the UI.
 /// Reading positions is delegated to `V3PositionLoader` and `V4PositionLoader`.
 @MainActor
-final class UniswapService: ObservableObject {
-    @Published var titleText      = "… 👀"
-    @Published var positions:     [Position] = []
-    @Published var isLoading      = false
-    @Published var lastError:     String?
-    @Published var lastUpdated:   Date? = nil
+public final class UniswapService: ObservableObject {
+    @Published public var titleText      = "… 👀"
+    @Published public var positions:     [Position] = []
+    @Published public var isLoading      = false
+    @Published public var lastError:     String?
+    @Published public var lastUpdated:   Date? = nil
     /// Fees earned per day: the chain history for v3 positions where the node serves past
     /// state, otherwise what the ledger saw between refreshes.
-    @Published private(set) var dailyFees = DailyFees()
+    @Published public private(set) var dailyFees = DailyFees()
     /// Fees earned per day, from the unclaimed fees seen at each refresh.
     private var feeLedger = DailyFeeLedger.load()
     /// Fees earned per day from chain state, by position id.
@@ -34,7 +34,7 @@ final class UniswapService: ObservableObject {
     private var loadGeneration: UInt64 = 0
     private var chainResultsByID: [String: ChainLoadResult] = [:]
 
-    init() {
+    public init() {
         configureTimer()
         refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
             .removeDuplicates()
@@ -43,9 +43,9 @@ final class UniswapService: ObservableObject {
         startLoad()
     }
 
-    func refresh() { startLoad() }
+    public func refresh() { startLoad() }
 
-    func refreshForWalletChange() {
+    public func refreshForWalletChange() {
         positions = []
         chainDailyFees = DailyFees()
         titleText = "… 👀"

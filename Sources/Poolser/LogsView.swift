@@ -1,4 +1,5 @@
 import SwiftUI
+import PoolserKit
 
 struct LogsView: View {
     @ObservedObject private var store = LogStore.shared
@@ -34,8 +35,7 @@ struct LogsView: View {
                         }
                         return "[\(Self.timeFmt.string(from: e.timestamp))] [\(lvl)] \(e.message)"
                     }.joined(separator: "\n")
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(lines, forType: .string)
+                    Clipboard.copy(lines)
                 } label: {
                     Image(systemName: "doc.on.doc")
                         .font(.system(size: 13))
@@ -173,8 +173,7 @@ private struct LogRow: View {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .onTapGesture {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(entry.message, forType: .string)
+            Clipboard.copy(entry.message)
             withAnimation(.easeInOut(duration: 0.15)) { copied = true }
             Task {
                 try? await Task.sleep(nanoseconds: 1_200_000_000)

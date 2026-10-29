@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private final class TestClock: @unchecked Sendable {
     private let lock = NSLock()

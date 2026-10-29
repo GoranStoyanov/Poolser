@@ -1,4 +1,5 @@
 import Foundation
+import PoolserKit
 
 /// The page the browser opens to collect fees: it shows exactly what will be sent and passes it
 /// to the injected wallet (EIP-1193 `window.ethereum`), after checking the account and network.

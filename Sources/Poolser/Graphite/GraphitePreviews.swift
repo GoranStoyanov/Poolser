@@ -1,5 +1,6 @@
 #if DEBUG
 import SwiftUI
+import PoolserKit
 
 /// Fixed positions for previews: one near the edge, one in range with an inverted pair, one full
 /// range and one out of range, so every status shows at once.

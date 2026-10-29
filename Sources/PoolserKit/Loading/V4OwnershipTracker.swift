@@ -40,7 +40,7 @@ struct V4OwnershipTracker {
     let positionManager: String
     let deployBlock: Int
     let settings: V4ScanSettings
-    var defaults: UserDefaults = .standard
+    var defaults: UserDefaults = PoolserDefaults.store
 
     /// Throws `LoaderError` with a user-facing message when the scan cannot complete.
     func scan(wallet: String, balance: UInt64) async throws -> V4Ownership {

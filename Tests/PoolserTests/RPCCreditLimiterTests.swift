@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 @Suite struct RPCCreditLimiterTests {
     @Test func acquireTakesAvailableCredits() async throws {

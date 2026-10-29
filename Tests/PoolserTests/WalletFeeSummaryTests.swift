@@ -1,5 +1,5 @@
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private func makePosition(fees: Double?, claimed: Double?, syncing: Bool = false, error: String? = nil) -> Position {
     var p = Position(

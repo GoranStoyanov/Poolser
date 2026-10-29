@@ -2,11 +2,13 @@ import SwiftUI
 #if canImport(AppKit)
 import AppKit
 #endif
+import PoolserKit
 
 struct MenuBarContentView: View {
     @EnvironmentObject var service: UniswapService
     @EnvironmentObject var collector: FeeCollector
     @ObservedObject private var settings = AppSettings.shared
+    @Environment(\.openURL) private var openURL
     @State private var showSettings = false
     @State private var showLogs     = false
     @State private var screenSize: CGSize = .zero
@@ -36,7 +38,7 @@ struct MenuBarContentView: View {
                     logs: { showLogs = true },
                     quit: { NSApp.terminate(nil) },
                     open: { pos in
-                        if let url = pos.uniswapURL { NSWorkspace.shared.open(url) }
+                        if let url = pos.uniswapURL { openURL(url) }
                     },
                     collect: { pos in collector.collect(pos, owner: owner) },
                     collectAll: { chainID in collector.collectAll(on: chainID, positions: service.positions, owner: owner) },

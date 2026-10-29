@@ -14,13 +14,13 @@ coherent snapshots, and no regressions in error surfacing.**
 
 | Concern | File |
 |---|---|
-| JSON-RPC transport, retries, backoff, credit limiter (`RPCCreditLimiter` actor) | `Sources/Poolser/EthereumClient.swift` |
-| Calldata builders, selectors, word decoders (`readWord`, `readInt24`, `readAddress`…) | `Sources/Poolser/ABI.swift` |
-| Runtime selector hashing (used for v4 selectors) | `Sources/Poolser/Keccak256.swift` |
-| v3/v4 position loading, v4 Transfer-log ownership scan + cache | `Sources/Poolser/UniswapService.swift` |
-| `Collect` event scan (claimed fee history) | `Sources/Poolser/FeeHistoryService.swift` |
-| Per-chain addresses, deploy blocks, Infura hosts | `Sources/Poolser/ChainConfig.swift` |
-| User-tunable budget (`rpcCreditsPerSecondBudget`, v4 log chunk size/concurrency) | `Sources/Poolser/AppSettings.swift` |
+| JSON-RPC transport, retries, backoff, credit limiter (`RPCCreditLimiter` actor) | `Sources/PoolserKit/EthereumClient.swift` |
+| Calldata builders, selectors, word decoders (`readWord`, `readInt24`, `readAddress`…) | `Sources/PoolserKit/ABI.swift` |
+| Runtime selector hashing (used for v4 selectors) | `Sources/PoolserKit/Keccak256.swift` |
+| v3/v4 position loading, v4 Transfer-log ownership scan + cache | `Sources/PoolserKit/UniswapService.swift` |
+| `Collect` event scan (claimed fee history) | `Sources/PoolserKit/FeeHistoryService.swift` |
+| Per-chain addresses, deploy blocks, Infura hosts | `Sources/PoolserKit/ChainConfig.swift` |
+| User-tunable budget (`rpcCreditsPerSecondBudget`, v4 log chunk size/concurrency) | `Sources/PoolserKit/AppSettings.swift` |
 
 Credit costs used by the limiter (Infura): `eth_call` 80, `eth_getLogs` 255,
 `eth_blockNumber` 80, `eth_chainId` 80. Default budget 400 credits/s (Infura free ≈ 500).

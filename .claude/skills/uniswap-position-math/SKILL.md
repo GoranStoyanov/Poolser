@@ -5,8 +5,8 @@ description: Uniswap v3/v4 concentrated-liquidity math and DeFi data patterns as
 
 # Uniswap position math (Poolser)
 
-All math lives in `Sources/Poolser/UniswapService.swift` (`loadV3`, `loadV4`, `computeV4Fees`,
-`computeAmounts`) on top of decoders in `Sources/Poolser/ABI.swift`. Read those before changing
+All math lives in `Sources/PoolserKit/UniswapService.swift` (`loadV3`, `loadV4`, `computeV4Fees`,
+`computeAmounts`) on top of decoders in `Sources/PoolserKit/ABI.swift`. Read those before changing
 anything; this skill is the reference for **what the numbers must be**.
 
 ## Core definitions

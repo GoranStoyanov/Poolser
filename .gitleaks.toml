@@ -6,7 +6,7 @@ useDefault = true
 [[allowlists]]
 description = "Swift UserDefaults forKey labels are not secrets"
 paths = [
-  '''^Sources/Poolser/AppSettings\.swift$''',
+  '''^Sources/PoolserKit/AppSettings\.swift$''',
   '''^Sources/DonkeyCorn/AppSettings\.swift$''',
 ]
 regexes = [
@@ -16,7 +16,7 @@ regexes = [
 [[allowlists]]
 description = "Known public wrapped native token contract addresses"
 paths = [
-  '''^Sources/Poolser/ChainConfig\.swift$''',
+  '''^Sources/PoolserKit/ChainConfig\.swift$''',
   '''^Sources/DonkeyHorn/ChainConfig\.swift$''',
 ]
 regexes = [

@@ -1,4 +1,5 @@
 import AppKit
+import PoolserKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {

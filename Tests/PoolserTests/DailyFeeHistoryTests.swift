@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let utc: Calendar = {
     var calendar = Calendar(identifier: .gregorian)

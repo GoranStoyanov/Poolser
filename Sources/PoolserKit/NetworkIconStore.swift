@@ -1,16 +1,11 @@
 import Foundation
 import Combine
-#if canImport(AppKit)
-import AppKit
-#endif
 
 @MainActor
-final class NetworkIconStore: ObservableObject {
-    static let shared = NetworkIconStore()
+public final class NetworkIconStore: ObservableObject {
+    public static let shared = NetworkIconStore()
 
-#if canImport(AppKit)
-    @Published private(set) var iconsByChainID: [String: NSImage] = [:]
-#endif
+    @Published private(set) var iconsByChainID: [String: PlatformImage] = [:]
 
     private var platformIconURLByPlatformID: [String: URL] = [:]
     private var didLoadPlatformIndex = false
@@ -31,13 +26,11 @@ final class NetworkIconStore: ObservableObject {
         Task { await prefetch(for: SupportedChain.all) }
     }
 
-#if canImport(AppKit)
-    func icon(for chain: SupportedChain) -> NSImage? {
+    public func icon(for chain: SupportedChain) -> PlatformImage? {
         iconsByChainID[chain.id]
     }
-#endif
 
-    func prefetch(for chains: [SupportedChain]) async {
+    public func prefetch(for chains: [SupportedChain]) async {
         await ensurePlatformIndexLoaded()
         for chain in chains {
             await fetchIconIfNeeded(for: chain)
@@ -83,18 +76,14 @@ final class NetworkIconStore: ObservableObject {
     }
 
     private func fetchIconIfNeeded(for chain: SupportedChain) async {
-#if canImport(AppKit)
         if iconsByChainID[chain.id] != nil { return }
-#endif
         if inFlightChainIDs.contains(chain.id) { return }
 
         let fileURL = iconFileURL(forChainID: chain.id)
-#if canImport(AppKit)
-        if let data = try? Data(contentsOf: fileURL), let image = NSImage(data: data) {
+        if let data = try? Data(contentsOf: fileURL), let image = PlatformImage(data: data) {
             iconsByChainID[chain.id] = image
             return
         }
-#endif
         guard let remoteURL = platformIconURLByPlatformID[chain.coingeckoPlatformID]
             ?? hardcodedIconURL(for: chain.coingeckoPlatformID) else { return }
 
@@ -105,25 +94,21 @@ final class NetworkIconStore: ObservableObject {
             let (data, _) = try await URLSession.shared.data(from: remoteURL)
             guard !data.isEmpty else { return }
             try? data.write(to: fileURL, options: [.atomic])
-#if canImport(AppKit)
-            if let image = NSImage(data: data) {
+            if let image = PlatformImage(data: data) {
                 iconsByChainID[chain.id] = image
             }
-#endif
         } catch {
             // Silent fallback: UI uses placeholders.
         }
     }
 
     private func loadPersistedIcons() {
-#if canImport(AppKit)
         for chain in SupportedChain.all {
             let fileURL = iconFileURL(forChainID: chain.id)
             guard let data = try? Data(contentsOf: fileURL),
-                  let image = NSImage(data: data) else { continue }
+                  let image = PlatformImage(data: data) else { continue }
             iconsByChainID[chain.id] = image
         }
-#endif
     }
 
     private func iconFileURL(forChainID chainID: String) -> URL {

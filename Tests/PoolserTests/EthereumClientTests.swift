@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let rpcURL = URL(string: "https://rpc.test/v3")!
 private let zeroAddress = "0x0000000000000000000000000000000000000000"
