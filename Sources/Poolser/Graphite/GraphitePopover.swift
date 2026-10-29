@@ -3,7 +3,7 @@ import PoolserKit
 
 /// What the Graphite popover shows. Kept separate from `UniswapService` so the view can be
 /// previewed with fixed data.
-struct PortfolioSnapshot {
+struct PopoverSnapshot {
     var walletAddress: String
     var positions: [Position]
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
@@ -49,7 +49,7 @@ struct GraphitePopoverActions {
 }
 
 struct GraphitePopover: View {
-    let snapshot: PortfolioSnapshot
+    let snapshot: PopoverSnapshot
     @Binding var listOptions: PositionListOptions
     var actions = GraphitePopoverActions()
 

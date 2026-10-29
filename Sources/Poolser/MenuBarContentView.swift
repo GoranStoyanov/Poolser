@@ -48,14 +48,14 @@ struct MenuBarContentView: View {
         }
     }
 
-    private var snapshot: PortfolioSnapshot {
+    private var snapshot: PopoverSnapshot {
         let now = Date()
         let dailyFees = service.dailyFees
         var perPosition: [String: [Double]] = [:]
         for pos in service.positions {
             perPosition[pos.id] = dailyFees.dailyUSD(for: pos, days: 7, endingAt: now)
         }
-        return PortfolioSnapshot(
+        return PopoverSnapshot(
             walletAddress: settings.walletAddress,
             positions: service.positions,
             // One day is enough for the wallet chart, which shows empty slots before it.

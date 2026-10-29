@@ -2,7 +2,7 @@ import Foundation
 
 /// Range state in the displayed price orientation: "near max" means near the bound shown as Max,
 /// which is the lower tick when the pair is shown inverted.
-public enum RangeStatus: Equatable {
+public enum RangeStatus: String, Codable, Sendable {
     case inRange, nearMin, nearMax, outOfRange, fullRange, unknown
 
     public var title: String {
@@ -25,7 +25,7 @@ public enum RangeStatus: Equatable {
 }
 
 /// Where the range band and the current-price marker sit on a 0…1 gauge.
-public struct RangeGaugeLayout: Equatable {
+public struct RangeGaugeLayout: Equatable, Codable, Sendable {
     public var bandStart: Double
     public var bandEnd: Double
     public var marker: Double

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Widget extensions must be sandboxed -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+
+    <!-- Reads the portfolio snapshot the app writes to the shared container -->
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>$(POOLSER_APP_GROUP)</string>
+    </array>
+</dict>
+</plist>

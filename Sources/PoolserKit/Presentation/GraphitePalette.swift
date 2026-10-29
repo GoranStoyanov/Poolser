@@ -1,5 +1,4 @@
 import SwiftUI
-import PoolserKit
 
 /// Colours for the Graphite popover. Near-monochrome on purpose: green is reserved for fees and
 /// in-range, amber and orange for ranges that need attention, so colour always carries meaning.
@@ -7,46 +6,46 @@ import PoolserKit
 ///
 /// Plain SwiftUI colours picked by `ColorScheme` rather than dynamic `NSColor`s, so the palette
 /// follows `.preferredColorScheme` in previews and image renders and has no AppKit dependency.
-struct GraphitePalette {
-    struct StatusColors {
+public struct GraphitePalette {
+    public struct StatusColors {
         /// Text, marker and dot colour.
-        let tint: Color
+        public let tint: Color
         /// Pill background.
-        let background: Color
+        public let background: Color
         /// Range band fill.
-        let bandFill: Color
+        public let bandFill: Color
         /// Range band outline and inactive mini bars.
-        let bandEdge: Color
+        public let bandEdge: Color
     }
 
-    let popover: Color
-    let card: Color
-    let cardLine: Color
-    let hairline: Color
-    let primaryText: Color
-    let secondaryText: Color
-    let fees: Color
-    let bar: Color
-    let barToday: Color
-    let onBarToday: Color
-    let track: Color
-    let control: Color
-    let strong: Color
-    let onStrong: Color
-    let onStatus: Color
-    let brandStart: Color
-    let brandEnd: Color
+    public let popover: Color
+    public let card: Color
+    public let cardLine: Color
+    public let hairline: Color
+    public let primaryText: Color
+    public let secondaryText: Color
+    public let fees: Color
+    public let bar: Color
+    public let barToday: Color
+    public let onBarToday: Color
+    public let track: Color
+    public let control: Color
+    public let strong: Color
+    public let onStrong: Color
+    public let onStatus: Color
+    public let brandStart: Color
+    public let brandEnd: Color
     /// Opacity of the front and back water layers in the fee pool.
-    let waterFront: Double
-    let waterBack: Double
+    public let waterFront: Double
+    public let waterBack: Double
 
-    let inRange: StatusColors
-    let nearEdge: StatusColors
-    let outOfRange: StatusColors
-    let fullRange: StatusColors
-    let unknown: StatusColors
+    public let inRange: StatusColors
+    public let nearEdge: StatusColors
+    public let outOfRange: StatusColors
+    public let fullRange: StatusColors
+    public let unknown: StatusColors
 
-    func status(_ status: RangeStatus) -> StatusColors {
+    public func status(_ status: RangeStatus) -> StatusColors {
         switch status {
         case .inRange:    return inRange
         case .nearMin, .nearMax: return nearEdge
@@ -56,15 +55,15 @@ struct GraphitePalette {
         }
     }
 
-    var brand: LinearGradient {
+    public var brand: LinearGradient {
         LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
     }
 
-    static func current(_ scheme: ColorScheme) -> GraphitePalette {
+    public static func current(_ scheme: ColorScheme) -> GraphitePalette {
         scheme == .dark ? .dark : .light
     }
 
-    static let light = GraphitePalette(
+    public static let light = GraphitePalette(
         popover: Color(hex: 0xFAFAFA),
         card: Color(hex: 0xFFFFFF),
         cardLine: Color(hex: 0xE6E6EA),
@@ -96,7 +95,7 @@ struct GraphitePalette {
                               bandFill: Color(hex: 0xF0F0F2), bandEdge: Color(hex: 0xC8C8CE))
     )
 
-    static let dark = GraphitePalette(
+    public static let dark = GraphitePalette(
         popover: Color(hex: 0x161618),
         card: Color(hex: 0x1F1F22),
         cardLine: Color(hex: 0x2E2E33),

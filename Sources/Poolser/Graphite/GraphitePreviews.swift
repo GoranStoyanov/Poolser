@@ -41,7 +41,7 @@ enum GraphitePreviewData {
         ),
     ]
 
-    static let snapshot = PortfolioSnapshot(
+    static let snapshot = PopoverSnapshot(
         walletAddress: "0x8f3c4b1e9d2a7c6f5e0b3a8d1c4e7f2a9b6da21c",
         positions: positions,
         dailyFeesUSD: [12, 16, 14, 20, 17, 23, 19, 26, 21, 24, 18, 22, 15, 27,
@@ -139,7 +139,7 @@ private struct PreviewPopover: View {
 }
 
 #Preview("Popover · loading") {
-    PreviewPopover(snapshot: PortfolioSnapshot(walletAddress: "0x8f3c4b1e9d2a7c6f5e0b3a8d1c4e7f2a9b6da21c",
+    PreviewPopover(snapshot: PopoverSnapshot(walletAddress: "0x8f3c4b1e9d2a7c6f5e0b3a8d1c4e7f2a9b6da21c",
                                                positions: [], isLoading: true))
 }
 #endif

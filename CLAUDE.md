@@ -54,3 +54,7 @@ enable repo hooks once with `git config core.hooksPath .githooks`.
   a local package; it must also build for iOS, so no AppKit there outside `#if canImport(AppKit)`.
   macOS UI and the Collect flow stay in `Sources/Poolser`, whose new files must be added to
   `project.pbxproj` too.
+- The `PoolserWidget` extension (Xcode only, sources in `Poolser/PoolserWidget/`, a synchronized
+  folder) renders `PortfolioSnapshot`, which the app writes to the App Group container after
+  each refresh. Layouts live in PoolserKit so an iOS widget can share them. Version and build
+  number are project-level settings so the app and the extension always match.
