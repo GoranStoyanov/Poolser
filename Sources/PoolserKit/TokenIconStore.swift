@@ -1,20 +1,15 @@
 import Foundation
 import Combine
-#if canImport(AppKit)
-import AppKit
-#endif
 
 /// Token logos from DefiLlama's icon CDN, keyed by chain ID and contract address, so any token
 /// it knows needs no index or per-chain list. Address(0) is the chain's native currency.
 @MainActor
-final class TokenIconStore: ObservableObject {
-    static let shared = TokenIconStore()
+public final class TokenIconStore: ObservableObject {
+    public static let shared = TokenIconStore()
 
-    static let nativeAddress = "0x0000000000000000000000000000000000000000"
+    public static let nativeAddress = "0x0000000000000000000000000000000000000000"
 
-#if canImport(AppKit)
-    @Published private(set) var iconsByKey: [String: NSImage] = [:]
-#endif
+    @Published private(set) var iconsByKey: [String: PlatformImage] = [:]
 
     private var inFlightKeys: Set<String> = []
     /// Failed downloads, so the many views showing a token do not each retry it.
@@ -33,28 +28,22 @@ final class TokenIconStore: ObservableObject {
         try? FileManager.default.createDirectory(at: iconFolderURL, withIntermediateDirectories: true)
     }
 
-#if canImport(AppKit)
-    func icon(chainID: Int, address: String) -> NSImage? {
+    public func icon(chainID: Int, address: String) -> PlatformImage? {
         iconsByKey[Self.key(chainID: chainID, address: address)]
     }
-#endif
 
-    func fetchIfNeeded(chainID: Int, address: String) async {
+    public func fetchIfNeeded(chainID: Int, address: String) async {
         let key = Self.key(chainID: chainID, address: address)
-#if canImport(AppKit)
         if iconsByKey[key] != nil { return }
-#endif
         if inFlightKeys.contains(key) { return }
         if let last = lastFailureByKey[key], Date().timeIntervalSince(last) < failureRetryInterval { return }
 
         let fileURL = iconFolderURL.appendingPathComponent("\(key).img", isDirectory: false)
         let missingURL = iconFolderURL.appendingPathComponent("\(key).missing", isDirectory: false)
-#if canImport(AppKit)
-        if let data = try? Data(contentsOf: fileURL), let image = NSImage(data: data) {
+        if let data = try? Data(contentsOf: fileURL), let image = PlatformImage(data: data) {
             iconsByKey[key] = image
             return
         }
-#endif
         if let modified = (try? missingURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
            Date().timeIntervalSince(modified) < missingRetryInterval {
             return
@@ -74,15 +63,13 @@ final class TokenIconStore: ObservableObject {
                 FileManager.default.createFile(atPath: missingURL.path, contents: Data())
                 return
             }
-#if canImport(AppKit)
-            guard status == 200, let image = NSImage(data: data) else {
+            guard status == 200, let image = PlatformImage(data: data) else {
                 lastFailureByKey[key] = Date()
                 return
             }
             try? data.write(to: fileURL, options: [.atomic])
             try? FileManager.default.removeItem(at: missingURL)
             iconsByKey[key] = image
-#endif
         } catch {
             // Silent fallback: the avatar keeps its letter until a later attempt succeeds.
             lastFailureByKey[key] = Date()

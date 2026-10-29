@@ -1,16 +1,16 @@
 import Foundation
 
-struct SupportedChain: Identifiable, Hashable {
-    let id: String
-    let displayName: String
-    let chainId: Int
+public struct SupportedChain: Identifiable, Hashable {
+    public let id: String
+    public let displayName: String
+    public let chainId: Int
     let infuraHost: String
-    let coingeckoPlatformID: String
-    let defiLlamaChainKey: String
+    public let coingeckoPlatformID: String
+    public let defiLlamaChainKey: String
     let geckoterminalNetworkID: String?
     let v3Factory: String?
     let v3NFPM: String?
-    let wrappedNativeToken: String
+    public let wrappedNativeToken: String
     let v4PM: String?
     let v4SV: String?
     let v4DeployBlockHex: String?
@@ -45,7 +45,7 @@ struct SupportedChain: Identifiable, Hashable {
         "https://\(infuraHost).infura.io/v3/<YOUR-API-KEY>"
     }
 
-    static let all: [SupportedChain] = [
+    public static let all: [SupportedChain] = [
         SupportedChain(
             id: "ethereum",
             displayName: "Ethereum",
@@ -336,7 +336,7 @@ struct SupportedChain: Identifiable, Hashable {
         )
     ]
 
-    static func byID(_ id: String) -> SupportedChain? {
+    public static func byID(_ id: String) -> SupportedChain? {
         all.first(where: { $0.id == id })
     }
 

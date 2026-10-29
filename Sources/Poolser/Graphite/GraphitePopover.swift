@@ -1,4 +1,5 @@
 import SwiftUI
+import PoolserKit
 
 /// What the Graphite popover shows. Kept separate from `UniswapService` so the view can be
 /// previewed with fixed data.

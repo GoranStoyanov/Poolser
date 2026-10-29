@@ -1,4 +1,5 @@
 import SwiftUI
+import PoolserKit
 
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared

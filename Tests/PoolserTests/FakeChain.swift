@@ -1,5 +1,5 @@
 import Foundation
-@testable import Poolser
+@testable import PoolserKit
 
 /// A fake JSON-RPC node for eth_call. Answers from a table keyed by target and calldata, and
 /// runs Multicall3 `aggregate3` against the same table, so the batched and the per-call read

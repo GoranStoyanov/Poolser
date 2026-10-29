@@ -1,5 +1,5 @@
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 @Suite("USD formatting")
 struct USDFormatTests {

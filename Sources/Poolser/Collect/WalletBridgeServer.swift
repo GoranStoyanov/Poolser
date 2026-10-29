@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import PoolserKit
 
 /// A short-lived HTTP server on 127.0.0.1 that serves one page to the default browser, where a
 /// wallet extension can sign, and hears back what happened. It answers only under a random path,

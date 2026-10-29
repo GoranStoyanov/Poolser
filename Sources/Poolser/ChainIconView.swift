@@ -1,7 +1,5 @@
 import SwiftUI
-#if canImport(AppKit)
-import AppKit
-#endif
+import PoolserKit
 
 struct ChainIconView: View {
     let chain: SupportedChain
@@ -15,18 +13,14 @@ struct ChainIconView: View {
 
     var body: some View {
         Group {
-#if canImport(AppKit)
             if let icon = iconStore.icon(for: chain) {
-                Image(nsImage: icon)
+                Image(platformImage: icon)
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
             } else {
                 fallbackIcon
             }
-#else
-            fallbackIcon
-#endif
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))

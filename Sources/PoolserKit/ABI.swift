@@ -18,7 +18,7 @@ extension Data {
         self.init(bytes)
     }
 
-    var hexString: String {
+    public var hexString: String {
         map { String(format: "%02x", $0) }.joined()
     }
 

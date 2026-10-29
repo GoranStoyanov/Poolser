@@ -1,6 +1,6 @@
 import Foundation
 
-typealias TokenMetadata = (symbol: String, decimals: Int)
+public typealias TokenMetadata = (symbol: String, decimals: Int)
 
 /// Caches ERC-20 symbol and decimals per token address for one load. Lookups are batched:
 /// `pending(_:)` lists the reads for tokens not cached yet, so a loader can send them together

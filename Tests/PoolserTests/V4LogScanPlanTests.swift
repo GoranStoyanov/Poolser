@@ -1,5 +1,5 @@
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let deploy = 21_688_329
 private let chunkSize = 20_000

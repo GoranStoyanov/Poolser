@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let wallet = "0x7A406E87B49e8a62C7F579E51AE94ed6Ee2d354f"
 

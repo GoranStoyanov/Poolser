@@ -1,5 +1,5 @@
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private func makePosition(
     chainID: String = "ethereum",

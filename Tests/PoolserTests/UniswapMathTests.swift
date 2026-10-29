@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 /// Two's-complement 256-bit word for a small signed value (negative values wrap mod 2^256).
 private func u256(_ value: Int64) -> Data {

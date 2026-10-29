@@ -1,14 +1,14 @@
 import Foundation
 
-enum PositionSort: String, CaseIterable, Identifiable {
+public enum PositionSort: String, CaseIterable, Identifiable {
     case value
     case fees
     case yield
     case pair
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var title: String {
+    public var title: String {
         switch self {
         case .value: return "Value"
         case .fees:  return "Unclaimed Fees"
@@ -18,14 +18,14 @@ enum PositionSort: String, CaseIterable, Identifiable {
     }
 }
 
-enum PositionVersionFilter: String, CaseIterable, Identifiable {
+public enum PositionVersionFilter: String, CaseIterable, Identifiable {
     case all
     case v3
     case v4
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var title: String {
+    public var title: String {
         switch self {
         case .all: return "All Versions"
         case .v3:  return "v3 Only"
@@ -36,22 +36,34 @@ enum PositionVersionFilter: String, CaseIterable, Identifiable {
 
 /// How the menu lists positions. Only affects display: the menu bar total and range
 /// notifications still cover every position.
-struct PositionListOptions: Equatable {
-    var sort: PositionSort = .value
-    var inRangeOnly = false
-    var version: PositionVersionFilter = .all
+public struct PositionListOptions: Equatable {
+    public var sort: PositionSort = .value
+    public var inRangeOnly = false
+    public var version: PositionVersionFilter = .all
     /// `SupportedChain.id`, or nil for every chain.
-    var chainID: String?
+    public var chainID: String?
 
-    var isFiltering: Bool { inRangeOnly || version != .all || chainID != nil }
+    public init(
+        sort: PositionSort = .value,
+        inRangeOnly: Bool = false,
+        version: PositionVersionFilter = .all,
+        chainID: String? = nil
+    ) {
+        self.sort = sort
+        self.inRangeOnly = inRangeOnly
+        self.version = version
+        self.chainID = chainID
+    }
 
-    mutating func clearFilters() {
+    public var isFiltering: Bool { inRangeOnly || version != .all || chainID != nil }
+
+    public mutating func clearFilters() {
         inRangeOnly = false
         version = .all
         chainID = nil
     }
 
-    func apply(to positions: [Position]) -> [Position] {
+    public func apply(to positions: [Position]) -> [Position] {
         positions.enumerated()
             .filter { matches($0.element) }
             .sorted { lhs, rhs in
@@ -109,7 +121,7 @@ extension PositionListOptions {
         static let chainID     = "positionFilterChainID"
     }
 
-    init(defaults: UserDefaults) {
+    public init(defaults: UserDefaults) {
         sort = defaults.string(forKey: Key.sort).flatMap(PositionSort.init(rawValue:)) ?? .value
         inRangeOnly = defaults.bool(forKey: Key.inRangeOnly)
         version = defaults.string(forKey: Key.version).flatMap(PositionVersionFilter.init(rawValue:)) ?? .all

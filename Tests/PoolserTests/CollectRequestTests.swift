@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let owner = "0x8f3c4b1e9d2a7c6f5e0b3a8d1c4e7f2a9b6da21c"
 private let native = "0x0000000000000000000000000000000000000000"

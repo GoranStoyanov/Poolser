@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import PoolserKit
 
 @main
 struct PoolserApp: App {

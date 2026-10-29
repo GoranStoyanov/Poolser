@@ -1,73 +1,73 @@
 import Foundation
 
 /// Uniswap v4 `PoolKey.fee` helpers.
-enum V4Fee {
+public enum V4Fee {
     /// `LPFeeLibrary.DYNAMIC_FEE_FLAG`: the pool's LP fee is set by its hook, not by `PoolKey.fee`.
     static let dynamicFlag = 0x800000
 
     static func isDynamic(_ fee: Int) -> Bool { fee == dynamicFlag }
 
     /// Fee tier label in percent, e.g. "0.3" for 3000, or "dyn" for a dynamic-fee pool.
-    static func label(_ fee: Int) -> String {
+    public static func label(_ fee: Int) -> String {
         isDynamic(fee) ? "dyn" : String(format: "%.4g", Double(fee) / 10_000)
     }
 }
 
-struct Position: Identifiable {
+public struct Position: Identifiable {
     /// v3 and v4 token IDs are independent sequences, so the version is part of the identity.
-    var id: String { "\(chainID)-\(versionLabel)-\(tokenId)" }
+    public var id: String { "\(chainID)-\(versionLabel)-\(tokenId)" }
     /// Pre-version id format, still present in persisted notification state.
     var legacyID: String { "\(chainID)-\(tokenId)" }
-    let chainID: String
-    let chainName: String
-    let chainNumericID: Int
-    let tokenId: String
-    let token0: String
-    let token1: String
-    let sym0: String
-    let sym1: String
-    let feePct: String   // e.g. "0.05"
+    public let chainID: String
+    public let chainName: String
+    public let chainNumericID: Int
+    public let tokenId: String
+    public let token0: String
+    public let token1: String
+    public let sym0: String
+    public let sym1: String
+    public let feePct: String   // e.g. "0.05"
     let feeRaw: Int      // e.g. 500
     var fees0: Double
     var fees1: Double
     let tickLower: Int
     let tickUpper: Int
     let liquidity: Double
-    var amount0: Double = 0   // current token0 in position (decimal-adjusted)
-    var amount1: Double = 0   // current token1 in position
-    var dec0: Int = 18
-    var dec1: Int = 18
-    var usd: Double?          // fees value in USD
+    public var amount0: Double = 0   // current token0 in position (decimal-adjusted)
+    public var amount1: Double = 0   // current token1 in position
+    public var dec0: Int = 18
+    public var dec1: Int = 18
+    public var usd: Double?          // fees value in USD
     /// USD per whole token at the last refresh; nil when no price source had the token.
-    var price0USD: Double?
-    var price1USD: Double?
-    var positionUSD: Double?  // total position liquidity value in USD
+    public var price0USD: Double?
+    public var price1USD: Double?
+    public var positionUSD: Double?  // total position liquidity value in USD
     var claimedFees0: Double = 0
-    var claimedFees1: Double = 0
-    var claimedUSD: Double? = nil
-    var feeHistoryBootstrapping: Bool = false
+    public var claimedFees1: Double = 0
+    public var claimedUSD: Double? = nil
+    public var feeHistoryBootstrapping: Bool = false
     /// When the position was opened; set once its claimed-fee history is complete.
-    var openedAt: Date? = nil
-    var currentTick: Int?
-    var inRange: Bool?
-    var error: String?
+    public var openedAt: Date? = nil
+    public var currentTick: Int?
+    public var inRange: Bool?
+    public var error: String?
     // v4-specific
-    var isV4: Bool = false
+    public var isV4: Bool = false
     var poolId: Data? = nil   // keccak256(PoolKey) — used for StateView queries
     /// The pool's currencies as the PoolKey has them: address(0) for native ETH, which
     /// `token0`/`token1` replace with the wrapped token for price lookups.
-    var currency0: String? = nil
-    var currency1: String? = nil
-    var feesError: String? = nil  // set when fee computation fails
+    public var currency0: String? = nil
+    public var currency1: String? = nil
+    public var feesError: String? = nil  // set when fee computation fails
     /// v3 fee growth at the last refresh: the end point of today's on-chain daily fees.
     var feeGrowth: FeeGrowthSnapshot? = nil
     /// Why the pool's price could not be read; amounts and range are unknown while set.
-    var poolStateError: String? = nil
+    public var poolStateError: String? = nil
     // pool stats (GeckoTerminal)
     var poolAddress: String? = nil  // v3 pool contract address
-    var volumeUSD24h: Double? = nil
-    var feeAPR: Double? = nil
-    var tvlUSD: Double? = nil
+    public var volumeUSD24h: Double? = nil
+    public var feeAPR: Double? = nil
+    public var tvlUSD: Double? = nil
 
     var isFullRange: Bool {
         tickLower <= -887200 && tickUpper >= 887200
@@ -75,12 +75,12 @@ struct Position: Identifiable {
 
     /// Addresses whose logos stand for each token: native ETH keeps address(0) rather than the
     /// wrapped token `token0`/`token1` hold for pricing, so it shows the ETH logo.
-    var iconAddress0: String { currency0 ?? token0 }
-    var iconAddress1: String { currency1 ?? token1 }
+    public var iconAddress0: String { currency0 ?? token0 }
+    public var iconAddress1: String { currency1 ?? token1 }
 
     /// Uniswap semantics: a position is active iff `tickLower <= tick < tickUpper`.
     /// At `tick == tickUpper` it holds only token1 and earns no fees.
-    static func isInRange(tick: Int, lower: Int, upper: Int) -> Bool {
+    public static func isInRange(tick: Int, lower: Int, upper: Int) -> Bool {
         tick >= lower && tick < upper
     }
 
@@ -94,7 +94,7 @@ struct Position: Identifiable {
         }
     }
 
-    var feesLabel: String {
+    public var feesLabel: String {
         var parts: [String] = []
         if fees0 > 0 { parts.append(trimNum(fees0) + " " + sym0) }
         if fees1 > 0 { parts.append(trimNum(fees1) + " " + sym1) }
@@ -102,18 +102,18 @@ struct Position: Identifiable {
     }
 
     /// USD value of unclaimed fees, formatted.
-    var feesUSDLabel: String? {
+    public var feesUSDLabel: String? {
         guard let usd else { return nil }
         return formatUSD(usd)
     }
 
 
-    var claimedUSDLabel: String? {
+    public var claimedUSDLabel: String? {
         guard let usd = claimedUSD, usd > 0 else { return nil }
         return formatUSD(usd)
     }
 
-    var claimedFeesLabel: String? {
+    public var claimedFeesLabel: String? {
         var parts: [String] = []
         if claimedFees0 > 0 { parts.append(trimNum(claimedFees0) + " " + sym0) }
         if claimedFees1 > 0 { parts.append(trimNum(claimedFees1) + " " + sym1) }
@@ -122,15 +122,15 @@ struct Position: Identifiable {
 
     /// Pool fee as a fraction (0.003 for 0.3%), or nil for a v4 dynamic-fee pool whose
     /// `feeRaw` is the dynamic flag rather than a fee.
-    var feeFraction: Double? {
+    public var feeFraction: Double? {
         isV4 && V4Fee.isDynamic(feeRaw) ? nil : Double(feeRaw) / 1_000_000
     }
 
-    var versionLabel: String { isV4 ? "v4" : "v3" }
+    public var versionLabel: String { isV4 ? "v4" : "v3" }
     var chainLabel: String { chainName }
 
     /// Total position liquidity value in USD, formatted.
-    var positionUSDLabel: String? {
+    public var positionUSDLabel: String? {
         guard let positionUSD, positionUSD > 0 else { return nil }
         return formatUSD(positionUSD)
     }
@@ -167,7 +167,7 @@ struct Position: Identifiable {
     }
 
     /// All-time fees as a share of the position's current value (0.18 = 18%).
-    var feeReturnOnAssets: Double? {
+    public var feeReturnOnAssets: Double? {
         guard let fees = allTimeFeesUSD, let value = positionUSD, value > 0 else { return nil }
         return fees / value
     }
@@ -181,7 +181,7 @@ struct Position: Identifiable {
 
     /// `feeReturnOnAssets` per year since the position was opened, as a fraction. Comparable
     /// with the pool's 24h yield (`feeAPR`, in percent), which is also annualized.
-    func realizedAPR(at now: Date = Date()) -> Double? {
+    public func realizedAPR(at now: Date = Date()) -> Double? {
         guard let feeReturn = feeReturnOnAssets, let years = yearsOpen(at: now) else { return nil }
         return feeReturn / years
     }
@@ -194,26 +194,52 @@ struct Position: Identifiable {
         return parts.joined(separator: " + ")
     }
 
-    var amount0Label: String { poolStateError != nil ? "–" : amount0 > 0 ? trimNum(amount0) : "0" }
-    var amount1Label: String { poolStateError != nil ? "–" : amount1 > 0 ? trimNum(amount1) : "0" }
+    public var amount0Label: String { poolStateError != nil ? "–" : amount0 > 0 ? trimNum(amount0) : "0" }
+    public var amount1Label: String { poolStateError != nil ? "–" : amount1 > 0 ? trimNum(amount1) : "0" }
+}
+
+extension Position {
+    /// The memberwise initializer for code outside the module; the rest of the fields start empty.
+    public init(
+        chainID: String, chainName: String, chainNumericID: Int, tokenId: String,
+        token0: String, token1: String, sym0: String, sym1: String,
+        feePct: String, feeRaw: Int, fees0: Double, fees1: Double,
+        tickLower: Int, tickUpper: Int, liquidity: Double
+    ) {
+        self.chainID = chainID
+        self.chainName = chainName
+        self.chainNumericID = chainNumericID
+        self.tokenId = tokenId
+        self.token0 = token0
+        self.token1 = token1
+        self.sym0 = sym0
+        self.sym1 = sym1
+        self.feePct = feePct
+        self.feeRaw = feeRaw
+        self.fees0 = fees0
+        self.fees1 = fees1
+        self.tickLower = tickLower
+        self.tickUpper = tickUpper
+        self.liquidity = liquidity
+    }
 }
 
 /// Fees across every loaded position of the wallet, including ones the list filters hide.
 /// Claimed fees come from the v3 Collect history; v4 claimed fees are not tracked.
-struct WalletFeeSummary: Equatable {
+public struct WalletFeeSummary: Equatable {
     var unclaimedUSD: Double
-    var claimedUSD: Double
+    public var claimedUSD: Double
     /// True while a claimed-fee history scan is still catching up, so the claimed total is partial.
-    var isSyncing: Bool
+    public var isSyncing: Bool
     /// All-time fees ÷ current value, over the positions where both are known.
-    var returnOnAssets: Double?
+    public var returnOnAssets: Double?
     /// Σ fees ÷ Σ (value × years open): an APR weighted by capital and time, so a large or old
     /// position counts for more than a small new one.
-    var realizedAPR: Double?
+    public var realizedAPR: Double?
 
-    var allTimeUSD: Double { unclaimedUSD + claimedUSD }
+    public var allTimeUSD: Double { unclaimedUSD + claimedUSD }
 
-    init(positions: [Position], now: Date = Date()) {
+    public init(positions: [Position], now: Date = Date()) {
         let loaded = positions.filter { $0.error == nil }
         unclaimedUSD = loaded.compactMap(\.usd).reduce(0, +)
         claimedUSD = loaded.compactMap(\.claimedUSD).reduce(0, +)
@@ -247,11 +273,11 @@ private func formatCompact(_ x: Double) -> String {
 /// compact amounts ("$3.40M") use a decimal point, so a locale such as en_BG would show
 /// "$12 400,00" next to them.
 /// "18.0%" from a fraction (0.18).
-func formatPercent(_ fraction: Double) -> String {
+public func formatPercent(_ fraction: Double) -> String {
     String(format: "%.1f%%", fraction * 100)
 }
 
-func formatUSD(_ x: Double) -> String {
+public func formatUSD(_ x: Double) -> String {
     x.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
 }
 

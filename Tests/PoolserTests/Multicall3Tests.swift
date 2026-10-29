@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Poolser
+@testable import PoolserKit
 
 private let multicall3 = SupportedChain.canonicalMulticall3
 private let baseNFPM = "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1"

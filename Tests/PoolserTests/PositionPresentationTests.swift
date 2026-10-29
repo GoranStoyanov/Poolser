@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import Poolser
+@testable import PoolserKit
 
 private func makePosition(
     sym0: String = "WBTC", sym1: String = "WETH", dec0: Int = 18, dec1: Int = 18,

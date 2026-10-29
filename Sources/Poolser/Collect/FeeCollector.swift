@@ -3,6 +3,7 @@ import Combine
 #if canImport(AppKit)
 import AppKit
 #endif
+import PoolserKit
 
 /// Runs a collect: a dry run from the owner's address, then the browser page that hands the
 /// transaction to the user's wallet, then a refresh once it is sent.

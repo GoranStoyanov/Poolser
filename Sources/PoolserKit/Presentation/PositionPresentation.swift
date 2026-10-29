@@ -2,10 +2,10 @@ import Foundation
 
 /// Range state in the displayed price orientation: "near max" means near the bound shown as Max,
 /// which is the lower tick when the pair is shown inverted.
-enum RangeStatus: Equatable {
+public enum RangeStatus: Equatable {
     case inRange, nearMin, nearMax, outOfRange, fullRange, unknown
 
-    var title: String {
+    public var title: String {
         switch self {
         case .inRange:    return "In range"
         case .nearMin:    return "Near min"
@@ -16,7 +16,7 @@ enum RangeStatus: Equatable {
         }
     }
 
-    var needsAttention: Bool {
+    public var needsAttention: Bool {
         switch self {
         case .nearMin, .nearMax, .outOfRange, .unknown: return true
         case .inRange, .fullRange: return false
@@ -25,10 +25,10 @@ enum RangeStatus: Equatable {
 }
 
 /// Where the range band and the current-price marker sit on a 0…1 gauge.
-struct RangeGaugeLayout: Equatable {
-    var bandStart: Double
-    var bandEnd: Double
-    var marker: Double
+public struct RangeGaugeLayout: Equatable {
+    public var bandStart: Double
+    public var bandEnd: Double
+    public var marker: Double
     /// The current price is further away than the gauge shows; the marker sits at the edge.
     var isMarkerClamped: Bool
 
@@ -69,9 +69,9 @@ struct RangeGaugeLayout: Equatable {
 }
 
 /// Status item text. Range problems are left to the popover's Needs attention chip.
-enum MenuBarTitle {
+public enum MenuBarTitle {
     /// "$48.2k │ $312.58", with `trend` (an arrow while the fees change).
-    static func text(valueUSD: Double, feesUSD: Double, trend: String? = nil) -> String {
+    public static func text(valueUSD: Double, feesUSD: Double, trend: String? = nil) -> String {
         let title = "\(PositionPresentation.compactUSD(valueUSD)) │ \(formatUSD(feesUSD))"
         return trend.map { "\(title) \($0)" } ?? title
     }
@@ -79,7 +79,7 @@ enum MenuBarTitle {
 
 extension Position {
     /// The position's page on app.uniswap.org.
-    var uniswapURL: URL? {
+    public var uniswapURL: URL? {
         let slug = SupportedChain.byID(chainID)?.uniswapChainSlug ?? chainID
         return URL(string: isV4
             ? "https://app.uniswap.org/positions/v4/\(slug)/\(tokenId)"
@@ -87,14 +87,14 @@ extension Position {
     }
 
     /// v4 pools have no contract of their own; they are identified by the PoolKey hash.
-    var poolReference: String? {
+    public var poolReference: String? {
         isV4 ? poolId.map { "0x" + $0.hexString } : poolAddress
     }
 }
 
 /// Display values for one position: which token prices the other, range bounds as prices,
 /// status and gauge geometry.
-struct PositionPresentation {
+public struct PositionPresentation {
     /// Share of the range width next to either bound that counts as near the edge.
     static let nearEdgeFraction = 0.03
 
@@ -105,19 +105,19 @@ struct PositionPresentation {
         "weth", "eth", "wbtc", "cbbtc", "btcb",
     ]
 
-    let pairLabel: String
-    let baseSymbol: String
-    let quoteSymbol: String
-    let isInverted: Bool
-    let status: RangeStatus
-    let minPrice: String
-    let maxPrice: String
-    let currentPrice: String?
+    public let pairLabel: String
+    public let baseSymbol: String
+    public let quoteSymbol: String
+    public let isInverted: Bool
+    public let status: RangeStatus
+    public let minPrice: String
+    public let maxPrice: String
+    public let currentPrice: String?
     /// "4.2% below" while out of range.
-    let distanceLabel: String?
-    let gauge: RangeGaugeLayout?
+    public let distanceLabel: String?
+    public let gauge: RangeGaugeLayout?
 
-    init(_ pos: Position) {
+    public init(_ pos: Position) {
         let inverted = Self.showsInverted(sym0: pos.sym0, sym1: pos.sym1)
         isInverted = inverted
         baseSymbol = inverted ? pos.sym1 : pos.sym0
@@ -172,7 +172,7 @@ struct PositionPresentation {
         pow(1.0001, Double(tick)) * pow(10, Double(dec0 - dec1))
     }
 
-    static func status(_ pos: Position, tick: Int?, inverted: Bool) -> RangeStatus {
+    public static func status(_ pos: Position, tick: Int?, inverted: Bool) -> RangeStatus {
         if pos.error != nil { return .unknown }
         if pos.isFullRange { return .fullRange }
         guard let tick else {
@@ -189,7 +189,7 @@ struct PositionPresentation {
         return .inRange
     }
 
-    static func distanceLabel(tick: Int, lower: Int, upper: Int, inverted: Bool) -> String {
+    public static func distanceLabel(tick: Int, lower: Int, upper: Int, inverted: Bool) -> String {
         let belowLowerTick = tick < lower
         let diff = belowLowerTick ? lower - tick : tick - upper
         let direction = belowLowerTick != inverted ? "below" : "above"
@@ -211,7 +211,7 @@ struct PositionPresentation {
     }
 
     /// "$48.2k" for the menu bar, where width is scarce.
-    static func compactUSD(_ x: Double) -> String {
+    public static func compactUSD(_ x: Double) -> String {
         switch x {
         case 1_000_000...: return String(format: "$%.1fM", x / 1_000_000)
         case 10_000...:    return String(format: "$%.1fk", x / 1_000)

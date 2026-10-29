@@ -2,25 +2,25 @@ import Foundation
 
 /// The transaction that collects a position's unclaimed fees to its owner, ready for a wallet
 /// to sign. Poolser never signs: the browser page hands this to the user's wallet.
-struct CollectRequest: Equatable {
-    let chainId: Int
-    let chainName: String
+public struct CollectRequest: Equatable {
+    public let chainId: Int
+    public let chainName: String
     /// The position manager the transaction is sent to.
-    let to: String
-    let data: Data
-    let owner: String
-    let pairLabel: String
-    let tokenId: String
-    let versionLabel: String
+    public let to: String
+    public let data: Data
+    public let owner: String
+    public let pairLabel: String
+    public let tokenId: String
+    public let versionLabel: String
     /// "$84.12" when priced, else the token amounts.
-    let feesLabel: String
-    let explorerTxPrefix: String?
+    public let feesLabel: String
+    public let explorerTxPrefix: String?
 
     /// How long a v4 transaction stays valid after the page is opened.
     static let deadlineWindow: TimeInterval = 20 * 60
 
     /// Something to collect, a known position manager and, for v4, the PoolKey's currencies.
-    static func canCollect(_ pos: Position) -> Bool {
+    public static func canCollect(_ pos: Position) -> Bool {
         guard pos.error == nil, pos.feesError == nil, pos.fees0 > 0 || pos.fees1 > 0,
               UInt64(pos.tokenId) != nil, let chain = SupportedChain.byID(pos.chainID) else { return false }
         if pos.isV4 {
@@ -29,7 +29,7 @@ struct CollectRequest: Equatable {
         return chain.v3NFPM != nil
     }
 
-    init?(position pos: Position, owner: String, now: Date = Date()) {
+    public init?(position pos: Position, owner: String, now: Date = Date()) {
         guard Self.canCollect(pos), Self.isAddress(owner),
               let tokenId = UInt64(pos.tokenId),
               let chain = SupportedChain.byID(pos.chainID) else { return nil }
@@ -59,7 +59,7 @@ struct CollectRequest: Equatable {
         string.count == 42 && string.hasPrefix("0x") && string.dropFirst(2).allSatisfy(\.isHexDigit)
     }
 
-    static func explorerTxPrefix(chainID: String) -> String? {
+    public static func explorerTxPrefix(chainID: String) -> String? {
         switch chainID {
         case "ethereum":  return "https://etherscan.io/tx/"
         case "base":      return "https://basescan.org/tx/"

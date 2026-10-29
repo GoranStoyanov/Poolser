@@ -4,36 +4,36 @@ import Foundation
 /// as the contracts allow: every v3 position in one NonfungiblePositionManager `multicall`, every
 /// v4 position in one PositionManager `modifyLiquidities`. Poolser never signs: the browser page
 /// hands the transactions to the user's wallet.
-struct CollectBatch: Equatable {
+public struct CollectBatch: Equatable {
     /// A position the batch can collect, as the page lists it.
-    struct Item: Equatable {
+    public struct Item: Equatable {
         /// `Position.id`, which the page sends back to select the position.
-        let id: String
-        let tokenId: UInt64
+        public let id: String
+        public let tokenId: UInt64
         let isV4: Bool
         /// The PoolKey's currencies, for v4.
         let currency0: String?
         let currency1: String?
-        let pairLabel: String
-        let versionLabel: String
-        let feesLabel: String
-        let feesUSD: Double?
+        public let pairLabel: String
+        public let versionLabel: String
+        public let feesLabel: String
+        public let feesUSD: Double?
     }
 
-    struct Transaction: Equatable {
-        let to: String
-        let data: Data
-        let versionLabel: String
+    public struct Transaction: Equatable {
+        public let to: String
+        public let data: Data
+        public let versionLabel: String
         /// The `Item.id`s it collects, in calldata order.
         let itemIDs: [String]
     }
 
-    let chain: SupportedChain
-    let owner: String
-    let items: [Item]
+    public let chain: SupportedChain
+    public let owner: String
+    public let items: [Item]
 
     /// Every position on `chainID` that `CollectRequest.canCollect` accepts; nil when there is none.
-    init?(chainID: String, positions: [Position], owner: String) {
+    public init?(chainID: String, positions: [Position], owner: String) {
         guard CollectRequest.isAddress(owner), let chain = SupportedChain.byID(chainID) else { return nil }
         let items = positions
             .filter { $0.chainID == chainID && CollectRequest.canCollect($0) }
@@ -52,7 +52,7 @@ struct CollectBatch: Equatable {
     }
 
     /// "3 positions on Ethereum".
-    var subject: String {
+    public var subject: String {
         "\(items.count) position\(items.count == 1 ? "" : "s") on \(chain.displayName)"
     }
 
@@ -92,17 +92,17 @@ struct CollectBatch: Equatable {
     }
 
     /// A chain with fees to collect, as the Collect all menu offers it.
-    struct ChainSummary: Identifiable, Equatable {
-        let chainID: String
+    public struct ChainSummary: Identifiable, Equatable {
+        public let chainID: String
         let chainName: String
-        let count: Int
+        public let count: Int
         /// Nil when no position on the chain is priced.
         let feesUSD: Double?
 
-        var id: String { chainID }
+        public var id: String { chainID }
 
         /// "Ethereum · 3 positions · $412.00".
-        var label: String {
+        public var label: String {
             var parts = [chainName, "\(count) position\(count == 1 ? "" : "s")"]
             if let feesUSD { parts.append(formatUSD(feesUSD)) }
             return parts.joined(separator: " · ")
@@ -110,7 +110,7 @@ struct CollectBatch: Equatable {
     }
 
     /// Chains with something to collect, the most valuable first.
-    static func chains(in positions: [Position]) -> [ChainSummary] {
+    public static func chains(in positions: [Position]) -> [ChainSummary] {
         let collectable = positions.filter { CollectRequest.canCollect($0) }
         return Dictionary(grouping: collectable, by: \.chainID)
             .compactMap { chainID, group -> ChainSummary? in
@@ -126,20 +126,20 @@ struct CollectBatch: Equatable {
 }
 
 /// What a selection of a batch would send, checked from the owner's address, and what it costs.
-struct CollectBatchCheck: Equatable {
-    var transactions: [CollectBatch.Transaction] = []
+public struct CollectBatchCheck: Equatable {
+    public var transactions: [CollectBatch.Transaction] = []
     /// Gas for all the transactions together.
     var gas = 0
     var gasPriceWei: Int?
     /// Items that make their transaction revert, with the node's reason. They are left out of
     /// `transactions`.
-    var failing: [String: String] = [:]
+    public var failing: [String: String] = [:]
     /// Why the selection cannot be sent: the node could not be asked, or a transaction reverts
     /// although each of its positions passes alone.
-    var error: String?
+    public var error: String?
 
     /// "≈ $0.84" from the native token's USD price; gas units when there is no price.
-    func feeLabel(nativeUSD: Double?) -> String? {
+    public func feeLabel(nativeUSD: Double?) -> String? {
         guard error == nil, !transactions.isEmpty, gas > 0 else { return nil }
         guard let gasPriceWei, let nativeUSD else { return "≈ \(gas.formatted(.number.locale(Locale(identifier: "en_US")))) gas" }
         let usd = Double(gas) * Double(gasPriceWei) / 1e18 * nativeUSD
@@ -148,14 +148,14 @@ struct CollectBatchCheck: Equatable {
 }
 
 /// Dry runs and gas estimates for a batch against the chain's RPC node.
-struct CollectBatchChecker: Sendable {
+public struct CollectBatchChecker: Sendable {
     /// Runs a transaction from `from` and returns its gas; throws when it would revert.
     var estimateGas: @Sendable (_ to: String, _ data: Data, _ from: String) async throws -> Int
     /// eth_call from `from`; throws when it would revert.
     var dryRun: @Sendable (_ to: String, _ data: Data, _ from: String) async throws -> Void
     var gasPrice: @Sendable () async throws -> Int
 
-    init(
+    public init(
         estimateGas: @escaping @Sendable (String, Data, String) async throws -> Int,
         dryRun: @escaping @Sendable (String, Data, String) async throws -> Void,
         gasPrice: @escaping @Sendable () async throws -> Int
@@ -165,7 +165,7 @@ struct CollectBatchChecker: Sendable {
         self.gasPrice = gasPrice
     }
 
-    init(client: EthereumClient) {
+    public init(client: EthereumClient) {
         estimateGas = { to, data, from in try await client.ethEstimateGas(to: to, data: data, from: from) }
         dryRun = { to, data, from in _ = try await client.ethCall(to: to, data: data, from: from) }
         gasPrice = { try await client.ethGasPrice() }
@@ -174,7 +174,7 @@ struct CollectBatchChecker: Sendable {
     /// Estimates each transaction for `ids`, which executes it from the owner like a dry run.
     /// When one reverts, each of its positions is tried alone so the failing ones can be named;
     /// those are left out and the rest checked again.
-    func check(_ batch: CollectBatch, ids: Set<String>, now: Date = Date()) async -> CollectBatchCheck {
+    public func check(_ batch: CollectBatch, ids: Set<String>, now: Date = Date()) async -> CollectBatchCheck {
         var result = CollectBatchCheck()
         var remaining = ids
         // Each pass either succeeds, stops on an error, or drops at least one failing item.

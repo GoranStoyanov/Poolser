@@ -1,4 +1,5 @@
 import Foundation
+import PoolserKit
 
 /// The page the browser opens to collect from several positions on one chain. It lists the
 /// positions with checkboxes, asks the app to rebuild and check the transactions whenever the

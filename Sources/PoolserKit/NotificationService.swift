@@ -1,6 +1,6 @@
 import UserNotifications
 
-struct NotificationService {
+public struct NotificationService {
 
     private static let stateKey = "rangeNotificationState"
 
@@ -28,7 +28,7 @@ struct NotificationService {
     }()
 
     /// Requests macOS notification permission. Safe to call multiple times.
-    static func requestAuthorization() {
+    public static func requestAuthorization() {
         guard isAvailable else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
@@ -97,10 +97,10 @@ struct NotificationService {
     // MARK: - Persistence
 
     private static func loadState() -> [String: Bool] {
-        UserDefaults.standard.dictionary(forKey: stateKey) as? [String: Bool] ?? [:]
+        PoolserDefaults.store.dictionary(forKey: stateKey) as? [String: Bool] ?? [:]
     }
 
     private static func saveState(_ state: [String: Bool]) {
-        UserDefaults.standard.set(state, forKey: stateKey)
+        PoolserDefaults.store.set(state, forKey: stateKey)
     }
 }

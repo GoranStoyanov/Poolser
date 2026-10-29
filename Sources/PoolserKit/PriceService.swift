@@ -1,7 +1,7 @@
 import Foundation
 
-actor PriceService {
-    typealias Fetcher = @Sendable (
+public actor PriceService {
+    public typealias Fetcher = @Sendable (
         _ addresses: [String], _ coingeckoPlatformID: String, _ defiLlamaChainKey: String
     ) async -> [String: Double]
 
@@ -22,7 +22,7 @@ actor PriceService {
     /// The default TTL stays below the shortest refresh interval (1 min), so every scheduled
     /// refresh sees fresh prices while repeated manual refreshes and the per-refresh call sites
     /// reuse one fetch.
-    init(
+    public init(
         ttl: TimeInterval = 55,
         now: @escaping @Sendable () -> Date = { Date() },
         fetcher: Fetcher? = nil
@@ -37,7 +37,7 @@ actor PriceService {
     /// Returns a map of lowercase address → USD price.
     /// Serves cached prices younger than the TTL and joins requests already in flight; the rest
     /// are fetched from CoinGecko, with missing tokens backfilled from DefiLlama.
-    func fetchPrices(
+    public func fetchPrices(
         for addresses: [String],
         coingeckoPlatformID: String,
         defiLlamaChainKey: String
