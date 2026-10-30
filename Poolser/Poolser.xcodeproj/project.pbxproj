@@ -713,6 +713,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PoolserIOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_PREVIEWS = YES;
@@ -741,6 +742,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = PoolserIOS.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				ENABLE_PREVIEWS = YES;
