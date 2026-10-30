@@ -7,7 +7,7 @@
 //
 // The macOS widget uses this bundle ID plus ".Widget" and the App Group
 // "<DEVELOPMENT_TEAM>.poolser". The iOS app and widget use ".iOS" and
-// ".iOS.Widget", with their own App Group "<DEVELOPMENT_TEAM>.poolser-ios".
+// ".iOS.Widget", with their own App Group "group.<DEVELOPMENT_TEAM>.poolser-ios".
 
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
 PRODUCT_BUNDLE_IDENTIFIER = com.yourname.Poolser
