@@ -58,3 +58,7 @@ enable repo hooks once with `git config core.hooksPath .githooks`.
   folder) renders `PortfolioSnapshot`, which the app writes to the App Group container after
   each refresh. Layouts live in PoolserKit so an iOS widget can share them. Version and build
   number are project-level settings so the app and the extension always match.
+- `PoolserIOS` and `PoolserIOSWidget` are Xcode-only targets. The iOS app refreshes on foreground
+  and through a background refresh task; its widget reads a snapshot from a separate iOS App Group.
+  They also share a Keychain access group. The Graphite position card and chain icon live in
+  PoolserKit for both apps.

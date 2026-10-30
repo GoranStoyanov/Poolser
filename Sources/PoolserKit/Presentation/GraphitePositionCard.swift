@@ -1,7 +1,6 @@
 import SwiftUI
-import PoolserKit
 
-struct GraphitePositionCard: View {
+public struct GraphitePositionCard: View {
     let position: Position
     /// Fees earned per day, oldest first; the mini chart is hidden while nil.
     var recentDailyFees: [Double]? = nil
@@ -10,10 +9,24 @@ struct GraphitePositionCard: View {
     /// Nil when every position is on one chain or the list is already filtered to this one.
     var onShowOnlyChain: (() -> Void)? = nil
 
+    public init(
+        position: Position,
+        recentDailyFees: [Double]? = nil,
+        onOpen: (() -> Void)? = nil,
+        onCollect: (() -> Void)? = nil,
+        onShowOnlyChain: (() -> Void)? = nil
+    ) {
+        self.position = position
+        self.recentDailyFees = recentDailyFees
+        self.onOpen = onOpen
+        self.onCollect = onCollect
+        self.onShowOnlyChain = onShowOnlyChain
+    }
+
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
 
-    var body: some View {
+    public var body: some View {
         if let error = position.error {
             errorCard(error)
         } else {
@@ -368,12 +381,18 @@ struct PriceRangeGauge: View {
 /// the share of the value already earned back in fees. Pours in and sloshes from side to side
 /// when shown or when the level changes, then settles; it stays still otherwise, so an open
 /// popover costs nothing.
-struct PoolWater: View {
+public struct PoolWater: View {
     /// All-time fees over value, clamped to 0…1. Drawn above a fixed `base` so the bottom of the
     /// container always sits in water; 1 fills it.
     let level: Double
     var base = 0.14
     var amplitude: CGFloat = 3.5
+
+    public init(level: Double, base: Double = 0.14, amplitude: CGFloat = 3.5) {
+        self.level = level
+        self.base = base
+        self.amplitude = amplitude
+    }
 
     @State private var shownLevel = 0.0
     @State private var restPhase = 0.0
@@ -381,7 +400,7 @@ struct PoolWater: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
+    public var body: some View {
         let palette = GraphitePalette.current(colorScheme)
         TimelineView(.animation(paused: sloshStart == nil)) { context in
             let elapsed = sloshStart.map { context.date.timeIntervalSince($0) }
@@ -510,8 +529,10 @@ struct PoolGauge: View {
 }
 
 /// The logo's eyes, small enough to sit beside a caption.
-struct PoolEyes: View {
-    var body: some View {
+public struct PoolEyes: View {
+    public init() {}
+
+    public var body: some View {
         HStack(spacing: 1.5) {
             eye
             eye
@@ -655,12 +676,18 @@ struct TokenPairAvatar: View {
 
 /// Capsule chip. A custom style rather than `.plain` with a background on the label, which
 /// clips the capsule's rounded ends on macOS.
-struct GraphiteChipButtonStyle: ButtonStyle {
+public struct GraphiteChipButtonStyle: ButtonStyle {
     let foreground: Color
     let background: Color
     let border: Color
 
-    func makeBody(configuration: Configuration) -> some View {
+    public init(foreground: Color, background: Color, border: Color) {
+        self.foreground = foreground
+        self.background = background
+        self.border = border
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.caption.weight(.semibold))
             .foregroundStyle(foreground)
@@ -673,10 +700,12 @@ struct GraphiteChipButtonStyle: ButtonStyle {
     }
 }
 
-struct GraphiteStrongButtonStyle: ButtonStyle {
+public struct GraphiteStrongButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var colorScheme
 
-    func makeBody(configuration: Configuration) -> some View {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
         let palette = GraphitePalette.current(colorScheme)
         configuration.label
             .font(.caption.weight(.semibold))

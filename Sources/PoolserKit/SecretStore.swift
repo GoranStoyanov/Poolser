@@ -9,15 +9,20 @@ protocol SecretStore {
     func set(_ value: String, forAccount account: String) -> Bool
 }
 
-/// Generic-password items in the login keychain. Uses the file-based keychain rather than the
-/// data protection one, which needs a signed app with a keychain access group and so would fail
-/// for the unsigned SwiftPM build. A sandboxed app can read and write its own items without
-/// extra entitlements.
+/// Generic-password items. macOS keeps the file-based login keychain for unsigned SwiftPM builds;
+/// iOS uses the access group shared by its app and widget.
 struct KeychainStore: SecretStore {
     let service: String
+    let accessGroup: String?
 
-    init(service: String = Bundle.main.bundleIdentifier ?? "Poolser") {
-        self.service = service
+    init(service: String? = nil) {
+        #if os(iOS)
+        self.service = service ?? "PoolserIOS"
+        accessGroup = Bundle.main.object(forInfoDictionaryKey: "PoolserKeychainGroup") as? String
+        #else
+        self.service = service ?? Bundle.main.bundleIdentifier ?? "Poolser"
+        accessGroup = nil
+        #endif
     }
 
     func string(forAccount account: String) -> String? {
@@ -47,10 +52,12 @@ struct KeychainStore: SecretStore {
     }
 
     private func baseQuery(account: String) -> [String: Any] {
-        [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
+        if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
+        return query
     }
 }

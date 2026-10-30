@@ -44,7 +44,7 @@ struct PortfolioSnapshotTests {
         #expect(snapshot.dailyFeesUSD == [1, 2])
     }
 
-    @Test func itemsPutAttentionFirstThenValueAndStopAtFour() {
+    @Test func itemsPutAttentionFirstThenValueAndIncludeEveryPosition() {
         let snapshot = PortfolioSnapshot(
             positions: [
                 makePosition("1", value: 10),
@@ -56,7 +56,9 @@ struct PortfolioSnapshotTests {
             dailyFeesUSD: nil,
             updatedAt: now
         )
-        #expect(snapshot.items.map(\.id) == ["ethereum-v3-3", "ethereum-v3-2", "ethereum-v3-4", "ethereum-v3-5"])
+        #expect(snapshot.items.map(\.id) == [
+            "ethereum-v3-3", "ethereum-v3-2", "ethereum-v3-4", "ethereum-v3-5", "ethereum-v3-1"
+        ])
         #expect(snapshot.items.first?.status == .outOfRange)
         #expect(snapshot.items.first?.pairLabel == "WETH/USDC")
         #expect(snapshot.items.first?.chainName == "Ethereum")
@@ -66,12 +68,17 @@ struct PortfolioSnapshotTests {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("PortfolioSnapshot-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
-        let snapshot = PortfolioSnapshot(
-            positions: [makePosition("1", value: 100, fees: 2)], dailyFeesUSD: [0.5], updatedAt: now
-        )
+        var position = makePosition("1", value: 100, fees: 2)
+        position.poolAddress = "0x1234"
+        position.dec0 = 18
+        position.dec1 = 6
+        let snapshot = PortfolioSnapshot(positions: [position], dailyFeesUSD: [0.5], updatedAt: now)
 
         #expect(PortfolioSnapshotStore.save(snapshot, to: url))
         #expect(PortfolioSnapshotStore.load(from: url) == snapshot)
+        #expect(snapshot.items[0].pool?.reference == "0x1234")
+        #expect(snapshot.items[0].pool?.tickLower == -100)
+        #expect(snapshot.items[0].pool?.token1Decimals == 6)
 
         #expect(PortfolioSnapshotStore.save(nil, to: url))
         #expect(PortfolioSnapshotStore.load(from: url) == nil)

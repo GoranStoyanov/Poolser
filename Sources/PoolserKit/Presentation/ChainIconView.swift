@@ -1,17 +1,16 @@
 import SwiftUI
-import PoolserKit
 
-struct ChainIconView: View {
+public struct ChainIconView: View {
     let chain: SupportedChain
     let size: CGFloat
     @ObservedObject private var iconStore = NetworkIconStore.shared
 
-    init(chain: SupportedChain, size: CGFloat = 16) {
+    public init(chain: SupportedChain, size: CGFloat = 16) {
         self.chain = chain
         self.size = size
     }
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let icon = iconStore.icon(for: chain) {
                 Image(platformImage: icon)
