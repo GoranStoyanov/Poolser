@@ -3,6 +3,29 @@ import Foundation
 /// What the widgets show, written by the app after each refresh. Widgets render it as is: an
 /// extension has neither the memory nor the run time to read positions from the chain.
 public struct PortfolioSnapshot: Codable, Equatable, Sendable {
+    public struct PoolSeed: Codable, Equatable, Sendable {
+        public let chainID: String
+        public let reference: String
+        public let isV4: Bool
+        public let tickLower: Int
+        public let tickUpper: Int
+        public let liquidity: Double
+        public let token0Decimals: Int
+        public let token1Decimals: Int
+
+        init?(_ position: Position) {
+            guard let reference = position.poolReference else { return nil }
+            chainID = position.chainID
+            self.reference = reference
+            isV4 = position.isV4
+            tickLower = position.tickLower
+            tickUpper = position.tickUpper
+            liquidity = position.liquidity
+            token0Decimals = position.dec0
+            token1Decimals = position.dec1
+        }
+    }
+
     public struct Item: Codable, Equatable, Sendable, Identifiable {
         /// `Position.id`.
         public let id: String
@@ -14,10 +37,13 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
         /// "4.2% below" while out of range.
         public let distanceLabel: String?
         public let gauge: RangeGaugeLayout?
+        /// Present when the pool was identified, so a future light refresh can reuse it.
+        public let pool: PoolSeed?
 
         public init(
             id: String, pairLabel: String, chainName: String, valueUSD: Double?, feesUSD: Double?,
-            status: RangeStatus, distanceLabel: String? = nil, gauge: RangeGaugeLayout? = nil
+            status: RangeStatus, distanceLabel: String? = nil, gauge: RangeGaugeLayout? = nil,
+            pool: PoolSeed? = nil
         ) {
             self.id = id
             self.pairLabel = pairLabel
@@ -27,11 +53,9 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
             self.status = status
             self.distanceLabel = distanceLabel
             self.gauge = gauge
+            self.pool = pool
         }
     }
-
-    /// The largest widget lists three positions; one more lets a layout tell that some are left out.
-    static let maxItems = 4
 
     public let updatedAt: Date
     public let totalValueUSD: Double
@@ -42,7 +66,7 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
     /// Positions near a bound, out of range or unreadable.
     public let attentionCount: Int
     public let chainCount: Int
-    /// Positions that need attention first, then by value, at most `maxItems`.
+    /// Every position, with those needing attention first, then by value. Widgets show the top three.
     public let items: [Item]
 
     public init(
@@ -75,12 +99,13 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
             positionCount: positions.count,
             attentionCount: presented.filter { $0.1.status.needsAttention }.count,
             chainCount: Set(positions.map(\.chainID)).count,
-            items: ranked.prefix(Self.maxItems).map { entry in
+            items: ranked.map { entry in
                 let (pos, view) = entry.element
                 return Item(
                     id: pos.id, pairLabel: view.pairLabel, chainName: pos.chainName,
                     valueUSD: pos.positionUSD, feesUSD: pos.usd, status: view.status,
-                    distanceLabel: view.distanceLabel, gauge: view.gauge
+                    distanceLabel: view.distanceLabel, gauge: view.gauge,
+                    pool: PoolSeed(pos)
                 )
             }
         )

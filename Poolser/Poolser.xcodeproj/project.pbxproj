@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */; };
 		53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */; };
 		53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */; };
 		53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */; };
@@ -17,7 +16,6 @@
 		53C0A13C2FC0C0DE00B5EC27 /* BatchCollectPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */; };
 		53FAE1322F8F628F00C82982 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1252F8F628F00C82982 /* LogsView.swift */; };
 		53FAE1352F8F628F00C82982 /* PoolserApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12A2F8F628F00C82982 /* PoolserApp.swift */; };
-		53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1212F8F628F00C82982 /* ChainIconView.swift */; };
 		53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE11E2F8F628F00C82982 /* AppDelegate.swift */; };
 		53FAE13B2F8F628F00C82982 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE12F2F8F628F00C82982 /* SettingsView.swift */; };
 		53FAE13D2F8F628F00C82982 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */; };
@@ -25,6 +23,9 @@
 		53D0A0032FD0C0DE00B5EC27 /* PoolserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 53D0A0022FD0C0DE00B5EC27 /* PoolserKit */; };
 		53E0B0112FE0C0DE00B5EC27 /* PoolserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 53E0B0102FE0C0DE00B5EC27 /* PoolserKit */; };
 		53E0B0122FE0C0DE00B5EC27 /* PoolserWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 53E0B0012FE0C0DE00B5EC27 /* PoolserWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		53F0A0112FE0C0DE00B5EC27 /* PoolserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 53F0A0102FE0C0DE00B5EC27 /* PoolserKit */; };
+		53F0A0122FE0C0DE00B5EC27 /* PoolserIOSWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 53F0A0212FE0C0DE00B5EC27 /* PoolserIOSWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		53F0A0312FE0C0DE00B5EC27 /* PoolserKit in Frameworks */ = {isa = PBXBuildFile; productRef = 53F0A0302FE0C0DE00B5EC27 /* PoolserKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,6 +35,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 53E0B0032FE0C0DE00B5EC27;
 			remoteInfo = PoolserWidget;
+		};
+		53F0A0142FE0C0DE00B5EC27 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 53FAE0E12F8ECAC700C82982 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 53F0A0232FE0C0DE00B5EC27;
+			remoteInfo = PoolserIOSWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -49,11 +57,21 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		53F0A0132FE0C0DE00B5EC27 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				53F0A0122FE0C0DE00B5EC27 /* PoolserIOSWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
-		53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePositionCard.swift; path = ../Sources/Poolser/Graphite/GraphitePositionCard.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
 		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
 		53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreScreenshots.swift; path = ../Sources/Poolser/Graphite/StoreScreenshots.swift; sourceTree = SOURCE_ROOT; };
@@ -63,7 +81,6 @@
 		53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BatchCollectPage.swift; path = ../Sources/Poolser/Collect/BatchCollectPage.swift; sourceTree = SOURCE_ROOT; };
 		53FAE0E92F8ECAC700C82982 /* Poolser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poolser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		53FAE11E2F8F628F00C82982 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ../Sources/Poolser/AppDelegate.swift; sourceTree = SOURCE_ROOT; };
-		53FAE1212F8F628F00C82982 /* ChainIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChainIconView.swift; path = ../Sources/Poolser/ChainIconView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1252F8F628F00C82982 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LogsView.swift; path = ../Sources/Poolser/LogsView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MenuBarContentView.swift; path = ../Sources/Poolser/MenuBarContentView.swift; sourceTree = SOURCE_ROOT; };
 		53FAE1292F8F628F00C82982 /* Poolser.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = Poolser.entitlements; path = ../Sources/Poolser/Poolser.entitlements; sourceTree = SOURCE_ROOT; };
@@ -74,6 +91,12 @@
 		53E0B0162FE0C0DE00B5EC27 /* Poolser-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Poolser-Info.plist"; sourceTree = "<group>"; };
 		53E0B0172FE0C0DE00B5EC27 /* PoolserWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "PoolserWidget-Info.plist"; sourceTree = "<group>"; };
 		53E0B0182FE0C0DE00B5EC27 /* PoolserWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PoolserWidget.entitlements; sourceTree = "<group>"; };
+		53F0A0012FE0C0DE00B5EC27 /* PoolserIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PoolserIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		53F0A0162FE0C0DE00B5EC27 /* PoolserIOS-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "PoolserIOS-Info.plist"; sourceTree = "<group>"; };
+		53F0A0172FE0C0DE00B5EC27 /* PoolserIOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PoolserIOS.entitlements; sourceTree = "<group>"; };
+		53F0A0212FE0C0DE00B5EC27 /* PoolserIOSWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PoolserIOSWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		53F0A0322FE0C0DE00B5EC27 /* PoolserIOSWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "PoolserIOSWidget-Info.plist"; sourceTree = "<group>"; };
+		53F0A0332FE0C0DE00B5EC27 /* PoolserIOSWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PoolserIOSWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -85,6 +108,16 @@
 		53E0B0022FE0C0DE00B5EC27 /* PoolserWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = PoolserWidget;
+			sourceTree = "<group>";
+		};
+		53F0A0022FE0C0DE00B5EC27 /* PoolserIOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PoolserIOS;
+			sourceTree = "<group>";
+		};
+		53F0A0222FE0C0DE00B5EC27 /* PoolserIOSWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PoolserIOSWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -106,6 +139,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		53F0A0052FE0C0DE00B5EC27 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53F0A0112FE0C0DE00B5EC27 /* PoolserKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		53F0A0252FE0C0DE00B5EC27 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53F0A0312FE0C0DE00B5EC27 /* PoolserKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -114,7 +163,6 @@
 			children = (
 				5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */,
 				53FAE11E2F8F628F00C82982 /* AppDelegate.swift */,
-				53FAE1212F8F628F00C82982 /* ChainIconView.swift */,
 				53FAE1252F8F628F00C82982 /* LogsView.swift */,
 				53FAE1262F8F628F00C82982 /* MenuBarContentView.swift */,
 				53FAE1292F8F628F00C82982 /* Poolser.entitlements */,
@@ -125,7 +173,6 @@
 				53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */,
 				53C0A1372FC0C0DE00B5EC27 /* FeeCollector.swift */,
 				53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */,
-				53C0A1052FC0C0DE00B5EC27 /* GraphitePositionCard.swift */,
 				53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */,
 				53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */,
 				53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */,
@@ -134,6 +181,12 @@
 				53E0B0022FE0C0DE00B5EC27 /* PoolserWidget */,
 				53E0B0172FE0C0DE00B5EC27 /* PoolserWidget-Info.plist */,
 				53E0B0182FE0C0DE00B5EC27 /* PoolserWidget.entitlements */,
+				53F0A0022FE0C0DE00B5EC27 /* PoolserIOS */,
+				53F0A0162FE0C0DE00B5EC27 /* PoolserIOS-Info.plist */,
+				53F0A0172FE0C0DE00B5EC27 /* PoolserIOS.entitlements */,
+				53F0A0222FE0C0DE00B5EC27 /* PoolserIOSWidget */,
+				53F0A0322FE0C0DE00B5EC27 /* PoolserIOSWidget-Info.plist */,
+				53F0A0332FE0C0DE00B5EC27 /* PoolserIOSWidget.entitlements */,
 				53FAE0EA2F8ECAC700C82982 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -143,6 +196,8 @@
 			children = (
 				53FAE0E92F8ECAC700C82982 /* Poolser.app */,
 				53E0B0012FE0C0DE00B5EC27 /* PoolserWidget.appex */,
+				53F0A0012FE0C0DE00B5EC27 /* PoolserIOS.app */,
+				53F0A0212FE0C0DE00B5EC27 /* PoolserIOSWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -207,6 +262,54 @@
 			productReference = 53E0B0012FE0C0DE00B5EC27 /* PoolserWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		53F0A0032FE0C0DE00B5EC27 /* PoolserIOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 53F0A0072FE0C0DE00B5EC27 /* Build configuration list for PBXNativeTarget "PoolserIOS" */;
+			buildPhases = (
+				53F0A0042FE0C0DE00B5EC27 /* Sources */,
+				53F0A0052FE0C0DE00B5EC27 /* Frameworks */,
+				53F0A0062FE0C0DE00B5EC27 /* Resources */,
+				53F0A0132FE0C0DE00B5EC27 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				53F0A0152FE0C0DE00B5EC27 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				53F0A0022FE0C0DE00B5EC27 /* PoolserIOS */,
+			);
+			name = PoolserIOS;
+			packageProductDependencies = (
+				53F0A0102FE0C0DE00B5EC27 /* PoolserKit */,
+			);
+			productName = PoolserIOS;
+			productReference = 53F0A0012FE0C0DE00B5EC27 /* PoolserIOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		53F0A0232FE0C0DE00B5EC27 /* PoolserIOSWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 53F0A0272FE0C0DE00B5EC27 /* Build configuration list for PBXNativeTarget "PoolserIOSWidget" */;
+			buildPhases = (
+				53F0A0242FE0C0DE00B5EC27 /* Sources */,
+				53F0A0252FE0C0DE00B5EC27 /* Frameworks */,
+				53F0A0262FE0C0DE00B5EC27 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				53F0A0222FE0C0DE00B5EC27 /* PoolserIOSWidget */,
+			);
+			name = PoolserIOSWidget;
+			packageProductDependencies = (
+				53F0A0302FE0C0DE00B5EC27 /* PoolserKit */,
+			);
+			productName = PoolserIOSWidget;
+			productReference = 53F0A0212FE0C0DE00B5EC27 /* PoolserIOSWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -224,6 +327,12 @@
 					53E0B0032FE0C0DE00B5EC27 = {
 						CreatedOnToolsVersion = 27.1;
 					};
+				53F0A0032FE0C0DE00B5EC27 = {
+						CreatedOnToolsVersion = 27.1;
+				};
+				53F0A0232FE0C0DE00B5EC27 = {
+						CreatedOnToolsVersion = 27.1;
+				};
 				};
 			};
 			buildConfigurationList = 53FAE0E42F8ECAC700C82982 /* Build configuration list for PBXProject "Poolser" */;
@@ -245,6 +354,8 @@
 			targets = (
 				53FAE0E82F8ECAC700C82982 /* Poolser */,
 				53E0B0032FE0C0DE00B5EC27 /* PoolserWidget */,
+				53F0A0032FE0C0DE00B5EC27 /* PoolserIOS */,
+				53F0A0232FE0C0DE00B5EC27 /* PoolserIOSWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -265,6 +376,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		53F0A0062FE0C0DE00B5EC27 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		53F0A0262FE0C0DE00B5EC27 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -278,11 +403,9 @@
 				53C0A1362FC0C0DE00B5EC27 /* CollectPage.swift in Sources */,
 				53C0A1382FC0C0DE00B5EC27 /* FeeCollector.swift in Sources */,
 				53C0A13C2FC0C0DE00B5EC27 /* BatchCollectPage.swift in Sources */,
-				53C0A1062FC0C0DE00B5EC27 /* GraphitePositionCard.swift in Sources */,
 				53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */,
 				53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */,
 				53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */,
-				53FAE1392F8F628F00C82982 /* ChainIconView.swift in Sources */,
 				53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */,
 				53FAE13B2F8F628F00C82982 /* SettingsView.swift in Sources */,
 				53FAE13D2F8F628F00C82982 /* MenuBarContentView.swift in Sources */,
@@ -290,6 +413,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		53E0B0042FE0C0DE00B5EC27 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		53F0A0042FE0C0DE00B5EC27 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		53F0A0242FE0C0DE00B5EC27 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -304,6 +441,11 @@
 			target = 53E0B0032FE0C0DE00B5EC27 /* PoolserWidget */;
 			targetProxy = 53E0B0142FE0C0DE00B5EC27 /* PBXContainerItemProxy */;
 		};
+		53F0A0152FE0C0DE00B5EC27 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 53F0A0232FE0C0DE00B5EC27 /* PoolserIOSWidget */;
+			targetProxy = 53F0A0142FE0C0DE00B5EC27 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -313,6 +455,7 @@
 				CURRENT_PROJECT_VERSION = 4;
 				MARKETING_VERSION = 1.3;
 				POOLSER_APP_GROUP = "$(DEVELOPMENT_TEAM).poolser";
+				POOLSER_IOS_APP_GROUP = "group.$(DEVELOPMENT_TEAM).poolser-ios";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -380,6 +523,7 @@
 				CURRENT_PROJECT_VERSION = 4;
 				MARKETING_VERSION = 1.3;
 				POOLSER_APP_GROUP = "$(DEVELOPMENT_TEAM).poolser";
+				POOLSER_IOS_APP_GROUP = "group.$(DEVELOPMENT_TEAM).poolser-ios";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -565,6 +709,118 @@
 			};
 			name = Release;
 		};
+		53F0A0082FE0C0DE00B5EC27 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PoolserIOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "PoolserIOS-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Poolser;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).iOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		53F0A0092FE0C0DE00B5EC27 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = PoolserIOS.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "PoolserIOS-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Poolser;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).iOS";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		53F0A0282FE0C0DE00B5EC27 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PoolserIOSWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "PoolserIOSWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Poolser;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).iOS.Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		53F0A0292FE0C0DE00B5EC27 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PoolserIOSWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "PoolserIOSWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Poolser;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(inherited).iOS.Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -595,6 +851,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		53F0A0072FE0C0DE00B5EC27 /* Build configuration list for PBXNativeTarget "PoolserIOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53F0A0082FE0C0DE00B5EC27 /* Debug */,
+				53F0A0092FE0C0DE00B5EC27 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		53F0A0272FE0C0DE00B5EC27 /* Build configuration list for PBXNativeTarget "PoolserIOSWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53F0A0282FE0C0DE00B5EC27 /* Debug */,
+				53F0A0292FE0C0DE00B5EC27 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -611,6 +885,16 @@
 			productName = PoolserKit;
 		};
 		53E0B0102FE0C0DE00B5EC27 /* PoolserKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 53D0A0012FD0C0DE00B5EC27 /* XCLocalSwiftPackageReference ".." */;
+			productName = PoolserKit;
+		};
+		53F0A0102FE0C0DE00B5EC27 /* PoolserKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 53D0A0012FD0C0DE00B5EC27 /* XCLocalSwiftPackageReference ".." */;
+			productName = PoolserKit;
+		};
+		53F0A0302FE0C0DE00B5EC27 /* PoolserKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 53D0A0012FD0C0DE00B5EC27 /* XCLocalSwiftPackageReference ".." */;
 			productName = PoolserKit;

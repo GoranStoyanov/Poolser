@@ -39,15 +39,24 @@ public final class UniswapService: ObservableObject {
     private var widgetReload = WidgetReloadThrottle()
 
     public init() {
+        #if os(macOS)
         configureTimer()
         refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
             .removeDuplicates()
             .sink { [weak self] _ in self?.configureTimer() }
+        #endif
         dailyFees = feeLedger.dailyFees
         startLoad()
     }
 
     public func refresh() { startLoad() }
+
+    public func refreshAndWait() async {
+        startLoad()
+        await activeLoadTask?.value
+    }
+
+    public func cancelRefresh() { activeLoadTask?.cancel() }
 
     public func refreshForWalletChange() {
         positions = []
@@ -92,7 +101,11 @@ public final class UniswapService: ObservableObject {
             positions = []
             titleText = "– 👀"
             publishWidgetSnapshot(nil, updatedAt: Date())
+            #if os(macOS)
             lastError = "Configure wallet, Infura API key, and at least one enabled network in Settings (⌘,)"
+            #else
+            lastError = "Configure wallet, Infura API key, and at least one enabled network in Settings"
+            #endif
             return
         }
 
@@ -520,6 +533,7 @@ public final class UniswapService: ObservableObject {
         lastError = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
     }
 
+    #if os(macOS)
     private func configureTimer() {
         timer?.invalidate()
         let interval = TimeInterval(AppSettings.shared.refreshIntervalMinutes * 60)
@@ -527,4 +541,5 @@ public final class UniswapService: ObservableObject {
             Task { @MainActor in self?.startLoad() }
         }
     }
+    #endif
 }
