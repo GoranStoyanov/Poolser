@@ -137,3 +137,81 @@ public struct WalletListDraft: Equatable {
         if canAdd { add() }
     }
 }
+
+/// What the menu bar title totals.
+public enum MenuBarSource: Hashable, Sendable {
+    /// Every saved wallet together.
+    case allWallets
+    /// Whatever page the popover shows.
+    case shownPage
+    /// One wallet, by `SavedWallet.id`.
+    case wallet(String)
+
+    static let allWalletsValue = "all"
+    static let shownPageValue = "page"
+
+    init(rawValue: String?) {
+        switch rawValue {
+        case nil, Self.allWalletsValue?: self = .allWallets
+        case Self.shownPageValue?: self = .shownPage
+        case let id?: self = .wallet(id.lowercased())
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .allWallets: return Self.allWalletsValue
+        case .shownPage: return Self.shownPageValue
+        case .wallet(let id): return id
+        }
+    }
+}
+
+/// A page of the portfolio: every wallet together, or one of them.
+public enum WalletPage: Hashable, Identifiable, Sendable {
+    case allWallets
+    case wallet(SavedWallet)
+
+    public var id: String {
+        switch self {
+        case .allWallets: return PortfolioSnapshotStore.allWalletsID
+        case .wallet(let wallet): return wallet.id
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .allWallets: return "All Wallets"
+        case .wallet(let wallet): return wallet.displayName
+        }
+    }
+
+    /// Whether the title is a name rather than an address.
+    public var hasName: Bool {
+        switch self {
+        case .allWallets: return true
+        case .wallet(let wallet): return wallet.name != nil
+        }
+    }
+}
+
+extension AppSettings {
+    /// The pages in swipe order, All Wallets first once there are two wallets.
+    public var walletPages: [WalletPage] {
+        wallets.count > 1 ? [.allWallets] + wallets.map(WalletPage.wallet) : wallets.map(WalletPage.wallet)
+    }
+
+    public var shownPage: WalletPage? {
+        isShowingAllWallets ? .allWallets : activeWallet.map(WalletPage.wallet)
+    }
+
+    public func show(_ page: WalletPage) {
+        switch page {
+        case .allWallets:
+            showsAllWallets = true
+        case .wallet(let wallet):
+            showsAllWallets = false
+            walletAddress = wallet.address
+        }
+    }
+}

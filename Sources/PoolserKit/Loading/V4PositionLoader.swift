@@ -12,7 +12,8 @@ struct V4PositionLoader {
     let prices: PriceService
     let scanSettings: V4ScanSettings
 
-    func load(wallet: String) async -> LoaderOutput {
+    /// `balance` and `shared` come from reads made once for every wallet on the chain.
+    func load(wallet: String, balance: UInt64? = nil, shared: V4SharedTransfers? = nil) async -> LoaderOutput {
         guard let v4PM = chain.v4PM, let v4SV = chain.v4SV else {
             return LoaderOutput()
         }
@@ -29,9 +30,13 @@ struct V4PositionLoader {
         // 1 · Quick balance check (cheap — avoids log queries when wallet has no v4 positions)
         let v4Balance: UInt64
         do {
-            let numData = try await eth.ethCall(to: v4PM, data: ABI.callBalanceOf(owner: wallet))
-            guard numData.count >= 32 else { return LoaderOutput(error: "v4: unexpected balanceOf response") }
-            v4Balance = numData.readUInt64(wordAt: 0)
+            if let balance {
+                v4Balance = balance
+            } else {
+                let numData = try await eth.ethCall(to: v4PM, data: ABI.callBalanceOf(owner: wallet))
+                guard numData.count >= 32 else { return LoaderOutput(error: "v4: unexpected balanceOf response") }
+                v4Balance = numData.readUInt64(wordAt: 0)
+            }
         } catch EthereumClient.Err.noResult {
             return LoaderOutput(error: "v4: balanceOf returned no result (RPC did not return a usable payload)")
         } catch {
@@ -49,7 +54,7 @@ struct V4PositionLoader {
         )
         let ownership: V4Ownership
         do {
-            ownership = try await tracker.scan(wallet: wallet, balance: v4Balance)
+            ownership = try await tracker.scan(wallet: wallet, balance: v4Balance, shared: shared)
         } catch {
             return LoaderOutput(error: error.localizedDescription)
         }

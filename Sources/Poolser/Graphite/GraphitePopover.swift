@@ -5,8 +5,11 @@ import PoolserKit
 /// previewed with fixed data.
 struct PopoverSnapshot {
     var walletAddress: String
-    /// Every saved wallet, in page order.
-    var wallets: [SavedWallet] = []
+    /// All Wallets and every saved wallet, in swipe order; empty with a single wallet.
+    var pages: [WalletPage] = []
+    var shownPage: WalletPage?
+    /// The wallet holding each position, by `Position.id`; set on the All Wallets page only.
+    var walletNames: [String: String] = [:]
     var positions: [Position]
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
     var dailyFeesUSD: [Double]?
@@ -38,7 +41,8 @@ struct Notice: Equatable {
 }
 
 struct GraphitePopoverActions {
-    var selectWallet: ((String) -> Void)?
+    var selectPage: ((WalletPage) -> Void)?
+    /// Nil hides Collect all, as on the All Wallets page, whose chains mix wallets.
     var refresh: (() -> Void)?
     var settings: (() -> Void)?
     var logs: (() -> Void)?
@@ -74,7 +78,7 @@ struct GraphitePopover: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if snapshot.wallets.count > 1 {
+            if snapshot.pages.count > 1 {
                 pageDots
             }
             walletPage
@@ -86,7 +90,7 @@ struct GraphitePopover: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { popoverHeight = $0 }
         .background(palette.popover)
         .background {
-            if snapshot.wallets.count > 1 {
+            if snapshot.pages.count > 1 {
                 WalletSwipeMonitor(onChange: swipeChanged, onEnd: swipeEnded, onStep: { showWallet(step: $0) })
             }
         }
@@ -114,18 +118,18 @@ struct GraphitePopover: View {
     // MARK: - Wallet pages
 
     private var activeIndex: Int? {
-        snapshot.wallets.firstIndex { $0.matches(snapshot.walletAddress) }
+        snapshot.pages.firstIndex { $0.id == snapshot.shownPage?.id }
     }
 
-    private func adjacentWallet(_ step: Int) -> SavedWallet? {
+    private func adjacentPage(_ step: Int) -> WalletPage? {
         guard let index = activeIndex else { return nil }
         let target = index + step
-        return snapshot.wallets.indices.contains(target) ? snapshot.wallets[target] : nil
+        return snapshot.pages.indices.contains(target) ? snapshot.pages[target] : nil
     }
 
     private func swipeChanged(_ distance: CGFloat) {
         // Past the first or last wallet the page only gives a little.
-        let hasTarget = adjacentWallet(distance < 0 ? 1 : -1) != nil
+        let hasTarget = adjacentPage(distance < 0 ? 1 : -1) != nil
         pageOffset = hasTarget ? distance : distance * 0.25
     }
 
@@ -139,7 +143,7 @@ struct GraphitePopover: View {
 
     /// Slides the page out, switches wallets and slides the next one in from the other side.
     private func showWallet(step: Int) {
-        guard let target = adjacentWallet(step), let selectWallet = actions.selectWallet else {
+        guard let target = adjacentPage(step), let selectPage = actions.selectPage else {
             withAnimation(.snappy) { pageOffset = 0 }
             return
         }
@@ -147,7 +151,7 @@ struct GraphitePopover: View {
         withAnimation(.easeIn(duration: 0.12)) {
             pageOffset = step > 0 ? -width : width
         } completion: {
-            selectWallet(target.address)
+            selectPage(target)
             var placement = Transaction()
             placement.disablesAnimations = true
             withTransaction(placement) { pageOffset = step > 0 ? width : -width }
@@ -160,22 +164,31 @@ struct GraphitePopover: View {
 
     private var pageDots: some View {
         HStack(spacing: 6) {
-            ForEach(snapshot.wallets) { wallet in
-                let isActive = wallet.matches(snapshot.walletAddress)
+            ForEach(Array(snapshot.pages.enumerated()), id: \.element.id) { target, page in
+                let isActive = page.id == snapshot.shownPage?.id
                 Button {
-                    guard let index = activeIndex,
-                          let target = snapshot.wallets.firstIndex(of: wallet), target != index else { return }
+                    guard let index = activeIndex, target != index else { return }
                     showWallet(step: target - index)
                 } label: {
-                    Circle()
-                        .fill(isActive ? palette.primaryText : palette.secondaryText.opacity(0.35))
-                        .frame(width: 6, height: 6)
-                        .padding(2)
-                        .contentShape(Rectangle())
+                    Group {
+                        if page == .allWallets {
+                            // Like the location arrow on Weather's first page.
+                            Image(systemName: "square.stack.3d.up.fill")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(isActive ? AnyShapeStyle(palette.brand) : AnyShapeStyle(palette.secondaryText.opacity(0.35)))
+                        } else {
+                            Circle()
+                                .fill(isActive ? palette.primaryText : palette.secondaryText.opacity(0.35))
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                    .frame(width: 8, height: 8)
+                    .padding(2)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(wallet.displayName)
-                .accessibilityLabel(wallet.displayName)
+                .help(page.title)
+                .accessibilityLabel(page.title)
                 .accessibilityAddTraits(isActive ? .isSelected : [])
             }
         }
@@ -201,22 +214,25 @@ struct GraphitePopover: View {
     }
 
     private var walletLabel: String {
+        if let page = snapshot.shownPage { return page.title }
         let address = snapshot.walletAddress
-        if let wallet = snapshot.wallets.first(where: { $0.matches(address) }) { return wallet.displayName }
         return address.isEmpty ? "no wallet" : WalletAddress.short(address)
     }
 
     @ViewBuilder
     private var walletBadge: some View {
-        if snapshot.wallets.count > 1, actions.selectWallet != nil {
+        if snapshot.pages.count > 1, actions.selectPage != nil {
             Menu {
-                ForEach(Array(snapshot.wallets.enumerated()), id: \.element.id) { index, wallet in
+                ForEach(Array(snapshot.pages.enumerated()), id: \.element.id) { index, page in
                     Button {
                         guard let active = activeIndex, index != active else { return }
                         showWallet(step: index - active)
                     } label: {
-                        let title = wallet.name.map { "\($0)  \(WalletAddress.short(wallet.address))" } ?? wallet.address
-                        if wallet.matches(snapshot.walletAddress) {
+                        let title: String = {
+                            guard case .wallet(let wallet) = page else { return page.title }
+                            return wallet.name.map { "\($0)  \(WalletAddress.short(wallet.address))" } ?? wallet.address
+                        }()
+                        if page.id == snapshot.shownPage?.id {
                             Label(title, systemImage: "checkmark")
                         } else {
                             Text(title)
@@ -224,18 +240,27 @@ struct GraphitePopover: View {
                     }
                 }
             } label: {
-                walletBadgeLabel
+                shownBadge
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
             .help("Switch wallet")
+        } else {
+            shownBadge
+        }
+    }
+
+    @ViewBuilder
+    private var shownBadge: some View {
+        if snapshot.shownPage == .allWallets {
+            AllWalletsBadge()
         } else {
             walletBadgeLabel
         }
     }
 
     private var walletBadgeLabel: some View {
-        let hasName = snapshot.wallets.first { $0.matches(snapshot.walletAddress) }?.name != nil
+        let hasName = snapshot.shownPage?.hasName ?? false
         return Text(walletLabel)
             .font(.system(.caption, design: hasName ? .default : .monospaced).weight(.semibold))
             .lineLimit(1)
@@ -485,7 +510,9 @@ struct GraphitePopover: View {
     private var countsLabel: String {
         let positions = snapshot.positions.count
         let chains = snapshot.chainCount
-        return "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
+        let label = "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
+        let wallets = Set(snapshot.walletNames.values).count
+        return wallets > 1 ? "\(label) · \(wallets) wallets" : label
     }
 
     // MARK: - Positions
@@ -672,6 +699,7 @@ struct GraphitePopover: View {
                 ForEach(positions) { pos in
                     GraphitePositionCard(
                         position: pos,
+                        walletName: snapshot.walletNames[pos.id],
                         recentDailyFees: snapshot.positionDailyFeesUSD[pos.id],
                         onOpen: actions.open.map { open in { open(pos) } },
                         onCollect: CollectRequest.canCollect(pos) ? actions.collect.map { collect in { collect(pos) } } : nil,

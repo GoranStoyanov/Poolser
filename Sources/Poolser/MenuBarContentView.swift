@@ -33,9 +33,8 @@ struct MenuBarContentView: View {
                 snapshot: snapshot,
                 listOptions: $settings.positionListOptions,
                 actions: GraphitePopoverActions(
-                    selectWallet: { address in
-                        guard address != settings.walletAddress else { return }
-                        settings.walletAddress = address
+                    selectPage: { page in
+                        settings.show(page)
                         service.activeWalletChanged()
                     },
                     refresh: { service.refresh() },
@@ -45,9 +44,11 @@ struct MenuBarContentView: View {
                     open: { pos in
                         if let url = pos.uniswapURL { openURL(url) }
                     },
-                    collect: { pos in collector.collect(pos, owner: owner) },
-                    hide: { pos in settings.hide(pos) },
-                    collectAll: { chainID in collector.collectAll(on: chainID, positions: service.positions, owner: owner) },
+                    collect: { pos in collector.collect(pos, owner: owner(of: pos)) },
+                    hide: { pos in settings.hide(pos, wallet: service.wallet(of: pos) ?? settings.walletAddress) },
+                    collectAll: settings.isShowingAllWallets ? nil : { chainID in
+                        collector.collectAll(on: chainID, positions: service.positions, owner: owner(of: nil))
+                    },
                     dismissNotice: { collector.dismiss() }
                 ),
                 maxHeight: NSScreen.main.map { $0.visibleFrame.height - 8 }
@@ -64,7 +65,9 @@ struct MenuBarContentView: View {
         }
         return PopoverSnapshot(
             walletAddress: settings.walletAddress,
-            wallets: settings.wallets,
+            pages: settings.walletPages.count > 1 ? settings.walletPages : [],
+            shownPage: settings.shownPage,
+            walletNames: settings.isShowingAllWallets ? service.walletNamesByPosition : [:],
             positions: service.positions,
             // One day is enough for the wallet chart, which shows empty slots before it.
             dailyFeesUSD: dailyFees.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),
@@ -79,8 +82,9 @@ struct MenuBarContentView: View {
         )
     }
 
-    private var owner: String {
-        let address = settings.walletAddress
+    /// The wallet that holds `position`, or the active wallet.
+    private func owner(of position: Position?) -> String {
+        let address = position.flatMap(service.wallet(of:)) ?? settings.walletAddress
         return address.hasPrefix("0x") ? address : "0x" + address
     }
 

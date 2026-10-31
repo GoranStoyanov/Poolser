@@ -9,7 +9,8 @@ struct V3PositionLoader {
     /// Marks loaded positions as waiting for the background claimed-fee scan.
     let trackClaimedFees: Bool
 
-    func load(wallet: String) async -> LoaderOutput {
+    /// `balance` is the wallet's position count when it was already read with other wallets'.
+    func load(wallet: String, balance: UInt64? = nil) async -> LoaderOutput {
         guard let v3Factory = chain.v3Factory, let v3NFPM = chain.v3NFPM else {
             return LoaderOutput()
         }
@@ -23,8 +24,12 @@ struct V3PositionLoader {
         // 1 · balance
         let numPos: Int
         do {
-            let d = try await eth.ethCall(to: v3NFPM, data: ABI.callBalanceOf(owner: wallet))
-            numPos = Int(d.readUInt64(wordAt: 0))
+            if let balance {
+                numPos = Int(balance)
+            } else {
+                let d = try await eth.ethCall(to: v3NFPM, data: ABI.callBalanceOf(owner: wallet))
+                numPos = Int(d.readUInt64(wordAt: 0))
+            }
         } catch EthereumClient.Err.noResult {
             return LoaderOutput(error: "v3: balanceOf returned no result (RPC did not return a usable payload)")
         } catch {

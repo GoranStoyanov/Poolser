@@ -94,6 +94,36 @@ struct PortfolioSnapshotTests {
         #expect(snapshot.totalValueUSD == 1)
     }
 
+    @Test func eachWalletGetsItsOwnFileAndRemovedWalletsLoseTheirs() throws {
+        let container = FileManager.default.temporaryDirectory.appendingPathComponent("snapshots-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: container) }
+        let main = SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Main")
+        let cold = SavedWallet(address: "0x2222222222222222222222222222222222222222")
+        func snapshot(_ name: String) -> PortfolioSnapshot {
+            PortfolioSnapshot(positions: [], dailyFeesUSD: nil, updatedAt: now, walletName: name)
+        }
+
+        #expect(PortfolioSnapshotStore.save(
+            [PortfolioSnapshotStore.allWalletsID: snapshot("All"), main.id: snapshot("Main"), cold.id: snapshot("Cold")],
+            wallets: [main, cold], in: container
+        ))
+        let load = { (id: String) in PortfolioSnapshotStore.load(from: PortfolioSnapshotStore.fileURL(walletID: id, in: container)) }
+        #expect(load(PortfolioSnapshotStore.allWalletsID)?.walletName == "All")
+        #expect(load(cold.id)?.walletName == "Cold")
+        #expect(PortfolioSnapshotStore.loadWallets(in: container) == [main, cold])
+
+        #expect(PortfolioSnapshotStore.save([main.id: snapshot("Main again")], wallets: [main], in: container))
+        #expect(load(cold.id) == nil)
+        #expect(load(main.id)?.walletName == "Main again")
+        // Not in this write, so the last one stays.
+        #expect(load(PortfolioSnapshotStore.allWalletsID)?.walletName == "All")
+
+        PortfolioSnapshotStore.removeAll(in: container)
+        #expect(load(PortfolioSnapshotStore.allWalletsID) == nil)
+        #expect(load(main.id) == nil)
+    }
+
     @Test func nothingIsWrittenWithoutAnAppGroup() {
         #expect(!PortfolioSnapshotStore.save(nil, to: nil))
         #expect(PortfolioSnapshotStore.load(from: nil) == nil)
@@ -107,6 +137,13 @@ struct WidgetReloadThrottleTests {
             positions: [makePosition("1", inRange: !outOfRange, value: value)], dailyFeesUSD: nil, updatedAt: now,
             walletName: wallet
         )
+    }
+
+    @Test func addedWalletReloadsAtOnce() {
+        var throttle = WidgetReloadThrottle()
+        _ = throttle.shouldReload(for: ["all": snapshot()], now: now)
+        let reloads = throttle.shouldReload(for: ["all": snapshot(), "0xabc": snapshot()], now: now.addingTimeInterval(60))
+        #expect(reloads)
     }
 
     @Test func walletChangeReloadsAtOnce() {

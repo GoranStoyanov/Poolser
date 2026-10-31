@@ -189,3 +189,15 @@ struct AppVersionLabelTests {
         #expect(AppVersion.label(info: ["CFBundleExecutable": "Poolser"]) == "development build")
     }
 }
+
+@Suite struct MenuBarSourceTests {
+    @Test(arguments: [MenuBarSource.allWallets, .shownPage, .wallet("0xabc")])
+    func storedValueRoundTrips(_ source: MenuBarSource) {
+        #expect(MenuBarSource(rawValue: source.rawValue) == source)
+    }
+
+    @Test func missingValueMeansAllWallets() {
+        #expect(MenuBarSource(rawValue: nil) == .allWallets)
+        #expect(MenuBarSource(rawValue: "0xABC") == .wallet("0xabc"))
+    }
+}

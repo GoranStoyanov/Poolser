@@ -7,24 +7,24 @@ private struct PortfolioEntry: TimelineEntry {
     let snapshot: PortfolioSnapshot?
 }
 
-private struct PortfolioProvider: TimelineProvider {
+private struct PortfolioProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> PortfolioEntry {
         PortfolioEntry(date: .now, snapshot: .preview)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (PortfolioEntry) -> Void) {
-        completion(PortfolioEntry(
+    func snapshot(for configuration: SelectWalletIntent, in context: Context) async -> PortfolioEntry {
+        PortfolioEntry(
             date: .now,
-            snapshot: PortfolioSnapshotStore.load() ?? (context.isPreview ? .preview : nil)
-        ))
+            snapshot: PortfolioSnapshotStore.load(walletID: configuration.wallet?.id) ?? (context.isPreview ? .preview : nil)
+        )
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<PortfolioEntry>) -> Void) {
+    func timeline(for configuration: SelectWalletIntent, in context: Context) async -> Timeline<PortfolioEntry> {
         let now = Date()
-        completion(Timeline(
-            entries: [PortfolioEntry(date: now, snapshot: PortfolioSnapshotStore.load())],
+        return Timeline(
+            entries: [PortfolioEntry(date: now, snapshot: PortfolioSnapshotStore.load(walletID: configuration.wallet?.id))],
             policy: .after(now.addingTimeInterval(15 * 60))
-        ))
+        )
     }
 }
 
@@ -58,11 +58,11 @@ private struct PortfolioEntryView: View {
 @main
 struct PoolserIOSWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "PortfolioIOS", provider: PortfolioProvider()) { entry in
+        AppIntentConfiguration(kind: "PortfolioIOS", intent: SelectWalletIntent.self, provider: PortfolioProvider()) { entry in
             PortfolioEntryView(entry: entry)
         }
         .configurationDisplayName("Portfolio")
-        .description("Value, fees and range status of your Uniswap positions.")
+        .description("Value, fees and range status of your Uniswap positions, for all wallets or one.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular])
     }
 }

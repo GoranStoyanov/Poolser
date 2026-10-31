@@ -20,6 +20,15 @@ struct V4ScanSettings {
     let maxChunksPerRefresh: Int
 }
 
+/// Transfer tokenIds of several wallets, read with one pair of `eth_getLogs` per chunk for
+/// wallets whose scans cover the same blocks. Keyed by lowercased wallet address.
+struct V4SharedTransfers {
+    let currentBlock: Int
+    let chunks: [ClosedRange<Int>]
+    var to: [String: Set<UInt64>] = [:]
+    var from: [String: Set<UInt64>] = [:]
+}
+
 struct V4Ownership {
     let ownedTokenIds: [UInt64]
     /// Every tokenId ever transferred to or from the wallet in the scanned range.
@@ -42,29 +51,21 @@ struct V4OwnershipTracker {
     let settings: V4ScanSettings
     var defaults: UserDefaults = PoolserDefaults.store
 
-    /// Throws `LoaderError` with a user-facing message when the scan cannot complete.
-    func scan(wallet: String, balance: UInt64) async throws -> V4Ownership {
-        let walletPadded: String = {
-            let hex = (wallet.hasPrefix("0x") ? String(wallet.dropFirst(2)) : wallet).lowercased()
-            return "0x" + String(repeating: "0", count: 64 - min(hex.count, 64)) + hex
-        }()
-
+    /// Throws `LoaderError` with a user-facing message when the scan cannot complete. `shared`
+    /// answers the log query when it covers the blocks this wallet's scan needs.
+    func scan(wallet: String, balance: UInt64, shared: V4SharedTransfers? = nil) async throws -> V4Ownership {
         // Pull block head once, then only scan deltas from the last successful sync
         // (with a short reorg lookback).
         let currentBlock: Int
-        do { currentBlock = try await eth.ethBlockNumber() }
-        catch { throw LoaderError("v4: eth_blockNumber failed – \(error.localizedDescription)") }
+        if let shared {
+            currentBlock = shared.currentBlock
+        } else {
+            do { currentBlock = try await eth.ethBlockNumber() }
+            catch { throw LoaderError("v4: eth_blockNumber failed – \(error.localizedDescription)") }
+        }
 
         let previousCache = loadCache(wallet: wallet)
-        let plan = planV4LogScan(
-            deployBlock: deployBlock,
-            currentBlock: currentBlock,
-            lastScannedBlock: previousCache?.lastScannedBlock,
-            nextBootstrapFromBlock: previousCache?.nextBootstrapFromBlock,
-            chunkSize: settings.logChunkSize,
-            maxChunks: settings.maxChunksPerRefresh,
-            reorgLookbackBlocks: v4ReorgLookbackBlocks
-        )
+        let plan = plan(cache: previousCache, currentBlock: currentBlock)
         if !plan.isBootstrap, let next = plan.nextFromBlock {
             await LogStore.shared.log(
                 "v4 [\(chain.displayName)]: catching up Transfer logs, \(currentBlock - next + 1) blocks behind head",
@@ -72,16 +73,16 @@ struct V4OwnershipTracker {
             )
         }
 
-        let logs = try await fetchTransferLogs(plan: plan, walletPadded: walletPadded)
-
-        func extractTokenId(_ log: [String: Any]) -> UInt64? {
-            guard let topics = log["topics"] as? [String], topics.count >= 4 else { return nil }
-            let hex = topics[3].hasPrefix("0x") ? String(topics[3].dropFirst(2)) : topics[3]
-            guard let val = UInt64(hex.suffix(16), radix: 16) else { return nil }
-            return val
+        let toIds: Set<UInt64>
+        let fromIds: Set<UInt64>
+        if let shared, !plan.isBootstrap, plan.chunks == shared.chunks, let to = shared.to[wallet.lowercased()] {
+            toIds = to
+            fromIds = shared.from[wallet.lowercased()] ?? []
+        } else {
+            let logs = try await fetchTransferLogs(plan: plan, walletPads: [Self.padded(wallet)])
+            toIds = Set(logs.to.compactMap(Self.tokenId))
+            fromIds = Set(logs.from.compactMap(Self.tokenId))
         }
-        let toIds = Set(logs.to.compactMap(extractTokenId))
-        let fromIds = Set(logs.from.compactMap(extractTokenId))
         var candidateIds = Set(previousCache?.candidateTokenIds ?? [])
         candidateIds.formUnion(toIds)
         candidateIds.formUnion(fromIds)
@@ -152,9 +153,69 @@ struct V4OwnershipTracker {
 
     // MARK: - Transfer logs
 
+    private func plan(cache: V4OwnershipCache?, currentBlock: Int) -> V4LogScanPlan {
+        planV4LogScan(
+            deployBlock: deployBlock,
+            currentBlock: currentBlock,
+            lastScannedBlock: cache?.lastScannedBlock,
+            nextBootstrapFromBlock: cache?.nextBootstrapFromBlock,
+            chunkSize: settings.logChunkSize,
+            maxChunks: settings.maxChunksPerRefresh,
+            reorgLookbackBlocks: v4ReorgLookbackBlocks
+        )
+    }
+
+    /// Once their bootstrap is done, the scans of every wallet on a chain cover the same new
+    /// blocks, so one query with all of them in the topic answers each. Nil when fewer than two
+    /// wallets share a plan or the query fails; each wallet then scans on its own.
+    func sharedTransfers(wallets: [String]) async -> V4SharedTransfers? {
+        guard wallets.count > 1, let currentBlock = try? await eth.ethBlockNumber() else { return nil }
+        let plans = wallets
+            .map { (wallet: $0, plan: plan(cache: loadCache(wallet: $0), currentBlock: currentBlock)) }
+            .filter { !$0.plan.isBootstrap && !$0.plan.chunks.isEmpty }
+        guard let group = Dictionary(grouping: plans, by: \.plan.chunks).values.max(by: { $0.count < $1.count }),
+              group.count > 1 else { return nil }
+
+        let walletByPad = Dictionary(group.map { (Self.padded($0.wallet), $0.wallet.lowercased()) }, uniquingKeysWith: { a, _ in a })
+        guard let logs = try? await fetchTransferLogs(plan: group[0].plan, walletPads: Array(walletByPad.keys)) else {
+            return nil
+        }
+        var shared = V4SharedTransfers(currentBlock: currentBlock, chunks: group[0].plan.chunks)
+        for wallet in walletByPad.values {
+            shared.to[wallet] = []
+            shared.from[wallet] = []
+        }
+        // Topic 1 is the sender, topic 2 the recipient.
+        for log in logs.to {
+            guard let wallet = Self.topic(2, of: log).flatMap({ walletByPad[$0] }), let id = Self.tokenId(log) else { continue }
+            shared.to[wallet]?.insert(id)
+        }
+        for log in logs.from {
+            guard let wallet = Self.topic(1, of: log).flatMap({ walletByPad[$0] }), let id = Self.tokenId(log) else { continue }
+            shared.from[wallet]?.insert(id)
+        }
+        return shared
+    }
+
+    static func padded(_ wallet: String) -> String {
+        let hex = (wallet.hasPrefix("0x") ? String(wallet.dropFirst(2)) : wallet).lowercased()
+        return "0x" + String(repeating: "0", count: 64 - min(hex.count, 64)) + hex
+    }
+
+    private static func topic(_ index: Int, of log: [String: Any]) -> String? {
+        guard let topics = log["topics"] as? [String], topics.count > index else { return nil }
+        return topics[index].lowercased()
+    }
+
+    static func tokenId(_ log: [String: Any]) -> UInt64? {
+        guard let topics = log["topics"] as? [String], topics.count >= 4 else { return nil }
+        let hex = topics[3].hasPrefix("0x") ? String(topics[3].dropFirst(2)) : topics[3]
+        return UInt64(hex.suffix(16), radix: 16)
+    }
+
     private func fetchTransferLogs(
         plan: V4LogScanPlan,
-        walletPadded: String
+        walletPads: [String]
     ) async throws -> (to: [[String: Any]], from: [[String: Any]]) {
         let chunks = plan.chunks.map { range -> (String, String) in
             ("0x" + String(range.lowerBound, radix: 16), "0x" + String(range.upperBound, radix: 16))
@@ -171,18 +232,18 @@ struct V4OwnershipTracker {
                 let batchLogs = try await withThrowingTaskGroup(of: (to: [[String: Any]], from: [[String: Any]]).self) { group in
                     for (from, to) in batch {
                         group.addTask {
-                            let incoming = try await eth.ethGetLogs(
+                            let incoming = try await eth.ethGetLogsOR(
                                 address: positionManager,
-                                topics: [transferSig, nil, walletPadded],
+                                topics: [[transferSig], nil, walletPads],
                                 fromBlock: from,
                                 toBlock: to,
                                 context: "[to]"
                             )
                             let outgoing: [[String: Any]]
                             if !plan.isBootstrap {
-                                outgoing = try await eth.ethGetLogs(
+                                outgoing = try await eth.ethGetLogsOR(
                                     address: positionManager,
-                                    topics: [transferSig, walletPadded, nil],
+                                    topics: [[transferSig], walletPads, nil],
                                     fromBlock: from,
                                     toBlock: to,
                                     context: "[from]"
