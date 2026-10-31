@@ -58,6 +58,9 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
     }
 
     public let updatedAt: Date
+    /// The wallet's name, or its short address, when the app has more than one wallet or the
+    /// wallet is named; nil otherwise.
+    public let walletName: String?
     public let totalValueUSD: Double
     public let unclaimedFeesUSD: Double
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
@@ -70,10 +73,11 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
     public let items: [Item]
 
     public init(
-        updatedAt: Date, totalValueUSD: Double, unclaimedFeesUSD: Double, dailyFeesUSD: [Double]?,
-        positionCount: Int, attentionCount: Int, chainCount: Int, items: [Item]
+        updatedAt: Date, walletName: String? = nil, totalValueUSD: Double, unclaimedFeesUSD: Double,
+        dailyFeesUSD: [Double]?, positionCount: Int, attentionCount: Int, chainCount: Int, items: [Item]
     ) {
         self.updatedAt = updatedAt
+        self.walletName = walletName
         self.totalValueUSD = totalValueUSD
         self.unclaimedFeesUSD = unclaimedFeesUSD
         self.dailyFeesUSD = dailyFeesUSD
@@ -83,7 +87,7 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
         self.items = items
     }
 
-    public init(positions: [Position], dailyFeesUSD: [Double]?, updatedAt: Date) {
+    public init(positions: [Position], dailyFeesUSD: [Double]?, updatedAt: Date, walletName: String? = nil) {
         let presented = positions.map { ($0, PositionPresentation($0)) }
         let ranked = presented.enumerated().sorted { lhs, rhs in
             let (l, r) = (lhs.element, rhs.element)
@@ -93,6 +97,7 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
         }
         self.init(
             updatedAt: updatedAt,
+            walletName: walletName,
             totalValueUSD: positions.compactMap(\.positionUSD).reduce(0, +),
             unclaimedFeesUSD: positions.compactMap(\.usd).reduce(0, +),
             dailyFeesUSD: dailyFeesUSD,
@@ -111,10 +116,11 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
         )
     }
 
-    /// Whether a widget showing `previous` would now show a different range picture, which is
-    /// worth a reload even when the last one was recent.
+    /// Whether a widget showing `previous` would now show a different wallet or range picture,
+    /// which is worth a reload even when the last one was recent.
     func rangeChanged(from previous: PortfolioSnapshot) -> Bool {
-        positionCount != previous.positionCount
+        walletName != previous.walletName
+            || positionCount != previous.positionCount
             || attentionCount != previous.attentionCount
             || items.map(\.id) != previous.items.map(\.id)
             || items.map(\.status) != previous.items.map(\.status)

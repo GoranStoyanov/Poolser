@@ -140,7 +140,7 @@ Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 
 | Field | Description |
 |---|---|
-| Wallet Addresses | Save Ethereum addresses (`0x…`) and choose the active wallet |
+| Wallets | Save Ethereum addresses (`0x…`), each with an optional name, and choose the active wallet |
 | Infura API Key | The API key only (no full URL needed) |
 | Enabled Networks | Toggle supported Infura networks on/off |
 | Refresh Interval | Auto-refresh period |
@@ -149,7 +149,7 @@ Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 
 Important behavior:
 - Setting edits are draft-only until you press **Save & Refresh**
-- Switch between saved wallets from the address menu in the portfolio header
+- Every saved wallet loads on each refresh; swipe left or right in the popover (or press ⌘← / ⌘→) to switch between them, or pick one from the wallet menu in the header
 - Closing settings with `X`/`Esc` discards unsaved changes
 - Settings are saved in `UserDefaults`; the Infura API key is saved in the macOS Keychain
 - Some Infura networks are gated per project; enable the network in your Infura dashboard first if needed

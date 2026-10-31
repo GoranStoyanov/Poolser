@@ -84,6 +84,16 @@ struct PortfolioSnapshotTests {
         #expect(PortfolioSnapshotStore.load(from: url) == nil)
     }
 
+    @Test func snapshotWrittenBeforeWalletNamesStillLoads() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("snapshot-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let json = #"{"updatedAt":1800000000,"totalValueUSD":1,"unclaimedFeesUSD":0,"positionCount":0,"attentionCount":0,"chainCount":0,"items":[]}"#
+        try Data(json.utf8).write(to: url)
+        let snapshot = try #require(PortfolioSnapshotStore.load(from: url))
+        #expect(snapshot.walletName == nil)
+        #expect(snapshot.totalValueUSD == 1)
+    }
+
     @Test func nothingIsWrittenWithoutAnAppGroup() {
         #expect(!PortfolioSnapshotStore.save(nil, to: nil))
         #expect(PortfolioSnapshotStore.load(from: nil) == nil)
@@ -92,10 +102,18 @@ struct PortfolioSnapshotTests {
 
 @Suite("Widget reload throttle")
 struct WidgetReloadThrottleTests {
-    private func snapshot(outOfRange: Bool = false, value: Double = 100) -> PortfolioSnapshot {
+    private func snapshot(outOfRange: Bool = false, value: Double = 100, wallet: String? = nil) -> PortfolioSnapshot {
         PortfolioSnapshot(
-            positions: [makePosition("1", inRange: !outOfRange, value: value)], dailyFeesUSD: nil, updatedAt: now
+            positions: [makePosition("1", inRange: !outOfRange, value: value)], dailyFeesUSD: nil, updatedAt: now,
+            walletName: wallet
         )
+    }
+
+    @Test func walletChangeReloadsAtOnce() {
+        var throttle = WidgetReloadThrottle()
+        _ = throttle.shouldReload(for: snapshot(wallet: "Main"), now: now)
+        let reloads = throttle.shouldReload(for: snapshot(wallet: "Cold"), now: now.addingTimeInterval(60))
+        #expect(reloads)
     }
 
     @Test func firstSnapshotReloads() {

@@ -37,7 +37,7 @@ public struct PortfolioWidgetView: View {
                 }
             }
         } else {
-            EmptyState(hasSnapshot: snapshot != nil, palette: palette)
+            EmptyState(hasSnapshot: snapshot != nil, walletName: snapshot?.walletName, palette: palette)
         }
     }
 }
@@ -49,7 +49,7 @@ private struct Summary: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Header(palette: palette)
+            Header(walletName: snapshot.walletName, palette: palette)
             Spacer(minLength: 6)
             Text(PositionPresentation.compactUSD(snapshot.totalValueUSD))
                 .font(.system(size: 26, weight: .semibold, design: .rounded).monospacedDigit())
@@ -70,15 +70,18 @@ private struct Summary: View {
     }
 }
 
+/// The app's name, or the wallet's once there is more than one.
 private struct Header: View {
+    let walletName: String?
     let palette: GraphitePalette
 
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(palette.brand).frame(width: 8, height: 8)
-            Text("Poolser")
+            Text(walletName ?? "Poolser")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(palette.secondaryText)
+                .lineLimit(1)
         }
     }
 }
@@ -252,11 +255,12 @@ private struct MiniRangeGauge: View {
 
 private struct EmptyState: View {
     let hasSnapshot: Bool
+    let walletName: String?
     let palette: GraphitePalette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Header(palette: palette)
+            Header(walletName: walletName, palette: palette)
             Spacer(minLength: 0)
             Text(hasSnapshot ? "No positions" : "No data yet")
                 .font(.callout.weight(.semibold))

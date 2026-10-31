@@ -1,13 +1,13 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import PoolserKit
 
 struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject  private var service: UniswapService
     var onDismiss: (() -> Void)? = nil
-    @State private var draftWalletAddresses: [String]
-    @State private var draftWalletAddress: String
-    @State private var newWalletAddress = ""
+    @State private var walletDraft: WalletListDraft
+    @State private var draggedWallet: SavedWallet?
     @State private var draftInfuraAPIKey: String
     @State private var draftEnabledChainIDs: Set<String>
     @State private var draftRefreshIntervalMinutes: Int
@@ -24,8 +24,7 @@ struct SettingsView: View {
     init(onDismiss: (() -> Void)? = nil) {
         self.onDismiss = onDismiss
         let s = AppSettings.shared
-        _draftWalletAddresses = State(initialValue: s.walletAddresses)
-        _draftWalletAddress = State(initialValue: s.walletAddress)
+        _walletDraft = State(initialValue: WalletListDraft(s))
         _draftInfuraAPIKey = State(initialValue: s.infuraAPIKey)
         _draftEnabledChainIDs = State(initialValue: s.enabledChainIDs)
         _draftRefreshIntervalMinutes = State(initialValue: s.refreshIntervalMinutes)
@@ -61,46 +60,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     settingsSection("Infura Configuration") {
                         VStack(spacing: 0) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                infoTitle("Wallet Addresses", info: "Save addresses and choose which wallet to inspect.")
-                                ForEach(draftWalletAddresses, id: \.self) { address in
-                                    HStack {
-                                        Button {
-                                            draftWalletAddress = address
-                                        } label: {
-                                            Image(systemName: draftWalletAddress.caseInsensitiveCompare(address) == .orderedSame
-                                                  ? "largecircle.fill.circle" : "circle")
-                                            Text(address)
-                                                .font(.system(size: 11, design: .monospaced))
-                                        }
-                                        .buttonStyle(.plain)
-                                        Spacer()
-                                        Button {
-                                            draftWalletAddresses.removeAll { $0 == address }
-                                            if draftWalletAddress == address {
-                                                draftWalletAddress = draftWalletAddresses.first ?? ""
-                                            }
-                                        } label: {
-                                            Image(systemName: "minus.circle")
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("Remove \(address)")
-                                    }
-                                }
-                                HStack {
-                                    TextField("0x…", text: $newWalletAddress)
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .textFieldStyle(.roundedBorder)
-                                    Button("Add") { addWalletAddress() }
-                                        .disabled(newWalletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                                  || newWalletAddressError != nil)
-                                }
-                                if let error = newWalletAddressError {
-                                    Text(error).font(.caption).foregroundStyle(.red)
-                                }
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                            walletsRow
                             Divider().opacity(0.35).padding(.leading, 14)
                             apiKeyRow
                             Divider().opacity(0.35).padding(.leading, 14)
@@ -335,10 +295,8 @@ struct SettingsView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Save & Refresh") {
-                    if !newWalletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        addWalletAddress()
-                    }
-                    settings.setWalletAddresses(draftWalletAddresses, active: draftWalletAddress)
+                    walletDraft.addPending()
+                    settings.setWallets(walletDraft.wallets, active: walletDraft.active)
                     settings.infuraAPIKey = draftInfuraAPIKey
                     settings.enabledChainIDs = draftEnabledChainIDs
                     settings.refreshIntervalMinutes = draftRefreshIntervalMinutes
@@ -357,27 +315,88 @@ struct SettingsView: View {
                 }
                 .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
-                .disabled(newWalletAddressError != nil)
+                .disabled(walletDraft.newAddressError != nil)
             }
         }
         .padding(20)
         .frame(width: 460, height: 640)
     }
 
-    private var newWalletAddressError: String? {
-        guard !newWalletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        guard let address = WalletAddress.normalize(newWalletAddress) else {
-            return WalletAddress.validationError(for: newWalletAddress)
+    // MARK: - Wallets
+
+    private var walletsRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            infoTitle(
+                "Wallets",
+                info: "Every saved wallet loads on each refresh. Swipe left or right in the menu, or press ⌘← and ⌘→, to switch. Drag to reorder."
+            )
+            ForEach(walletDraft.wallets) { wallet in
+                walletRow(wallet)
+            }
+            VStack(spacing: 6) {
+                TextField(WalletListDraft.addressPlaceholder, text: $walletDraft.newAddress)
+                    .font(.system(size: 11, design: .monospaced))
+                HStack {
+                    TextField(WalletListDraft.namePlaceholder, text: $walletDraft.newName)
+                        .font(.system(size: 11))
+                        .onSubmit { walletDraft.add() }
+                    Button(WalletListDraft.addTitle) { walletDraft.add() }
+                        .disabled(!walletDraft.canAdd)
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .padding(.top, walletDraft.wallets.isEmpty ? 0 : 4)
+            if let error = walletDraft.newAddressError {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
         }
-        return draftWalletAddresses.contains(where: { $0.caseInsensitiveCompare(address) == .orderedSame })
-            ? "This address is already saved." : nil
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
-    private func addWalletAddress() {
-        guard newWalletAddressError == nil, let address = WalletAddress.normalize(newWalletAddress) else { return }
-        draftWalletAddresses.append(address)
-        if draftWalletAddress.isEmpty { draftWalletAddress = address }
-        newWalletAddress = ""
+    private func walletRow(_ wallet: SavedWallet) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                walletDraft.active = wallet.address
+            } label: {
+                Image(systemName: walletDraft.isActive(wallet) ? "largecircle.fill.circle" : "circle")
+            }
+            .buttonStyle(.plain)
+            .help("Show this wallet")
+            .accessibilityLabel("Show \(wallet.displayName)")
+            .accessibilityAddTraits(walletDraft.isActive(wallet) ? .isSelected : [])
+            VStack(alignment: .leading, spacing: 2) {
+                TextField(WalletListDraft.namePlaceholder, text: Binding(
+                    get: { wallet.name ?? "" },
+                    set: { walletDraft.rename(wallet, to: $0) }
+                ))
+                .textFieldStyle(.plain)
+                .font(.system(size: 12, weight: .medium))
+                Text(wallet.address)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+                .help("Drag to reorder")
+            Button {
+                walletDraft.remove(wallet)
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.plain)
+            .help("Remove wallet")
+            .accessibilityLabel("Remove \(wallet.displayName)")
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onDrag {
+            draggedWallet = wallet
+            return NSItemProvider(object: wallet.id as NSString)
+        }
+        .onDrop(of: [.text], delegate: WalletDropDelegate(target: wallet, dragged: $draggedWallet, draft: $walletDraft))
     }
 
     @ViewBuilder
@@ -392,23 +411,6 @@ struct SettingsView: View {
                 .padding(.leading, 4)
             content()
         }
-    }
-
-    private func fieldRow(label: String, info: String, placeholder: String, text: Binding<String>, error: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            infoTitle(label, info: info)
-            TextField(placeholder, text: text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13, design: .monospaced))
-            if let error {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var apiKeyRow: some View {
@@ -463,6 +465,25 @@ struct SettingsView: View {
             .font(.system(size: 10))
             .foregroundStyle(.tertiary)
             .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Reorders the wallet list while a row is dragged over another.
+private struct WalletDropDelegate: DropDelegate {
+    let target: SavedWallet
+    @Binding var dragged: SavedWallet?
+    @Binding var draft: WalletListDraft
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged else { return }
+        withAnimation(.snappy) { draft.move(dragged, to: target) }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragged = nil
+        return true
     }
 }
 

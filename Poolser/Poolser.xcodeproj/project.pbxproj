@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */; };
 		53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */; };
+		53C0A1F22FC0C0DE00B5EC27 /* WalletSwipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1F12FC0C0DE00B5EC27 /* WalletSwipe.swift */; };
 		53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */; };
 		53C0A1342FC0C0DE00B5EC27 /* WalletBridgeServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1332FC0C0DE00B5EC27 /* WalletBridgeServer.swift */; };
 		53C0A1362FC0C0DE00B5EC27 /* CollectPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */; };
@@ -74,6 +75,7 @@
 		5300C0DE2F9A0001006C0DE0 /* CodeSigning.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = CodeSigning.xcconfig; sourceTree = "<group>"; };
 		53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePopover.swift; path = ../Sources/Poolser/Graphite/GraphitePopover.swift; sourceTree = SOURCE_ROOT; };
 		53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GraphitePreviews.swift; path = ../Sources/Poolser/Graphite/GraphitePreviews.swift; sourceTree = SOURCE_ROOT; };
+		53C0A1F12FC0C0DE00B5EC27 /* WalletSwipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WalletSwipe.swift; path = ../Sources/Poolser/Graphite/WalletSwipe.swift; sourceTree = SOURCE_ROOT; };
 		53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoreScreenshots.swift; path = ../Sources/Poolser/Graphite/StoreScreenshots.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1332FC0C0DE00B5EC27 /* WalletBridgeServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WalletBridgeServer.swift; path = ../Sources/Poolser/Collect/WalletBridgeServer.swift; sourceTree = SOURCE_ROOT; };
 		53C0A1352FC0C0DE00B5EC27 /* CollectPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CollectPage.swift; path = ../Sources/Poolser/Collect/CollectPage.swift; sourceTree = SOURCE_ROOT; };
@@ -175,6 +177,7 @@
 				53C0A13B2FC0C0DE00B5EC27 /* BatchCollectPage.swift */,
 				53C0A1072FC0C0DE00B5EC27 /* GraphitePopover.swift */,
 				53C0A10B2FC0C0DE00B5EC27 /* GraphitePreviews.swift */,
+				53C0A1F12FC0C0DE00B5EC27 /* WalletSwipe.swift */,
 				53C0A10D2FC0C0DE00B5EC27 /* StoreScreenshots.swift */,
 				53E0B0162FE0C0DE00B5EC27 /* Poolser-Info.plist */,
 				53FAE0EB2F8ECAC700C82982 /* Poolser */,
@@ -405,6 +408,7 @@
 				53C0A13C2FC0C0DE00B5EC27 /* BatchCollectPage.swift in Sources */,
 				53C0A1082FC0C0DE00B5EC27 /* GraphitePopover.swift in Sources */,
 				53C0A10C2FC0C0DE00B5EC27 /* GraphitePreviews.swift in Sources */,
+				53C0A1F22FC0C0DE00B5EC27 /* WalletSwipe.swift in Sources */,
 				53C0A10E2FC0C0DE00B5EC27 /* StoreScreenshots.swift in Sources */,
 				53FAE13A2F8F628F00C82982 /* AppDelegate.swift in Sources */,
 				53FAE13B2F8F628F00C82982 /* SettingsView.swift in Sources */,

@@ -36,7 +36,7 @@ struct MenuBarContentView: View {
                     selectWallet: { address in
                         guard address != settings.walletAddress else { return }
                         settings.walletAddress = address
-                        service.refreshForWalletChange()
+                        service.activeWalletChanged()
                     },
                     refresh: { service.refresh() },
                     settings: { showSettings = true },
@@ -49,7 +49,8 @@ struct MenuBarContentView: View {
                     hide: { pos in settings.hide(pos) },
                     collectAll: { chainID in collector.collectAll(on: chainID, positions: service.positions, owner: owner) },
                     dismissNotice: { collector.dismiss() }
-                )
+                ),
+                maxHeight: NSScreen.main.map { $0.visibleFrame.height - 8 }
             )
         }
     }
@@ -63,7 +64,7 @@ struct MenuBarContentView: View {
         }
         return PopoverSnapshot(
             walletAddress: settings.walletAddress,
-            walletAddresses: settings.walletAddresses,
+            wallets: settings.wallets,
             positions: service.positions,
             // One day is enough for the wallet chart, which shows empty slots before it.
             dailyFeesUSD: dailyFees.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),

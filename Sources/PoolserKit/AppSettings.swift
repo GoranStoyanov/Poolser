@@ -57,22 +57,25 @@ public final class AppSettings: ObservableObject {
         Swift.max(Defaults.v4LogChunkSizeRange.lowerBound, Swift.min(value, Defaults.v4LogChunkSizeRange.upperBound))
     }
 
-    @Published public private(set) var walletAddresses: [String] {
-        didSet { PoolserDefaults.store.set(walletAddresses, forKey: "walletAddresses") }
+    /// Saved wallets in the order the portfolio pages follow.
+    @Published public private(set) var wallets: [SavedWallet] {
+        didSet { SavedWallet.save(wallets, to: PoolserDefaults.store) }
     }
+    public var walletAddresses: [String] { wallets.map(\.address) }
+    /// The active wallet: the page on screen, the menu bar title and the widgets.
     @Published public var walletAddress: String {
         didSet {
             PoolserDefaults.store.set(walletAddress, forKey: "walletAddress")
             if walletAddress != oldValue {
                 if let wallet = WalletAddress.normalize(walletAddress),
-                   !walletAddresses.contains(where: { $0.caseInsensitiveCompare(wallet) == .orderedSame }) {
-                    walletAddresses.append(wallet)
+                   !wallets.contains(where: { $0.matches(wallet) }) {
+                    wallets.append(SavedWallet(address: wallet))
                 }
                 hiddenPositions = HiddenPositionStore.load(wallet: walletAddress, from: PoolserDefaults.store)
-                Task { @MainActor in LogStore.shared.clear() }
             }
         }
     }
+    public var activeWallet: SavedWallet? { wallets.first { $0.matches(walletAddress) } }
     /// Persisted in the Keychain. Read once at launch and kept here, so request paths never
     /// touch the Keychain.
     @Published public var infuraAPIKey: String {
@@ -175,13 +178,13 @@ public final class AppSettings: ObservableObject {
         let wallet = WalletAddress.normalize(storedWallet)
             ?? storedWallet.trimmingCharacters(in: .whitespacesAndNewlines)
         if wallet != storedWallet { ud.set(wallet, forKey: "walletAddress") }
-        let storedWallets = ud.stringArray(forKey: "walletAddresses") ?? []
-        let wallets = WalletAddress.unique([wallet] + storedWallets)
-        if wallets != storedWallets { ud.set(wallets, forKey: "walletAddresses") }
-        let activeWallet = wallets.first(where: { $0.caseInsensitiveCompare(wallet) == .orderedSame })
-            ?? wallets.first ?? wallet
+        let storedWallets = SavedWallet.load(from: ud)
+        let wallets = SavedWallet.unique(storedWallets + [SavedWallet(address: wallet)])
+        if wallets != storedWallets { SavedWallet.save(wallets, to: ud) }
+        let activeWallet = wallets.first(where: { $0.matches(wallet) })?.address
+            ?? wallets.first?.address ?? wallet
         if activeWallet != wallet { ud.set(activeWallet, forKey: "walletAddress") }
-        walletAddresses = wallets
+        self.wallets = wallets
         walletAddress = activeWallet
         hiddenPositions = HiddenPositionStore.load(wallet: activeWallet, from: ud)
         infuraAPIKey = Self.loadInfuraAPIKey(defaults: ud, secrets: secrets)
@@ -245,10 +248,14 @@ public final class AppSettings: ObservableObject {
         SupportedChain.all.filter { enabledChainIDs.contains($0.id) }
     }
 
-    public func setWalletAddresses(_ addresses: [String], active: String) {
-        let wallets = WalletAddress.unique(addresses)
-        walletAddresses = wallets
-        walletAddress = wallets.first(where: { $0.caseInsensitiveCompare(active) == .orderedSame }) ?? wallets.first ?? ""
+    /// Replaces the saved wallets. A wallet left out loses its hidden positions and chain caches,
+    /// so adding it again starts clean.
+    public func setWallets(_ newWallets: [SavedWallet], active: String) {
+        let kept = SavedWallet.unique(newWallets)
+        let removed = wallets.filter { old in !kept.contains { $0.matches(old.address) } }
+        wallets = kept
+        walletAddress = kept.first(where: { $0.matches(active) })?.address ?? kept.first?.address ?? ""
+        for wallet in removed { WalletCaches.remove(wallet: wallet.address, from: PoolserDefaults.store) }
     }
 
     public func hide(_ position: Position) {
@@ -304,9 +311,10 @@ public final class AppSettings: ObservableObject {
 }
 
 public enum WalletAddress {
-    static func unique(_ addresses: [String]) -> [String] {
-        var seen = Set<String>()
-        return addresses.compactMap(normalize).filter { seen.insert($0.lowercased()).inserted }
+    /// "0x8f3c…a21c".
+    public static func short(_ address: String) -> String {
+        guard address.count > 12 else { return address }
+        return "\(address.prefix(6))…\(address.suffix(4))"
     }
 
     /// Returns the address as `0x` + 40 hex digits, without surrounding whitespace, or nil if

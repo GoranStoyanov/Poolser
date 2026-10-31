@@ -25,31 +25,19 @@ struct IOSPortfolioView: View {
                     IOSConnectionView()
                 }
             }
-            .navigationTitle("Poolser")
-            .toolbar {
-                if isConfigured {
-                    if settings.walletAddresses.count > 1 {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Menu {
-                                ForEach(settings.walletAddresses, id: \.self) { address in
-                                    Button {
-                                        guard address != settings.walletAddress else { return }
-                                        settings.walletAddress = address
-                                        service.refreshForWalletChange()
-                                    } label: {
-                                        if address.caseInsensitiveCompare(settings.walletAddress) == .orderedSame {
-                                            Label(address, systemImage: "checkmark")
-                                        } else {
-                                            Text(address)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                Text("\(settings.walletAddress.prefix(6))…\(settings.walletAddress.suffix(4))")
-                                    .font(.system(.caption, design: .monospaced))
-                            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(settings.wallets.count > 1 ? .inline : .automatic)
+            .toolbarTitleMenu {
+                if isConfigured && settings.wallets.count > 1 {
+                    Picker("Wallet", selection: activeWallet) {
+                        ForEach(settings.wallets) { wallet in
+                            Text(wallet.displayName).tag(wallet.id)
                         }
                     }
+                }
+            }
+            .toolbar {
+                if isConfigured {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Settings", systemImage: "gearshape") { showingSettings = true }
                     }
@@ -79,37 +67,93 @@ struct IOSPortfolioView: View {
         }
     }
 
+    private var title: String {
+        settings.wallets.count > 1 ? settings.activeWallet?.displayName ?? "Poolser" : "Poolser"
+    }
+
+    /// The page on screen, by `SavedWallet.id`.
+    private var activeWallet: Binding<String> {
+        Binding(
+            get: { settings.walletAddress.lowercased() },
+            set: { id in
+                guard let wallet = settings.wallets.first(where: { $0.id == id }),
+                      !wallet.matches(settings.walletAddress) else { return }
+                settings.walletAddress = wallet.address
+                service.activeWalletChanged()
+            }
+        )
+    }
+
+    /// One page per saved wallet; swiping sideways makes the next one active.
     private var portfolio: some View {
+        TabView(selection: activeWallet) {
+            ForEach(settings.wallets) { wallet in
+                walletPage(wallet)
+                    .tag(wallet.id)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: settings.wallets.count > 1 ? .always : .never))
+        .indexViewStyle(.page(backgroundDisplayMode: .always))
+        .background(palette.popover)
+    }
+
+    private func walletPage(_ wallet: SavedWallet) -> some View {
+        // The active wallet reads the service's published values, which hidden positions update.
+        let isActive = wallet.matches(settings.walletAddress)
+        let loaded = service.portfolio(for: wallet.address)
+        return WalletPageContent(
+            positions: isActive ? service.positions : loaded?.positions ?? [],
+            lastError: isActive ? service.lastError : loaded?.lastError,
+            lastUpdated: isActive ? service.lastUpdated : loaded?.lastUpdated,
+            isLoading: service.isLoading,
+            showsPageIndicator: settings.wallets.count > 1,
+            palette: palette,
+            open: { if let url = $0.uniswapURL { openURL(url) } },
+            hide: { settings.hide($0) }
+        )
+        .refreshable { await service.refreshAndWait() }
+    }
+}
+
+private struct WalletPageContent: View {
+    let positions: [Position]
+    let lastError: String?
+    let lastUpdated: Date?
+    let isLoading: Bool
+    let showsPageIndicator: Bool
+    let palette: GraphitePalette
+    let open: (Position) -> Void
+    let hide: (Position) -> Void
+
+    var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 summary
-                if let error = service.lastError {
+                if let error = lastError {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.footnote)
                         .foregroundStyle(palette.outOfRange.tint)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                if service.isLoading && service.positions.isEmpty {
+                if isLoading && positions.isEmpty {
                     ProgressView("Loading positions…")
                         .frame(maxWidth: .infinity, minHeight: 140)
-                } else if service.positions.isEmpty {
+                } else if positions.isEmpty {
                     ContentUnavailableView(
                         "No positions yet",
                         systemImage: "chart.bar.xaxis",
                         description: Text("Pull down or tap Refresh to check again.")
                     )
                 } else {
-                    ForEach(service.positions) { position in
-                        GraphitePositionCard(position: position, onOpen: {
-                            if let url = position.uniswapURL { openURL(url) }
-                        }, onHide: { settings.hide(position) })
+                    ForEach(positions) { position in
+                        GraphitePositionCard(position: position, onOpen: { open(position) }, onHide: { hide(position) })
                     }
                 }
             }
             .padding(16)
+            // Room for the page dots.
+            .padding(.bottom, showsPageIndicator ? 24 : 0)
         }
-        .background(palette.popover)
-        .refreshable { await service.refreshAndWait() }
     }
 
     private var summary: some View {
@@ -117,18 +161,18 @@ struct IOSPortfolioView: View {
             Text("Portfolio value")
                 .font(.subheadline)
                 .foregroundStyle(palette.secondaryText)
-            Text(PositionPresentation.compactUSD(service.positions.compactMap(\.positionUSD).reduce(0, +)))
+            Text(PositionPresentation.compactUSD(positions.compactMap(\.positionUSD).reduce(0, +)))
                 .font(.largeTitle.bold().monospacedDigit())
                 .foregroundStyle(palette.primaryText)
             HStack {
-                Text("+\(formatUSD(service.positions.compactMap(\.usd).reduce(0, +))) fees")
+                Text("+\(formatUSD(positions.compactMap(\.usd).reduce(0, +))) fees")
                     .foregroundStyle(palette.fees)
                 Spacer()
-                Text("\(service.positions.count) positions")
+                Text("\(positions.count) positions")
                     .foregroundStyle(palette.secondaryText)
             }
             .font(.subheadline.weight(.medium))
-            if let lastUpdated = service.lastUpdated {
+            if let lastUpdated {
                 HStack(spacing: 4) {
                     Text("Updated")
                     Text(lastUpdated, style: .relative)
