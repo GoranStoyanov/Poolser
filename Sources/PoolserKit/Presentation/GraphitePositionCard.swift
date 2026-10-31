@@ -6,6 +6,7 @@ public struct GraphitePositionCard: View {
     var recentDailyFees: [Double]? = nil
     var onOpen: (() -> Void)? = nil
     var onCollect: (() -> Void)? = nil
+    var onHide: (() -> Void)? = nil
     /// Nil when every position is on one chain or the list is already filtered to this one.
     var onShowOnlyChain: (() -> Void)? = nil
 
@@ -14,12 +15,14 @@ public struct GraphitePositionCard: View {
         recentDailyFees: [Double]? = nil,
         onOpen: (() -> Void)? = nil,
         onCollect: (() -> Void)? = nil,
+        onHide: (() -> Void)? = nil,
         onShowOnlyChain: (() -> Void)? = nil
     ) {
         self.position = position
         self.recentDailyFees = recentDailyFees
         self.onOpen = onOpen
         self.onCollect = onCollect
+        self.onHide = onHide
         self.onShowOnlyChain = onShowOnlyChain
     }
 
@@ -66,6 +69,10 @@ public struct GraphitePositionCard: View {
         if let onShowOnlyChain {
             Divider()
             Button("Show Only \(chainName) Positions", action: onShowOnlyChain)
+        }
+        if let onHide {
+            Divider()
+            Button("Hide Position", action: onHide)
         }
     }
 
@@ -264,6 +271,7 @@ public struct GraphitePositionCard: View {
         .contextMenu {
             Button("Copy Error") { Clipboard.copy(error) }
             Button("Copy Position ID") { Clipboard.copy(position.tokenId) }
+            if let onHide { Button("Hide Position", action: onHide) }
         }
     }
 

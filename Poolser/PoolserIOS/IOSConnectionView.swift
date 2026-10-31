@@ -55,6 +55,23 @@ struct IOSConnectionView: View {
                     ))
                 }
             }
+
+            Section {
+                if settings.hiddenPositions.isEmpty {
+                    Text("Hide a position from its card menu to remove it from all views and totals.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(settings.hiddenPositions) { position in
+                        HStack {
+                            Text(position.label)
+                            Spacer()
+                            Button("Show") { settings.showPosition(id: position.id) }
+                        }
+                    }
+                }
+            } header: {
+                Text("Hidden Positions")
+            }
         }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

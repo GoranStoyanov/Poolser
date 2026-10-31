@@ -43,6 +43,7 @@ struct GraphitePopoverActions {
     var open: ((Position) -> Void)?
     /// Offered only on positions `CollectRequest.canCollect` accepts.
     var collect: ((Position) -> Void)?
+    var hide: ((Position) -> Void)?
     /// Collects every collectable position on a chain, by chain ID.
     var collectAll: ((String) -> Void)?
     var dismissNotice: (() -> Void)?
@@ -287,7 +288,7 @@ struct GraphitePopover: View {
             .accessibilityElement(children: .combine)
             .help("""
             Claimed fees come from the v3 Collect history, valued at current prices; v4 claimed fees \
-            are not tracked. Totals cover every position, including ones hidden by filters.
+            are not tracked. Totals include every unhidden position, even when list filters are active.
             Pool level is all-time fees over the current value; the card fills to that level. The APR \
             weighs each position by its value and how long it has been open.
             """)
@@ -539,6 +540,7 @@ struct GraphitePopover: View {
                         recentDailyFees: snapshot.positionDailyFeesUSD[pos.id],
                         onOpen: actions.open.map { open in { open(pos) } },
                         onCollect: CollectRequest.canCollect(pos) ? actions.collect.map { collect in { collect(pos) } } : nil,
+                        onHide: actions.hide.map { hide in { hide(pos) } },
                         onShowOnlyChain: chainFilterAction(for: pos)
                     )
                 }

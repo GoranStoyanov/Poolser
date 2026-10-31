@@ -4,6 +4,37 @@ import Combine
 import ServiceManagement
 #endif
 
+public struct HiddenPosition: Codable, Equatable, Identifiable {
+    public let id: String
+    public let label: String
+
+    public init(_ position: Position) {
+        id = position.id
+        label = "\(position.sym0)/\(position.sym1) · \(position.chainName) \(position.versionLabel) · #\(position.tokenId)"
+    }
+}
+
+enum HiddenPositionStore {
+    static func visible(_ positions: [Position], hidden: [HiddenPosition]) -> [Position] {
+        let ids = Set(hidden.map(\.id))
+        return positions.filter { !ids.contains($0.id) }
+    }
+
+    static func key(for wallet: String) -> String {
+        "hiddenPositions.\(wallet.lowercased())"
+    }
+
+    static func load(wallet: String, from defaults: UserDefaults) -> [HiddenPosition] {
+        guard let data = defaults.data(forKey: key(for: wallet)) else { return [] }
+        return (try? JSONDecoder().decode([HiddenPosition].self, from: data)) ?? []
+    }
+
+    static func save(_ positions: [HiddenPosition], wallet: String, to defaults: UserDefaults) {
+        guard let data = try? JSONEncoder().encode(positions) else { return }
+        defaults.set(data, forKey: key(for: wallet))
+    }
+}
+
 /// Main-actor isolated: SwiftUI writes these values on the main thread. Network code must not
 /// read them directly; callers snapshot what a load needs and pass the values down.
 @MainActor
@@ -30,6 +61,7 @@ public final class AppSettings: ObservableObject {
         didSet {
             PoolserDefaults.store.set(walletAddress, forKey: "walletAddress")
             if walletAddress != oldValue {
+                hiddenPositions = HiddenPositionStore.load(wallet: walletAddress, from: PoolserDefaults.store)
                 Task { @MainActor in LogStore.shared.clear() }
                 let old = oldValue
                 Task { FeeHistoryService.clearCache(wallet: old) }
@@ -120,6 +152,11 @@ public final class AppSettings: ObservableObject {
             positionListOptions.save(to: PoolserDefaults.store)
         }
     }
+    @Published public private(set) var hiddenPositions: [HiddenPosition] {
+        didSet {
+            HiddenPositionStore.save(hiddenPositions, wallet: walletAddress, to: PoolserDefaults.store)
+        }
+    }
     @Published public var loginItemError: String?
 
     nonisolated static let infuraKeyAccount = "infuraAPIKey"
@@ -134,6 +171,7 @@ public final class AppSettings: ObservableObject {
             ?? storedWallet.trimmingCharacters(in: .whitespacesAndNewlines)
         if wallet != storedWallet { ud.set(wallet, forKey: "walletAddress") }
         walletAddress = wallet
+        hiddenPositions = HiddenPositionStore.load(wallet: wallet, from: ud)
         infuraAPIKey = Self.loadInfuraAPIKey(defaults: ud, secrets: secrets)
         let enabledRaw = ud.string(forKey: "enabledChainIDs") ?? Defaults.enabledChainIDs.joined(separator: ",")
         let enabled = Set(enabledRaw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
@@ -193,6 +231,15 @@ public final class AppSettings: ObservableObject {
 
     func enabledChains() -> [SupportedChain] {
         SupportedChain.all.filter { enabledChainIDs.contains($0.id) }
+    }
+
+    public func hide(_ position: Position) {
+        guard !hiddenPositions.contains(where: { $0.id == position.id }) else { return }
+        hiddenPositions.append(HiddenPosition(position))
+    }
+
+    public func showPosition(id: String) {
+        hiddenPositions.removeAll { $0.id == id }
     }
 
     public func infuraRPCURL(for chain: SupportedChain) -> URL? {
