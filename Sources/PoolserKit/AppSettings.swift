@@ -76,6 +76,15 @@ public final class AppSettings: ObservableObject {
         }
     }
     public var activeWallet: SavedWallet? { wallets.first { $0.matches(walletAddress) } }
+    /// The popover and the iOS app show every wallet together instead of `walletAddress` alone.
+    @Published public var showsAllWallets: Bool {
+        didSet { PoolserDefaults.store.set(showsAllWallets, forKey: "showsAllWallets") }
+    }
+    /// True when there is an All wallets page and it is the one shown.
+    public var isShowingAllWallets: Bool { showsAllWallets && wallets.count > 1 }
+    @Published public var menuBarSource: MenuBarSource {
+        didSet { PoolserDefaults.store.set(menuBarSource.rawValue, forKey: "menuBarSource") }
+    }
     /// Persisted in the Keychain. Read once at launch and kept here, so request paths never
     /// touch the Keychain.
     @Published public var infuraAPIKey: String {
@@ -186,6 +195,8 @@ public final class AppSettings: ObservableObject {
         if activeWallet != wallet { ud.set(activeWallet, forKey: "walletAddress") }
         self.wallets = wallets
         walletAddress = activeWallet
+        showsAllWallets = ud.bool(forKey: "showsAllWallets")
+        menuBarSource = MenuBarSource(rawValue: ud.string(forKey: "menuBarSource"))
         hiddenPositions = HiddenPositionStore.load(wallet: activeWallet, from: ud)
         infuraAPIKey = Self.loadInfuraAPIKey(defaults: ud, secrets: secrets)
         let enabledRaw = ud.string(forKey: "enabledChainIDs") ?? Defaults.enabledChainIDs.joined(separator: ",")
@@ -255,7 +266,43 @@ public final class AppSettings: ObservableObject {
         let removed = wallets.filter { old in !kept.contains { $0.matches(old.address) } }
         wallets = kept
         walletAddress = kept.first(where: { $0.matches(active) })?.address ?? kept.first?.address ?? ""
+        if case .wallet(let id) = menuBarSource, !kept.contains(where: { $0.id == id }) { menuBarSource = .allWallets }
         for wallet in removed { WalletCaches.remove(wallet: wallet.address, from: PoolserDefaults.store) }
+    }
+
+    /// The wallet whose hidden positions changed while another wallet was active; the active
+    /// wallet's changes come through `hiddenPositions`.
+    public let otherWalletHiddenPositionsChanged = PassthroughSubject<String, Never>()
+
+    /// Saved wallets that have hidden positions, with those positions.
+    public var hiddenPositionsByWallet: [(wallet: SavedWallet, positions: [HiddenPosition])] {
+        wallets.map { ($0, hiddenPositions(for: $0.address)) }.filter { !$0.1.isEmpty }
+    }
+
+    public func hiddenPositions(for wallet: String) -> [HiddenPosition] {
+        wallet.caseInsensitiveCompare(walletAddress) == .orderedSame
+            ? hiddenPositions
+            : HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store)
+    }
+
+    /// Hides a position of any saved wallet, not only the active one.
+    public func hide(_ position: Position, wallet: String) {
+        guard wallet.caseInsensitiveCompare(walletAddress) != .orderedSame else { return hide(position) }
+        var hidden = HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store)
+        guard !hidden.contains(where: { $0.id == position.id }) else { return }
+        hidden.append(HiddenPosition(position))
+        HiddenPositionStore.save(hidden, wallet: wallet, to: PoolserDefaults.store)
+        objectWillChange.send()
+        otherWalletHiddenPositionsChanged.send(wallet)
+    }
+
+    public func showPosition(id: String, wallet: String) {
+        guard wallet.caseInsensitiveCompare(walletAddress) != .orderedSame else { return showPosition(id: id) }
+        var hidden = HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store)
+        hidden.removeAll { $0.id == id }
+        HiddenPositionStore.save(hidden, wallet: wallet, to: PoolserDefaults.store)
+        objectWillChange.send()
+        otherWalletHiddenPositionsChanged.send(wallet)
     }
 
     public func hide(_ position: Position) {

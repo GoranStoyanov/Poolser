@@ -127,16 +127,71 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
     }
 }
 
-/// The snapshot file in the App Group container.
+/// The snapshot files in the App Group container: one for all wallets together, one per
+/// wallet, and the wallet list the widgets offer to choose from.
 public enum PortfolioSnapshotStore {
     static let fileName = "PortfolioSnapshot.json"
+    static let walletFilePrefix = "PortfolioSnapshot-"
+    static let walletsFileName = "Wallets.json"
+    /// The snapshot of every wallet together, which is also what older builds wrote.
+    public static let allWalletsID = "all"
 
     /// Nil when the app names no App Group (the SwiftPM build) or the container is unavailable.
-    public static var fileURL: URL? {
-        guard let group = PoolserDefaults.appGroup,
-              let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
-        else { return nil }
-        return container.appendingPathComponent(fileName, isDirectory: false)
+    static var container: URL? {
+        guard let group = PoolserDefaults.appGroup else { return nil }
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    }
+
+    public static var fileURL: URL? { fileURL(walletID: allWalletsID) }
+
+    /// `walletID` is a `SavedWallet.id`, or `allWalletsID`.
+    static func fileURL(walletID: String, in container: URL? = container) -> URL? {
+        let name = walletID == allWalletsID ? fileName : "\(walletFilePrefix)\(walletID).json"
+        return container?.appendingPathComponent(name, isDirectory: false)
+    }
+
+    /// The snapshot for one wallet, or for all of them when `walletID` is nil.
+    public static func load(walletID: String?) -> PortfolioSnapshot? {
+        load(from: fileURL(walletID: walletID ?? allWalletsID))
+    }
+
+    /// Writes every snapshot, keyed by wallet ID, and removes those of wallets no longer saved.
+    /// Wallets missing from `snapshots` keep the file they have.
+    static func save(_ snapshots: [String: PortfolioSnapshot], wallets: [SavedWallet], in container: URL? = container) -> Bool {
+        guard let container else { return false }
+        var ok = true
+        for (id, snapshot) in snapshots {
+            ok = save(snapshot, to: fileURL(walletID: id, in: container)) && ok
+        }
+        let kept = Set(wallets.map { fileURL(walletID: $0.id, in: container)?.lastPathComponent })
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: container.path)) ?? []
+        for file in files where file.hasPrefix(walletFilePrefix) && !kept.contains(file) {
+            try? FileManager.default.removeItem(at: container.appendingPathComponent(file))
+        }
+        if let data = try? encoder.encode(wallets) {
+            ok = ((try? data.write(to: container.appendingPathComponent(walletsFileName), options: [.atomic])) != nil) && ok
+        }
+        return ok
+    }
+
+    /// Removes every snapshot, so the widgets stop showing wallets that are gone.
+    static func removeAll(in container: URL? = container) {
+        guard let container else { return }
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: container.path)) ?? []
+        for file in files where file == fileName || file.hasPrefix(walletFilePrefix) {
+            try? FileManager.default.removeItem(at: container.appendingPathComponent(file))
+        }
+    }
+
+    /// The saved wallets, for the widget's wallet choice.
+    public static func loadWallets() -> [SavedWallet] {
+        loadWallets(in: container)
+    }
+
+    static func loadWallets(in container: URL?) -> [SavedWallet] {
+        guard let url = container?.appendingPathComponent(walletsFileName),
+              let data = try? Data(contentsOf: url) else { return [] }
+        return (try? decoder.decode([SavedWallet].self, from: data)) ?? []
     }
 
     public static func load(from url: URL? = fileURL) -> PortfolioSnapshot? {
@@ -180,25 +235,32 @@ struct WidgetReloadThrottle {
     static let minimumInterval: TimeInterval = 15 * 60
 
     private(set) var lastReload: Date?
-    private var lastSnapshot: PortfolioSnapshot?
-    private var hasReloaded = false
+    /// What the widgets showed at the last reload, by wallet ID; nil before the first.
+    private var lastSnapshots: [String: PortfolioSnapshot]?
 
     /// Records the reload when it returns true.
     mutating func shouldReload(for snapshot: PortfolioSnapshot?, now: Date) -> Bool {
+        shouldReload(for: snapshot.map { [PortfolioSnapshotStore.allWalletsID: $0] } ?? [:], now: now)
+    }
+
+    /// Records the reload when it returns true. Snapshots are keyed by wallet ID.
+    mutating func shouldReload(for snapshots: [String: PortfolioSnapshot], now: Date) -> Bool {
         let reload: Bool
-        switch (lastSnapshot, snapshot) {
-        case (nil, nil):
-            reload = !hasReloaded
-        case (nil, _), (_, nil):
+        if let previous = lastSnapshots {
+            if Set(previous.keys) != Set(snapshots.keys) {
+                reload = true
+            } else if snapshots.isEmpty {
+                reload = false
+            } else {
+                reload = snapshots.contains { id, snapshot in previous[id].map(snapshot.rangeChanged) ?? true }
+                    || lastReload.map { now.timeIntervalSince($0) >= Self.minimumInterval } ?? true
+            }
+        } else {
             reload = true
-        case let (previous?, current?):
-            reload = current.rangeChanged(from: previous)
-                || lastReload.map { now.timeIntervalSince($0) >= Self.minimumInterval } ?? true
         }
         if reload {
             lastReload = now
-            lastSnapshot = snapshot
-            hasReloaded = true
+            lastSnapshots = snapshots
         }
         return reload
     }

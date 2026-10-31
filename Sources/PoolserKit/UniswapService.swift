@@ -15,8 +15,9 @@ public struct WalletPortfolio {
 }
 
 /// Drives refreshes of every saved wallet across the enabled chains and publishes the merged
-/// result to the UI. `positions`, `lastError` and `lastUpdated` follow the active wallet; the
-/// others stay in `portfolios`, so switching wallets needs no reload.
+/// result to the UI. `positions`, `lastError` and `lastUpdated` follow the page on screen (one
+/// wallet, or all of them together); every wallet stays in `portfolios`, so switching pages
+/// needs no reload. The menu bar title and the widgets choose their wallets separately.
 /// Reading positions is delegated to `V3PositionLoader` and `V4PositionLoader`.
 @MainActor
 public final class UniswapService: ObservableObject {
@@ -35,6 +36,10 @@ public final class UniswapService: ObservableObject {
     /// Fees earned per day from chain state, by position id.
     private var chainDailyFees = DailyFees()
     private var previousTotal: Double = -1
+    /// What the title last showed, so a source change does not flash and a republish of the
+    /// same title leaves a running flash alone.
+    private var titleSourceKey = ""
+    private var baseTitle = ""
     private var flashTask: Task<Void, Never>?
 
     private let priceService = PriceService()
@@ -43,6 +48,7 @@ public final class UniswapService: ObservableObject {
     private var timer: Timer?
     private var refreshIntervalCancellable: AnyCancellable?
     private var visibilityCancellable: AnyCancellable?
+    private var otherWalletVisibilityCancellable: AnyCancellable?
     private var activeLoadTask: Task<Void, Never>?
     private var bootstrapFollowUpTask: Task<Void, Never>?
     /// Chains still bootstrapping, by wallet address.
@@ -57,7 +63,14 @@ public final class UniswapService: ObservableObject {
     public init() {
         visibilityCancellable = AppSettings.shared.$hiddenPositions
             .dropFirst()
-            .sink { [weak self] hidden in self?.applyVisibility(hidden: hidden, flash: false) }
+            .sink { [weak self] hidden in
+                // Published before the value is stored, so the new list is passed along.
+                self?.hiddenPositionsChanged(wallet: AppSettings.shared.walletAddress, hidden: hidden)
+            }
+        otherWalletVisibilityCancellable = AppSettings.shared.otherWalletHiddenPositionsChanged
+            .sink { [weak self] wallet in
+                self?.hiddenPositionsChanged(wallet: wallet, hidden: AppSettings.shared.hiddenPositions(for: wallet))
+            }
         #if os(macOS)
         configureTimer()
         refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
@@ -85,21 +98,64 @@ public final class UniswapService: ObservableObject {
     public func refreshForWalletChange() {
         let saved = Set(AppSettings.shared.walletAddresses.map { $0.lowercased() })
         portfolios = portfolios.filter { saved.contains($0.key) }
-        showActiveWallet()
+        publish(flash: false)
         startLoad()
     }
 
-    /// Shows the active wallet's last load at once. A wallet that has not been loaded yet is
+    /// Shows the new page's last load at once. A wallet that has not been loaded yet is
     /// loaded now.
     public func activeWalletChanged() {
-        showActiveWallet()
-        if portfolio(for: AppSettings.shared.walletAddress) == nil { startLoad() }
+        publish(flash: false)
+        let settings = AppSettings.shared
+        if !settings.isShowingAllWallets, portfolio(for: settings.walletAddress) == nil { startLoad() }
     }
 
-    private func showActiveWallet() {
-        flashTask?.cancel()
-        previousTotal = -1
-        applyVisibility(flash: false)
+    private func hiddenPositionsChanged(wallet: String, hidden: [HiddenPosition]) {
+        updateVisiblePositions(wallet: wallet, hidden: hidden)
+        publish(flash: false)
+    }
+
+    /// Every saved wallet together; nil until one has loaded.
+    public var allWalletsPortfolio: WalletPortfolio? {
+        let wallets = AppSettings.shared.wallets
+        let loaded = wallets.compactMap { wallet in portfolio(for: wallet.address).map { (wallet, $0) } }
+        guard !loaded.isEmpty else { return nil }
+        let byValue = { (lhs: Position, rhs: Position) in (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0) }
+        var merged = WalletPortfolio()
+        merged.allPositions = loaded.flatMap(\.1.allPositions).sorted(by: byValue)
+        merged.positions = loaded.flatMap(\.1.positions).sorted(by: byValue)
+        merged.lastUpdated = loaded.compactMap(\.1.lastUpdated).min()
+        let errors = loaded.compactMap { wallet, portfolio in
+            portfolio.lastError.map { wallets.count > 1 ? "\(wallet.displayName): \($0)" : $0 }
+        }
+        merged.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+        return merged
+    }
+
+    /// The saved wallet holding `position`, for actions that need its owner.
+    public func wallet(of position: Position) -> String? {
+        AppSettings.shared.wallets.first { wallet in
+            portfolio(for: wallet.address)?.allPositions.contains { $0.id == position.id } == true
+        }?.address
+    }
+
+    private var pagePortfolio: WalletPortfolio? {
+        let settings = AppSettings.shared
+        return settings.isShowingAllWallets ? allWalletsPortfolio : portfolio(for: settings.walletAddress)
+    }
+
+    private var menuBarSourceKey: String {
+        let settings = AppSettings.shared
+        switch settings.menuBarSource {
+        case .wallet(let id) where settings.wallets.contains(where: { $0.id == id }): return id
+        case .shownPage where !settings.isShowingAllWallets: return settings.walletAddress.lowercased()
+        default: return PortfolioSnapshotStore.allWalletsID
+        }
+    }
+
+    private var menuBarPortfolio: WalletPortfolio? {
+        let key = menuBarSourceKey
+        return key == PortfolioSnapshotStore.allWalletsID ? allWalletsPortfolio : portfolios[key]
     }
 
     // MARK: - Orchestrator
@@ -135,7 +191,8 @@ public final class UniswapService: ObservableObject {
             portfolios = [:]
             positions = []
             titleText = "– 👀"
-            publishWidgetSnapshot(nil, updatedAt: Date())
+            baseTitle = titleText
+            clearWidgets()
             #if os(macOS)
             lastError = "Configure wallet, Infura API key, and at least one enabled network in Settings (⌘,)"
             #else
@@ -150,10 +207,13 @@ public final class UniswapService: ObservableObject {
         LogStore.shared.log("refresh started", level: .info)
         await EthereumClient.setCreditBudget(perSecond: AppSettings.shared.rpcCreditsPerSecondBudget)
 
+        let prefetches = await prefetchChains(chains, wallets: wallets)
+        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+
         // The active wallet first, so the page on screen fills in before the others load.
         var bootstrapping: [String: [String]] = [:]
         for wallet in wallets {
-            let results = await loadChains(chains, wallet: wallet)
+            let results = await loadChains(chains, wallet: wallet, prefetches: prefetches)
             guard isCurrentGeneration(generation), !Task.isCancelled else { return }
             let enrichedResults = await enrichChainResults(results)
             guard isCurrentGeneration(generation), !Task.isCancelled else { return }
@@ -296,31 +356,48 @@ public final class UniswapService: ObservableObject {
         }
     }
 
-    /// Hands the widgets what the menu shows, with a week of daily fees. Nil clears them.
-    private func publishWidgetSnapshot(_ positions: [Position]?, updatedAt: Date) {
-        guard let url = PortfolioSnapshotStore.fileURL else { return }
+    /// Writes a snapshot with a week of daily fees for every wallet and for all of them
+    /// together, then reloads the widgets when what they show changed.
+    private func publishWidgets() {
+        guard PortfolioSnapshotStore.fileURL != nil else { return }
+        let settings = AppSettings.shared
         let now = Date()
-        let snapshot = positions.map {
-            PortfolioSnapshot(
-                positions: $0,
-                dailyFeesUSD: dailyFees.walletDailyUSD($0, days: 7, minDays: 1, endingAt: now),
-                updatedAt: updatedAt,
-                walletName: Self.widgetWalletName()
+        func snapshot(_ portfolio: WalletPortfolio, name: String?) -> PortfolioSnapshot? {
+            // A wallet that failed to load keeps what the widget showed before.
+            guard !(portfolio.positions.isEmpty && portfolio.lastError != nil) else { return nil }
+            return PortfolioSnapshot(
+                positions: portfolio.positions,
+                dailyFeesUSD: dailyFees.walletDailyUSD(portfolio.positions, days: 7, minDays: 1, endingAt: now),
+                updatedAt: portfolio.lastUpdated ?? now,
+                walletName: name
             )
         }
-        if !PortfolioSnapshotStore.save(snapshot, to: url) {
+        var snapshots: [String: PortfolioSnapshot] = [:]
+        if let all = allWalletsPortfolio {
+            let single = settings.wallets.count == 1 ? settings.wallets.first : nil
+            snapshots[PortfolioSnapshotStore.allWalletsID] = snapshot(all, name: single.map { $0.name } ?? WalletPage.allWallets.title)
+        }
+        for wallet in settings.wallets {
+            if let portfolio = portfolio(for: wallet.address) {
+                snapshots[wallet.id] = snapshot(portfolio, name: wallet.displayName)
+            }
+        }
+        if !PortfolioSnapshotStore.save(snapshots, wallets: settings.wallets) {
             LogStore.shared.log("Could not write the widget snapshot", level: .error)
         }
-        guard widgetReload.shouldReload(for: snapshot, now: now) else { return }
+        guard widgetReload.shouldReload(for: snapshots, now: now) else { return }
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
         #endif
     }
 
-    private static func widgetWalletName() -> String? {
-        let settings = AppSettings.shared
-        guard let wallet = settings.activeWallet, settings.wallets.count > 1 || wallet.name != nil else { return nil }
-        return wallet.displayName
+    private func clearWidgets() {
+        guard PortfolioSnapshotStore.fileURL != nil else { return }
+        PortfolioSnapshotStore.removeAll()
+        guard widgetReload.shouldReload(for: [:], now: Date()) else { return }
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 
     private func applyChainResults(_ results: [ChainLoadResult], wallet: String, activeChains: [SupportedChain]) {
@@ -346,16 +423,8 @@ public final class UniswapService: ObservableObject {
         portfolio.lastUpdated = Date()
         if let err = errorText { LogStore.shared.log(err, level: .error) }
         portfolios[wallet.lowercased()] = portfolio
-
-        if isActive(wallet) {
-            applyVisibility(flash: true, publishWidget: !(all.isEmpty && errorText != nil))
-        } else {
-            updateVisiblePositions(wallet: wallet, hidden: HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store))
-        }
-    }
-
-    private func isActive(_ wallet: String) -> Bool {
-        wallet.caseInsensitiveCompare(AppSettings.shared.walletAddress) == .orderedSame
+        updateVisiblePositions(wallet: wallet, hidden: AppSettings.shared.hiddenPositions(for: wallet))
+        publish(flash: true)
     }
 
     private func updateVisiblePositions(wallet: String, hidden: [HiddenPosition]) {
@@ -364,53 +433,52 @@ public final class UniswapService: ObservableObject {
         portfolios[key]?.positions = HiddenPositionStore.visible(all, hidden: hidden)
     }
 
-    /// Publishes the active wallet: its positions, error, title and widget snapshot.
-    private func applyVisibility(hidden: [HiddenPosition]? = nil, flash: Bool, publishWidget: Bool = true) {
-        let wallet = AppSettings.shared.walletAddress
-        guard portfolio(for: wallet) != nil else {
-            // Not loaded yet: nothing to show, and the widgets keep the last wallet until it is.
+    /// Publishes the page on screen, the menu bar title and the widget snapshots.
+    private func publish(flash: Bool, publishWidgets: Bool = true) {
+        let page = pagePortfolio
+        positions = page?.positions ?? []
+        lastError = page?.lastError
+        lastUpdated = page?.lastUpdated
+        updateTitle(flash: flash)
+        if publishWidgets { self.publishWidgets() }
+    }
+
+    private func updateTitle(flash: Bool) {
+        let key = menuBarSourceKey
+        if key != titleSourceKey {
+            titleSourceKey = key
+            previousTotal = -1
+        }
+        guard let portfolio = menuBarPortfolio else {
+            // Not loaded yet.
             flashTask?.cancel()
-            positions = []
-            lastError = nil
-            lastUpdated = nil
             titleText = "… 👀"
+            baseTitle = titleText
             return
         }
-        updateVisiblePositions(wallet: wallet, hidden: hidden ?? AppSettings.shared.hiddenPositions)
-        let portfolio = portfolio(for: wallet) ?? WalletPortfolio()
-        positions = portfolio.positions
-        lastError = portfolio.lastError
-        lastUpdated = portfolio.lastUpdated
-        if publishWidget {
-            publishWidgetSnapshot(positions, updatedAt: flash ? Date() : (lastUpdated ?? Date()))
-        }
-
-        if positions.isEmpty {
-            flashTask?.cancel()
-            titleText = "$0.00 👀"
-            previousTotal = 0
-        } else {
-            let total = positions.compactMap(\.usd).reduce(0, +)
-            let value = positions.compactMap(\.positionUSD).reduce(0, +)
-            let baseTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total)
-            flashTask?.cancel()
-            titleText = baseTitle
-            let displayChanged = String(format: "%.2f", total) != String(format: "%.2f", previousTotal)
-            if flash, previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
-                let flashEmoji = total > previousTotal ? "🔼" : "🔽"
-                let flashTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total, trend: flashEmoji)
-                flashTask?.cancel()
-                flashTask = Task {
-                    for i in 0..<10 {
-                        guard !Task.isCancelled else { return }
-                        titleText = i % 2 == 0 ? flashTitle : baseTitle
-                        try? await Task.sleep(nanoseconds: 1_000_000_000)
-                    }
-                    titleText = baseTitle
+        let positions = portfolio.positions
+        let total = positions.compactMap(\.usd).reduce(0, +)
+        let value = positions.compactMap(\.positionUSD).reduce(0, +)
+        let title = positions.isEmpty ? "$0.00 👀" : MenuBarTitle.text(valueUSD: value, feesUSD: total)
+        // A republish of the same title leaves a running flash alone.
+        guard flash || title != baseTitle else { return }
+        flashTask?.cancel()
+        baseTitle = title
+        titleText = title
+        let displayChanged = String(format: "%.2f", total) != String(format: "%.2f", previousTotal)
+        if flash, !positions.isEmpty, previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
+            let flashEmoji = total > previousTotal ? "🔼" : "🔽"
+            let flashTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total, trend: flashEmoji)
+            flashTask = Task {
+                for i in 0..<10 {
+                    guard !Task.isCancelled else { return }
+                    titleText = i % 2 == 0 ? flashTitle : title
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                 }
+                titleText = title
             }
-            previousTotal = total
         }
+        previousTotal = total
     }
 
     // MARK: - Fee history (background)
@@ -480,7 +548,7 @@ public final class UniswapService: ObservableObject {
                     chainDailyFees.byPosition[pos.id] = days.byPosition[pos.id]
                 }
                 dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
-                publishWidgetSnapshot(positions, updatedAt: lastUpdated ?? Date())
+                publishWidgets()
             }
         }
     }
@@ -506,21 +574,49 @@ public final class UniswapService: ObservableObject {
             if hasUSD { allPositions[i].claimedUSD = claimedUSD }
         }
         portfolios[key]?.allPositions = allPositions
-        if isActive(wallet) {
-            updateVisiblePositions(wallet: wallet, hidden: AppSettings.shared.hiddenPositions)
-            positions = portfolios[key]?.positions ?? []
-        } else {
-            updateVisiblePositions(wallet: wallet, hidden: HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store))
-        }
+        updateVisiblePositions(wallet: wallet, hidden: AppSettings.shared.hiddenPositions(for: wallet))
+        publish(flash: false, publishWidgets: false)
     }
 
     // MARK: - Per-chain load
 
-    private func loadChains(_ chains: [SupportedChain], wallet: String) async -> [ChainLoadResult] {
+    private var v4ScanSettings: V4ScanSettings {
+        V4ScanSettings(
+            logChunkSize: AppSettings.shared.v4LogChunkSize,
+            maxConcurrentLogRequests: AppSettings.shared.v4LogMaxConcurrentRequests,
+            maxChunksPerRefresh: AppSettings.shared.v4BootstrapMaxChunksPerRefresh
+        )
+    }
+
+    /// The reads every wallet shares, once per chain, so each further wallet costs only its own
+    /// positions.
+    private func prefetchChains(_ chains: [SupportedChain], wallets: [String]) async -> [String: ChainPrefetch] {
+        await withTaskGroup(of: (String, ChainPrefetch?).self, returning: [String: ChainPrefetch].self) { group in
+            for chain in chains {
+                group.addTask { (chain.id, await self.prefetchChain(chain, wallets: wallets)) }
+            }
+            var collected: [String: ChainPrefetch] = [:]
+            for await (chainID, prefetch) in group { collected[chainID] = prefetch }
+            return collected
+        }
+    }
+
+    private func prefetchChain(_ chain: SupportedChain, wallets: [String]) async -> ChainPrefetch? {
+        guard let rpcURL = AppSettings.shared.infuraRPCURL(for: chain) else { return nil }
+        let prefetch = await ChainPrefetch.load(
+            chain: chain, wallets: wallets, eth: EthereumClient(rpcURL: rpcURL), scanSettings: v4ScanSettings
+        )
+        if prefetch.accessDenied { AppSettings.shared.disableChain(chain.id) }
+        return prefetch
+    }
+
+    private func loadChains(
+        _ chains: [SupportedChain], wallet: String, prefetches: [String: ChainPrefetch] = [:]
+    ) async -> [ChainLoadResult] {
         await withTaskGroup(of: ChainLoadResult.self, returning: [ChainLoadResult].self) { group in
             for chain in chains {
                 group.addTask {
-                    await self.loadChain(wallet: wallet, chain: chain)
+                    await self.loadChain(wallet: wallet, chain: chain, prefetch: prefetches[chain.id])
                 }
             }
             var collected: [ChainLoadResult] = []
@@ -529,32 +625,20 @@ public final class UniswapService: ObservableObject {
         }
     }
 
-    private func loadChain(wallet: String, chain: SupportedChain) async -> ChainLoadResult {
+    private func loadChain(wallet: String, chain: SupportedChain, prefetch: ChainPrefetch?) async -> ChainLoadResult {
         guard let rpcURL = AppSettings.shared.infuraRPCURL(for: chain) else {
             return .failed(chain, error: "\(chain.displayName): invalid Infura API key")
         }
         let eth = EthereumClient(rpcURL: rpcURL)
 
-        do {
-            let probedChainID = try await eth.ethChainId()
-            if probedChainID != chain.chainId {
-                return .failed(
-                    chain,
-                    error: "\(chain.displayName): RPC chain mismatch (expected \(chain.chainId), got \(probedChainID))"
-                )
-            }
-        } catch {
-            let msg = error.localizedDescription
-            if msg.lowercased().contains("does not have access") ||
-                msg.lowercased().contains("not available for project") {
-                AppSettings.shared.disableChain(chain.id)
-                return .failed(
-                    chain,
-                    error: "\(chain.displayName): Infura access denied for this API key (network auto-disabled)"
-                )
-            }
-            return .failed(chain, error: "\(chain.displayName): RPC unavailable – \(msg)")
+        // Without a prefetch (the bootstrap follow-up) the chain is probed here.
+        if let error = prefetch?.error {
+            return .failed(chain, error: error)
+        } else if prefetch == nil, let failure = await ChainPrefetch.probe(chain: chain, eth: eth) {
+            if failure.accessDenied { AppSettings.shared.disableChain(chain.id) }
+            return .failed(chain, error: failure.error ?? "\(chain.displayName): RPC unavailable")
         }
+        let key = wallet.lowercased()
 
         var v3 = LoaderOutput()
         if chain.supportsV3 {
@@ -563,7 +647,7 @@ public final class UniswapService: ObservableObject {
                 chain: chain,
                 prices: priceService,
                 trackClaimedFees: AppSettings.shared.trackClaimedFees
-            ).load(wallet: wallet)
+            ).load(wallet: wallet, balance: prefetch?.v3Balances[key])
         }
         var v4 = LoaderOutput()
         if chain.supportsV4 {
@@ -571,12 +655,8 @@ public final class UniswapService: ObservableObject {
                 eth: eth,
                 chain: chain,
                 prices: priceService,
-                scanSettings: V4ScanSettings(
-                    logChunkSize: AppSettings.shared.v4LogChunkSize,
-                    maxConcurrentLogRequests: AppSettings.shared.v4LogMaxConcurrentRequests,
-                    maxChunksPerRefresh: AppSettings.shared.v4BootstrapMaxChunksPerRefresh
-                )
-            ).load(wallet: wallet)
+                scanSettings: v4ScanSettings
+            ).load(wallet: wallet, balance: prefetch?.v4Balances[key], shared: prefetch?.v4Transfers)
         }
 
         let errors = [v3.error, v4.error].compactMap { $0 }.map { "\(chain.displayName): \($0)" }
@@ -650,7 +730,7 @@ public final class UniswapService: ObservableObject {
             stopBootstrapCountdownTimer()
             return
         }
-        lastError = portfolio(for: AppSettings.shared.walletAddress)?.lastError
+        lastError = pagePortfolio?.lastError
     }
 
     #if os(macOS)

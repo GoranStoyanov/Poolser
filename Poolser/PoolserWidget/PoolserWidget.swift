@@ -7,9 +7,10 @@ struct PortfolioEntry: TimelineEntry {
     let snapshot: PortfolioSnapshot?
 }
 
-/// Reads the snapshot the app writes after each refresh; the app reloads the timeline when the
-/// picture changes, so entries only need to keep the "Updated … ago" line current.
-struct PortfolioProvider: TimelineProvider {
+/// Reads the snapshot the app writes for the chosen wallet after each refresh; the app reloads
+/// the timeline when the picture changes, so entries only need to keep the "Updated … ago"
+/// line current.
+struct PortfolioProvider: AppIntentTimelineProvider {
     private static let step: TimeInterval = 15 * 60
     private static let entryCount = 8
 
@@ -17,19 +18,19 @@ struct PortfolioProvider: TimelineProvider {
         PortfolioEntry(date: Date(), snapshot: .preview)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (PortfolioEntry) -> Void) {
+    func snapshot(for configuration: SelectWalletIntent, in context: Context) async -> PortfolioEntry {
         // The widget gallery shows sample data until the app has written a snapshot.
-        let snapshot = PortfolioSnapshotStore.load() ?? (context.isPreview ? .preview : nil)
-        completion(PortfolioEntry(date: Date(), snapshot: snapshot))
+        let snapshot = PortfolioSnapshotStore.load(walletID: configuration.wallet?.id) ?? (context.isPreview ? .preview : nil)
+        return PortfolioEntry(date: Date(), snapshot: snapshot)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<PortfolioEntry>) -> Void) {
-        let snapshot = PortfolioSnapshotStore.load()
+    func timeline(for configuration: SelectWalletIntent, in context: Context) async -> Timeline<PortfolioEntry> {
+        let snapshot = PortfolioSnapshotStore.load(walletID: configuration.wallet?.id)
         let now = Date()
         let entries = (0..<Self.entryCount).map {
             PortfolioEntry(date: now.addingTimeInterval(Double($0) * Self.step), snapshot: snapshot)
         }
-        completion(Timeline(entries: entries, policy: .atEnd))
+        return Timeline(entries: entries, policy: .atEnd)
     }
 }
 
@@ -54,11 +55,11 @@ struct PortfolioEntryView: View {
 @main
 struct PoolserWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "Portfolio", provider: PortfolioProvider()) { entry in
+        AppIntentConfiguration(kind: "Portfolio", intent: SelectWalletIntent.self, provider: PortfolioProvider()) { entry in
             PortfolioEntryView(entry: entry)
         }
         .configurationDisplayName("Portfolio")
-        .description("Value, unclaimed fees and range status of your Uniswap positions.")
+        .description("Value, unclaimed fees and range status of your Uniswap positions, for all wallets or one.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

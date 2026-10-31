@@ -8,6 +8,7 @@ struct SettingsView: View {
     var onDismiss: (() -> Void)? = nil
     @State private var walletDraft: WalletListDraft
     @State private var draggedWallet: SavedWallet?
+    @State private var draftMenuBarSource: MenuBarSource
     @State private var draftInfuraAPIKey: String
     @State private var draftEnabledChainIDs: Set<String>
     @State private var draftRefreshIntervalMinutes: Int
@@ -25,6 +26,7 @@ struct SettingsView: View {
         self.onDismiss = onDismiss
         let s = AppSettings.shared
         _walletDraft = State(initialValue: WalletListDraft(s))
+        _draftMenuBarSource = State(initialValue: s.menuBarSource)
         _draftInfuraAPIKey = State(initialValue: s.infuraAPIKey)
         _draftEnabledChainIDs = State(initialValue: s.enabledChainIDs)
         _draftRefreshIntervalMinutes = State(initialValue: s.refreshIntervalMinutes)
@@ -61,6 +63,10 @@ struct SettingsView: View {
                     settingsSection("Infura Configuration") {
                         VStack(spacing: 0) {
                             walletsRow
+                            if walletDraft.wallets.count > 1 {
+                                Divider().opacity(0.35).padding(.leading, 14)
+                                menuBarSourceRow
+                            }
                             Divider().opacity(0.35).padding(.leading, 14)
                             apiKeyRow
                             Divider().opacity(0.35).padding(.leading, 14)
@@ -97,26 +103,37 @@ struct SettingsView: View {
 
                     settingsSection("Hidden Positions") {
                         VStack(spacing: 0) {
-                            if settings.hiddenPositions.isEmpty {
+                            let hidden = settings.hiddenPositionsByWallet
+                            if hidden.isEmpty {
                                 Text("Hide a position from its card menu to remove it from all views and totals.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(14)
                             } else {
-                                ForEach(settings.hiddenPositions) { position in
-                                    HStack(spacing: 8) {
-                                        Text(position.label)
-                                            .font(.system(size: 12))
-                                            .lineLimit(1)
-                                        Spacer()
-                                        Button("Show") { settings.showPosition(id: position.id) }
-                                            .font(.system(size: 12))
+                                ForEach(hidden, id: \.wallet.id) { wallet, positions in
+                                    if settings.wallets.count > 1 {
+                                        Text(wallet.displayName)
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(.secondary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 14)
+                                            .padding(.top, 10)
                                     }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 9)
-                                    if position.id != settings.hiddenPositions.last?.id {
-                                        Divider().opacity(0.35).padding(.leading, 14)
+                                    ForEach(positions) { position in
+                                        HStack(spacing: 8) {
+                                            Text(position.label)
+                                                .font(.system(size: 12))
+                                                .lineLimit(1)
+                                            Spacer()
+                                            Button("Show") { settings.showPosition(id: position.id, wallet: wallet.address) }
+                                                .font(.system(size: 12))
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 9)
+                                        if position.id != positions.last?.id {
+                                            Divider().opacity(0.35).padding(.leading, 14)
+                                        }
                                     }
                                 }
                             }
@@ -296,6 +313,7 @@ struct SettingsView: View {
                 Spacer()
                 Button("Save & Refresh") {
                     walletDraft.addPending()
+                    settings.menuBarSource = draftMenuBarSource
                     settings.setWallets(walletDraft.wallets, active: walletDraft.active)
                     settings.infuraAPIKey = draftInfuraAPIKey
                     settings.enabledChainIDs = draftEnabledChainIDs
@@ -352,6 +370,21 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    private var menuBarSourceRow: some View {
+        settingRow(label: "Menu Bar Shows", info: "Which wallets the menu bar title totals.") {
+            Picker("", selection: $draftMenuBarSource) {
+                Text("All Wallets").tag(MenuBarSource.allWallets)
+                Text("Wallet on Screen").tag(MenuBarSource.shownPage)
+                Divider()
+                ForEach(walletDraft.wallets) { wallet in
+                    Text(wallet.displayName).tag(MenuBarSource.wallet(wallet.id))
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
+        }
     }
 
     private func walletRow(_ wallet: SavedWallet) -> some View {

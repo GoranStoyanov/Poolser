@@ -29,9 +29,9 @@ struct IOSPortfolioView: View {
             .navigationBarTitleDisplayMode(settings.wallets.count > 1 ? .inline : .automatic)
             .toolbarTitleMenu {
                 if isConfigured && settings.wallets.count > 1 {
-                    Picker("Wallet", selection: activeWallet) {
-                        ForEach(settings.wallets) { wallet in
-                            Text(wallet.displayName).tag(wallet.id)
+                    Picker("Wallet", selection: shownPage) {
+                        ForEach(settings.walletPages) { page in
+                            Text(page.title).tag(page.id)
                         }
                     }
                 }
@@ -68,28 +68,28 @@ struct IOSPortfolioView: View {
     }
 
     private var title: String {
-        settings.wallets.count > 1 ? settings.activeWallet?.displayName ?? "Poolser" : "Poolser"
+        settings.wallets.count > 1 ? settings.shownPage?.title ?? "Poolser" : "Poolser"
     }
 
-    /// The page on screen, by `SavedWallet.id`.
-    private var activeWallet: Binding<String> {
+    /// The page on screen, by `WalletPage.id`.
+    private var shownPage: Binding<String> {
         Binding(
-            get: { settings.walletAddress.lowercased() },
+            get: { settings.shownPage?.id ?? "" },
             set: { id in
-                guard let wallet = settings.wallets.first(where: { $0.id == id }),
-                      !wallet.matches(settings.walletAddress) else { return }
-                settings.walletAddress = wallet.address
+                guard id != settings.shownPage?.id,
+                      let page = settings.walletPages.first(where: { $0.id == id }) else { return }
+                settings.show(page)
                 service.activeWalletChanged()
             }
         )
     }
 
-    /// One page per saved wallet; swiping sideways makes the next one active.
+    /// One page per saved wallet, after All Wallets; swiping sideways shows the next one.
     private var portfolio: some View {
-        TabView(selection: activeWallet) {
-            ForEach(settings.wallets) { wallet in
-                walletPage(wallet)
-                    .tag(wallet.id)
+        TabView(selection: shownPage) {
+            ForEach(settings.walletPages) { page in
+                walletPage(page)
+                    .tag(page.id)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: settings.wallets.count > 1 ? .always : .never))
@@ -97,10 +97,13 @@ struct IOSPortfolioView: View {
         .background(palette.popover)
     }
 
-    private func walletPage(_ wallet: SavedWallet) -> some View {
-        // The active wallet reads the service's published values, which hidden positions update.
-        let isActive = wallet.matches(settings.walletAddress)
-        let loaded = service.portfolio(for: wallet.address)
+    private func walletPage(_ page: WalletPage) -> some View {
+        // The page on screen reads the service's published values, which hidden positions update.
+        let isActive = page.id == settings.shownPage?.id
+        let loaded: WalletPortfolio? = switch page {
+        case .allWallets: service.allWalletsPortfolio
+        case .wallet(let wallet): service.portfolio(for: wallet.address)
+        }
         return WalletPageContent(
             positions: isActive ? service.positions : loaded?.positions ?? [],
             lastError: isActive ? service.lastError : loaded?.lastError,
@@ -109,7 +112,7 @@ struct IOSPortfolioView: View {
             showsPageIndicator: settings.wallets.count > 1,
             palette: palette,
             open: { if let url = $0.uniswapURL { openURL(url) } },
-            hide: { settings.hide($0) }
+            hide: { settings.hide($0, wallet: service.wallet(of: $0) ?? settings.walletAddress) }
         )
         .refreshable { await service.refreshAndWait() }
     }

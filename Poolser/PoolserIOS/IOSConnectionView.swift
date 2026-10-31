@@ -81,21 +81,24 @@ struct IOSConnectionView: View {
                 }
             }
 
-            Section {
-                if settings.hiddenPositions.isEmpty {
+            let hidden = settings.hiddenPositionsByWallet
+            if hidden.isEmpty {
+                Section("Hidden Positions") {
                     Text("Hide a position from its card menu to remove it from all views and totals.")
                         .foregroundStyle(.secondary)
-                } else {
-                    ForEach(settings.hiddenPositions) { position in
-                        HStack {
-                            Text(position.label)
-                            Spacer()
-                            Button("Show") { settings.showPosition(id: position.id) }
+                }
+            } else {
+                ForEach(hidden, id: \.wallet.id) { wallet, positions in
+                    Section(settings.wallets.count > 1 ? "Hidden in \(wallet.displayName)" : "Hidden Positions") {
+                        ForEach(positions) { position in
+                            HStack {
+                                Text(position.label)
+                                Spacer()
+                                Button("Show") { settings.showPosition(id: position.id, wallet: wallet.address) }
+                            }
                         }
                     }
                 }
-            } header: {
-                Text("Hidden Positions")
             }
         }
         .toolbar {

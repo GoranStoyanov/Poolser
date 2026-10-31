@@ -150,6 +150,8 @@ Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 Important behavior:
 - Setting edits are draft-only until you press **Save & Refresh**
 - Every saved wallet loads on each refresh; swipe left or right in the popover (or press ⌘← / ⌘→) to switch between them, or pick one from the wallet menu in the header
+- With two or more wallets, the first page shows all wallets together; **Menu Bar Shows** picks what the menu bar title totals (all wallets, the wallet on screen, or one wallet)
+- Each widget can show all wallets or one: edit the widget and choose a wallet
 - Closing settings with `X`/`Esc` discards unsaved changes
 - Settings are saved in `UserDefaults`; the Infura API key is saved in the macOS Keychain
 - Some Infura networks are gated per project; enable the network in your Infura dashboard first if needed
