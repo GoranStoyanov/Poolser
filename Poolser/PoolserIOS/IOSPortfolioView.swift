@@ -80,7 +80,7 @@ struct IOSPortfolioView: View {
                     ForEach(service.positions) { position in
                         GraphitePositionCard(position: position, onOpen: {
                             if let url = position.uniswapURL { openURL(url) }
-                        })
+                        }, onHide: { settings.hide(position) })
                     }
                 }
             }

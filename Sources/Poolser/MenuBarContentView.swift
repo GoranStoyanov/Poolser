@@ -41,6 +41,7 @@ struct MenuBarContentView: View {
                         if let url = pos.uniswapURL { openURL(url) }
                     },
                     collect: { pos in collector.collect(pos, owner: owner) },
+                    hide: { pos in settings.hide(pos) },
                     collectAll: { chainID in collector.collectAll(on: chainID, positions: service.positions, owner: owner) },
                     dismissNotice: { collector.dismiss() }
                 )

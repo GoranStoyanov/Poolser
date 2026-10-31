@@ -99,6 +99,35 @@ struct SettingsView: View {
                         .glassCard(cornerRadius: 12)
                     }
 
+                    settingsSection("Hidden Positions") {
+                        VStack(spacing: 0) {
+                            if settings.hiddenPositions.isEmpty {
+                                Text("Hide a position from its card menu to remove it from all views and totals.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                            } else {
+                                ForEach(settings.hiddenPositions) { position in
+                                    HStack(spacing: 8) {
+                                        Text(position.label)
+                                            .font(.system(size: 12))
+                                            .lineLimit(1)
+                                        Spacer()
+                                        Button("Show") { settings.showPosition(id: position.id) }
+                                            .font(.system(size: 12))
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 9)
+                                    if position.id != settings.hiddenPositions.last?.id {
+                                        Divider().opacity(0.35).padding(.leading, 14)
+                                    }
+                                }
+                            }
+                        }
+                        .glassCard(cornerRadius: 12)
+                    }
+
                     settingsSection("Performance & RPC") {
                         VStack(spacing: 0) {
                             settingRow(

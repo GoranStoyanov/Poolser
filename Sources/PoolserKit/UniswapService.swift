@@ -10,6 +10,7 @@ import WidgetKit
 public final class UniswapService: ObservableObject {
     @Published public var titleText      = "… 👀"
     @Published public var positions:     [Position] = []
+    private var allPositions: [Position] = []
     @Published public var isLoading      = false
     @Published public var lastError:     String?
     @Published public var lastUpdated:   Date? = nil
@@ -28,6 +29,7 @@ public final class UniswapService: ObservableObject {
     private let bootstrapFollowUpSeconds: UInt64 = 75
     private var timer: Timer?
     private var refreshIntervalCancellable: AnyCancellable?
+    private var visibilityCancellable: AnyCancellable?
     private var activeLoadTask: Task<Void, Never>?
     private var bootstrapFollowUpTask: Task<Void, Never>?
     private var feeHistoryTask: Task<Void, Never>?
@@ -39,6 +41,9 @@ public final class UniswapService: ObservableObject {
     private var widgetReload = WidgetReloadThrottle()
 
     public init() {
+        visibilityCancellable = AppSettings.shared.$hiddenPositions
+            .dropFirst()
+            .sink { [weak self] hidden in self?.applyVisibility(hidden: hidden, flash: false) }
         #if os(macOS)
         configureTimer()
         refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
@@ -59,6 +64,7 @@ public final class UniswapService: ObservableObject {
     public func cancelRefresh() { activeLoadTask?.cancel() }
 
     public func refreshForWalletChange() {
+        allPositions = []
         positions = []
         chainDailyFees = DailyFees()
         titleText = "… 👀"
@@ -271,7 +277,7 @@ public final class UniswapService: ObservableObject {
         let all = snapshot
             .flatMap(\.positions)
             .sorted { lhs, rhs in (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0) }
-        positions = all
+        allPositions = all
         feeLedger.record(all, at: Date())
         feeLedger.save()
         dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
@@ -280,20 +286,27 @@ public final class UniswapService: ObservableObject {
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
         lastError = errorText
         if let err = errorText { LogStore.shared.log(err, level: .error) }
-        // A failed refresh leaves the widgets on the last good snapshot and its timestamp.
-        if !(all.isEmpty && errorText != nil) {
-            publishWidgetSnapshot(all, updatedAt: Date())
+        applyVisibility(flash: true, publishWidget: !(all.isEmpty && errorText != nil))
+    }
+
+    private func applyVisibility(hidden: [HiddenPosition]? = nil, flash: Bool, publishWidget: Bool = true) {
+        positions = HiddenPositionStore.visible(allPositions, hidden: hidden ?? AppSettings.shared.hiddenPositions)
+        if publishWidget {
+            publishWidgetSnapshot(positions, updatedAt: flash ? Date() : (lastUpdated ?? Date()))
         }
 
-        if all.isEmpty {
+        if positions.isEmpty {
+            flashTask?.cancel()
             titleText = "$0.00 👀"
+            previousTotal = 0
         } else {
-            let total = snapshot.reduce(0.0) { $0 + $1.feesUSD }
-            let value = all.compactMap(\.positionUSD).reduce(0, +)
+            let total = positions.compactMap(\.usd).reduce(0, +)
+            let value = positions.compactMap(\.positionUSD).reduce(0, +)
             let baseTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total)
+            flashTask?.cancel()
             titleText = baseTitle
             let displayChanged = String(format: "%.2f", total) != String(format: "%.2f", previousTotal)
-            if previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
+            if flash, previousTotal >= 0, displayChanged, AppSettings.shared.flashOnValueChange {
                 let flashEmoji = total > previousTotal ? "🔼" : "🔽"
                 let flashTitle = MenuBarTitle.text(valueUSD: value, feesUSD: total, trend: flashEmoji)
                 flashTask?.cancel()
@@ -385,18 +398,19 @@ public final class UniswapService: ObservableObject {
         priceMap: [String: Double],
         chainID: String
     ) {
-        for i in positions.indices {
-            guard positions[i].chainID == chainID, !positions[i].isV4, positions[i].error == nil else { continue }
-            positions[i].feeHistoryBootstrapping = result.bootstrapInProgress
-            positions[i].openedAt = result.openedAt[positions[i].tokenId]
-            guard let claimed = result.fees[positions[i].tokenId] else { continue }
-            positions[i].claimedFees0 = claimed.amount0
-            positions[i].claimedFees1 = claimed.amount1
+        for i in allPositions.indices {
+            guard allPositions[i].chainID == chainID, !allPositions[i].isV4, allPositions[i].error == nil else { continue }
+            allPositions[i].feeHistoryBootstrapping = result.bootstrapInProgress
+            allPositions[i].openedAt = result.openedAt[allPositions[i].tokenId]
+            guard let claimed = result.fees[allPositions[i].tokenId] else { continue }
+            allPositions[i].claimedFees0 = claimed.amount0
+            allPositions[i].claimedFees1 = claimed.amount1
             var claimedUSD = 0.0; var hasUSD = false
-            if let px = priceMap[positions[i].token0.lowercased()], claimed.amount0 > 0 { claimedUSD += claimed.amount0 * px; hasUSD = true }
-            if let px = priceMap[positions[i].token1.lowercased()], claimed.amount1 > 0 { claimedUSD += claimed.amount1 * px; hasUSD = true }
-            if hasUSD { positions[i].claimedUSD = claimedUSD }
+            if let px = priceMap[allPositions[i].token0.lowercased()], claimed.amount0 > 0 { claimedUSD += claimed.amount0 * px; hasUSD = true }
+            if let px = priceMap[allPositions[i].token1.lowercased()], claimed.amount1 > 0 { claimedUSD += claimed.amount1 * px; hasUSD = true }
+            if hasUSD { allPositions[i].claimedUSD = claimedUSD }
         }
+        positions = HiddenPositionStore.visible(allPositions, hidden: AppSettings.shared.hiddenPositions)
     }
 
     // MARK: - Per-chain load

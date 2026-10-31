@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PoolserKit
 
@@ -33,6 +34,25 @@ struct PositionIdentityTests {
 
     @Test func sameVersionAndTokenOnDifferentChainsDiffer() {
         #expect(makePosition(chainID: "ethereum", isV4: true).id != makePosition(chainID: "base", isV4: true).id)
+    }
+}
+
+@Suite("Hidden positions")
+struct HiddenPositionTests {
+    @Test func hidesOnlyMatchingChainAndVersionAndRestoresFromSavedList() {
+        let v3 = makePosition(isV4: false)
+        let v4 = makePosition(isV4: true)
+        let base = makePosition(chainID: "base", isV4: false)
+        let hidden = [HiddenPosition(v3)]
+        #expect(HiddenPositionStore.visible([v3, v4, base], hidden: hidden).map(\.id) == [v4.id, base.id])
+        #expect(HiddenPositionStore.visible([v3, v4, base], hidden: []).count == 3)
+
+        let suite = "HiddenPositionTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        HiddenPositionStore.save(hidden, wallet: "0xABC", to: defaults)
+        #expect(HiddenPositionStore.load(wallet: "0xabc", from: defaults) == hidden)
+        #expect(HiddenPositionStore.load(wallet: "0xdef", from: defaults).isEmpty)
     }
 }
 
