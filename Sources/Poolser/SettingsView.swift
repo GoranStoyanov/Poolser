@@ -5,7 +5,9 @@ struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @EnvironmentObject  private var service: UniswapService
     var onDismiss: (() -> Void)? = nil
+    @State private var draftWalletAddresses: [String]
     @State private var draftWalletAddress: String
+    @State private var newWalletAddress = ""
     @State private var draftInfuraAPIKey: String
     @State private var draftEnabledChainIDs: Set<String>
     @State private var draftRefreshIntervalMinutes: Int
@@ -22,6 +24,7 @@ struct SettingsView: View {
     init(onDismiss: (() -> Void)? = nil) {
         self.onDismiss = onDismiss
         let s = AppSettings.shared
+        _draftWalletAddresses = State(initialValue: s.walletAddresses)
         _draftWalletAddress = State(initialValue: s.walletAddress)
         _draftInfuraAPIKey = State(initialValue: s.infuraAPIKey)
         _draftEnabledChainIDs = State(initialValue: s.enabledChainIDs)
@@ -58,13 +61,46 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     settingsSection("Infura Configuration") {
                         VStack(spacing: 0) {
-                            fieldRow(
-                                label: "Wallet Address",
-                                info: "Address to inspect for Uniswap v3/v4 NFT liquidity positions.",
-                                placeholder: "0x…",
-                                text: $draftWalletAddress,
-                                error: walletAddressError
-                            )
+                            VStack(alignment: .leading, spacing: 8) {
+                                infoTitle("Wallet Addresses", info: "Save addresses and choose which wallet to inspect.")
+                                ForEach(draftWalletAddresses, id: \.self) { address in
+                                    HStack {
+                                        Button {
+                                            draftWalletAddress = address
+                                        } label: {
+                                            Image(systemName: draftWalletAddress.caseInsensitiveCompare(address) == .orderedSame
+                                                  ? "largecircle.fill.circle" : "circle")
+                                            Text(address)
+                                                .font(.system(size: 11, design: .monospaced))
+                                        }
+                                        .buttonStyle(.plain)
+                                        Spacer()
+                                        Button {
+                                            draftWalletAddresses.removeAll { $0 == address }
+                                            if draftWalletAddress == address {
+                                                draftWalletAddress = draftWalletAddresses.first ?? ""
+                                            }
+                                        } label: {
+                                            Image(systemName: "minus.circle")
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("Remove \(address)")
+                                    }
+                                }
+                                HStack {
+                                    TextField("0x…", text: $newWalletAddress)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .textFieldStyle(.roundedBorder)
+                                    Button("Add") { addWalletAddress() }
+                                        .disabled(newWalletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                                  || newWalletAddressError != nil)
+                                }
+                                if let error = newWalletAddressError {
+                                    Text(error).font(.caption).foregroundStyle(.red)
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             Divider().opacity(0.35).padding(.leading, 14)
                             apiKeyRow
                             Divider().opacity(0.35).padding(.leading, 14)
@@ -299,7 +335,10 @@ struct SettingsView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("Save & Refresh") {
-                    settings.walletAddress = WalletAddress.normalize(draftWalletAddress) ?? ""
+                    if !newWalletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        addWalletAddress()
+                    }
+                    settings.setWalletAddresses(draftWalletAddresses, active: draftWalletAddress)
                     settings.infuraAPIKey = draftInfuraAPIKey
                     settings.enabledChainIDs = draftEnabledChainIDs
                     settings.refreshIntervalMinutes = draftRefreshIntervalMinutes
@@ -318,15 +357,27 @@ struct SettingsView: View {
                 }
                 .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
-                .disabled(walletAddressError != nil)
+                .disabled(newWalletAddressError != nil)
             }
         }
         .padding(20)
         .frame(width: 460, height: 640)
     }
 
-    private var walletAddressError: String? {
-        WalletAddress.validationError(for: draftWalletAddress)
+    private var newWalletAddressError: String? {
+        guard !newWalletAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard let address = WalletAddress.normalize(newWalletAddress) else {
+            return WalletAddress.validationError(for: newWalletAddress)
+        }
+        return draftWalletAddresses.contains(where: { $0.caseInsensitiveCompare(address) == .orderedSame })
+            ? "This address is already saved." : nil
+    }
+
+    private func addWalletAddress() {
+        guard newWalletAddressError == nil, let address = WalletAddress.normalize(newWalletAddress) else { return }
+        draftWalletAddresses.append(address)
+        if draftWalletAddress.isEmpty { draftWalletAddress = address }
+        newWalletAddress = ""
     }
 
     @ViewBuilder

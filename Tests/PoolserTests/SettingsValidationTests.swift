@@ -59,6 +59,11 @@ private let bareHex = String(address.dropFirst(2))
     func invalidFieldHasValidationError(_ input: String) {
         #expect(WalletAddress.validationError(for: input) != nil)
     }
+
+    @Test func savedAddressesAreNormalizedAndDeduplicated() {
+        let second = "0x1111111111111111111111111111111111111111"
+        #expect(WalletAddress.unique([" \(address) ", address.lowercased(), "invalid", second]) == [address, second])
+    }
 }
 
 @Suite struct PerformanceDefaultsTests {

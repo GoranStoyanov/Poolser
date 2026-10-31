@@ -28,6 +28,28 @@ struct IOSPortfolioView: View {
             .navigationTitle("Poolser")
             .toolbar {
                 if isConfigured {
+                    if settings.walletAddresses.count > 1 {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Menu {
+                                ForEach(settings.walletAddresses, id: \.self) { address in
+                                    Button {
+                                        guard address != settings.walletAddress else { return }
+                                        settings.walletAddress = address
+                                        service.refreshForWalletChange()
+                                    } label: {
+                                        if address.caseInsensitiveCompare(settings.walletAddress) == .orderedSame {
+                                            Label(address, systemImage: "checkmark")
+                                        } else {
+                                            Text(address)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Text("\(settings.walletAddress.prefix(6))…\(settings.walletAddress.suffix(4))")
+                                    .font(.system(.caption, design: .monospaced))
+                            }
+                        }
+                    }
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Settings", systemImage: "gearshape") { showingSettings = true }
                     }

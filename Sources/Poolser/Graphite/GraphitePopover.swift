@@ -5,6 +5,7 @@ import PoolserKit
 /// previewed with fixed data.
 struct PopoverSnapshot {
     var walletAddress: String
+    var walletAddresses: [String] = []
     var positions: [Position]
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
     var dailyFeesUSD: [Double]?
@@ -36,6 +37,7 @@ struct Notice: Equatable {
 }
 
 struct GraphitePopoverActions {
+    var selectWallet: ((String) -> Void)?
     var refresh: (() -> Void)?
     var settings: (() -> Void)?
     var logs: (() -> Void)?
@@ -89,12 +91,7 @@ struct GraphitePopover: View {
             Text("Poolser")
                 .font(.headline)
                 .foregroundStyle(palette.primaryText)
-            Text(shortWallet)
-                .font(.system(.caption, design: .monospaced).weight(.semibold))
-                .foregroundStyle(palette.secondaryText)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(Capsule().fill(palette.control))
+            walletBadge
             Spacer()
             iconButton("arrow.clockwise", label: "Refresh", action: actions.refresh, busy: snapshot.isLoading)
             iconButton("slider.horizontal.3", label: "Settings", action: actions.settings)
@@ -108,6 +105,41 @@ struct GraphitePopover: View {
         let address = snapshot.walletAddress
         guard address.count > 12 else { return address.isEmpty ? "no wallet" : address }
         return "\(address.prefix(6))…\(address.suffix(4))"
+    }
+
+    @ViewBuilder
+    private var walletBadge: some View {
+        if snapshot.walletAddresses.count > 1, let selectWallet = actions.selectWallet {
+            Menu {
+                ForEach(snapshot.walletAddresses, id: \.self) { address in
+                    Button {
+                        selectWallet(address)
+                    } label: {
+                        if address.caseInsensitiveCompare(snapshot.walletAddress) == .orderedSame {
+                            Label(address, systemImage: "checkmark")
+                        } else {
+                            Text(address)
+                        }
+                    }
+                }
+            } label: {
+                walletBadgeLabel
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Switch wallet")
+        } else {
+            walletBadgeLabel
+        }
+    }
+
+    private var walletBadgeLabel: some View {
+        Text(shortWallet)
+            .font(.system(.caption, design: .monospaced).weight(.semibold))
+            .foregroundStyle(palette.secondaryText)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(palette.control))
     }
 
     private func iconButton(_ symbol: String, label: String, action: (() -> Void)?, busy: Bool = false) -> some View {
