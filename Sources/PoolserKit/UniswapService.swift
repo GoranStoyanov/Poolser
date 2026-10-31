@@ -4,13 +4,26 @@ import Combine
 import WidgetKit
 #endif
 
-/// Drives refreshes across the enabled chains and publishes the merged result to the UI.
+/// The last load of one saved wallet.
+public struct WalletPortfolio {
+    /// Positions that are not hidden.
+    public internal(set) var positions: [Position] = []
+    var allPositions: [Position] = []
+    public internal(set) var lastUpdated: Date?
+    public internal(set) var lastError: String?
+    var chainResultsByID: [String: ChainLoadResult] = [:]
+}
+
+/// Drives refreshes of every saved wallet across the enabled chains and publishes the merged
+/// result to the UI. `positions`, `lastError` and `lastUpdated` follow the active wallet; the
+/// others stay in `portfolios`, so switching wallets needs no reload.
 /// Reading positions is delegated to `V3PositionLoader` and `V4PositionLoader`.
 @MainActor
 public final class UniswapService: ObservableObject {
     @Published public var titleText      = "… 👀"
     @Published public var positions:     [Position] = []
-    private var allPositions: [Position] = []
+    /// By lowercased wallet address.
+    @Published public private(set) var portfolios: [String: WalletPortfolio] = [:]
     @Published public var isLoading      = false
     @Published public var lastError:     String?
     @Published public var lastUpdated:   Date? = nil
@@ -32,12 +45,13 @@ public final class UniswapService: ObservableObject {
     private var visibilityCancellable: AnyCancellable?
     private var activeLoadTask: Task<Void, Never>?
     private var bootstrapFollowUpTask: Task<Void, Never>?
+    /// Chains still bootstrapping, by wallet address.
+    private var bootstrapChainIDsByWallet: [String: [String]] = [:]
     private var feeHistoryTask: Task<Void, Never>?
     private var dailyFeeTask: Task<Void, Never>?
     private var bootstrapCountdownTimer: Timer?
     private var bootstrapFollowUpDeadlineByChainID: [String: Date] = [:]
     private var loadGeneration: UInt64 = 0
-    private var chainResultsByID: [String: ChainLoadResult] = [:]
     private var widgetReload = WidgetReloadThrottle()
 
     public init() {
@@ -63,18 +77,29 @@ public final class UniswapService: ObservableObject {
 
     public func cancelRefresh() { activeLoadTask?.cancel() }
 
+    public func portfolio(for wallet: String) -> WalletPortfolio? {
+        portfolios[wallet.lowercased()]
+    }
+
+    /// Settings changed the saved wallets: drops removed ones and reloads them all.
     public func refreshForWalletChange() {
-        flashTask?.cancel()
-        allPositions = []
-        positions = []
-        chainDailyFees = DailyFees()
-        dailyFees = feeLedger.dailyFees
-        titleText = "… 👀"
-        lastError = nil
-        lastUpdated = nil
-        previousTotal = -1
-        chainResultsByID = [:]
+        let saved = Set(AppSettings.shared.walletAddresses.map { $0.lowercased() })
+        portfolios = portfolios.filter { saved.contains($0.key) }
+        showActiveWallet()
         startLoad()
+    }
+
+    /// Shows the active wallet's last load at once. A wallet that has not been loaded yet is
+    /// loaded now.
+    public func activeWalletChanged() {
+        showActiveWallet()
+        if portfolio(for: AppSettings.shared.walletAddress) == nil { startLoad() }
+    }
+
+    private func showActiveWallet() {
+        flashTask?.cancel()
+        previousTotal = -1
+        applyVisibility(flash: false)
     }
 
     // MARK: - Orchestrator
@@ -102,12 +127,12 @@ public final class UniswapService: ObservableObject {
         // success) clears it, while a superseded load leaves it to the newer one.
         defer { if isCurrentGeneration(generation) { isLoading = false } }
 
-        let wallet = AppSettings.shared.walletAddress
+        let wallets = Self.walletsToLoad()
         let key = AppSettings.shared.infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let chains = AppSettings.shared.enabledChains()
-        guard WalletAddress.normalize(wallet) != nil, !key.isEmpty, !chains.isEmpty else {
+        guard !wallets.isEmpty, !key.isEmpty, !chains.isEmpty else {
             guard isCurrentGeneration(generation) else { return }
-            chainResultsByID = [:]
+            portfolios = [:]
             positions = []
             titleText = "– 👀"
             publishWidgetSnapshot(nil, updatedAt: Date())
@@ -125,34 +150,52 @@ public final class UniswapService: ObservableObject {
         LogStore.shared.log("refresh started", level: .info)
         await EthereumClient.setCreditBudget(perSecond: AppSettings.shared.rpcCreditsPerSecondBudget)
 
-        let results = await loadChains(chains, wallet: wallet)
+        // The active wallet first, so the page on screen fills in before the others load.
+        var bootstrapping: [String: [String]] = [:]
+        for wallet in wallets {
+            let results = await loadChains(chains, wallet: wallet)
+            guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+            let enrichedResults = await enrichChainResults(results)
+            guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+            applyChainResults(enrichedResults, wallet: wallet, activeChains: chains)
+            bootstrapping[wallet] = enrichedResults.filter(\.bootstrapInProgress).map { $0.chain.id }
+        }
 
-        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-        let enrichedResults = await enrichChainResults(results)
-        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-
-        applyChainResults(enrichedResults, activeChains: chains)
-
-        LogStore.shared.log("refresh done — \(positions.count) positions across \(chains.count) chain(s)", level: .info)
-        scheduleBootstrapFollowUpIfNeeded(
-            chainIDs: enrichedResults.filter(\.bootstrapInProgress).map { $0.chain.id },
-            generation: generation
+        let loaded = wallets.compactMap { portfolio(for: $0) }
+        LogStore.shared.log(
+            "refresh done — \(loaded.map(\.positions.count).reduce(0, +)) positions in \(wallets.count) wallet(s) across \(chains.count) chain(s)",
+            level: .info
         )
-        lastUpdated = Date()
+        scheduleBootstrapFollowUpIfNeeded(chainIDsByWallet: bootstrapping, generation: generation)
 
-        NotificationService.fireRangeChangeNotificationsIfNeeded(for: positions)
+        NotificationService.fireRangeChangeNotificationsIfNeeded(for: loaded.flatMap(\.positions))
 
         // Launch fee history scan in background — positions are already displayed.
-        let v3Positions = positions.filter { !$0.isV4 && $0.error == nil }
-        if !v3Positions.isEmpty && AppSettings.shared.trackClaimedFees {
-            startFeeHistoryLoad(v3Positions: v3Positions, wallet: wallet, generation: generation)
+        let v3ByWallet = wallets.map { wallet in
+            (wallet: wallet, positions: portfolio(for: wallet)?.positions.filter { !$0.isV4 && $0.error == nil } ?? [])
         }
-        startDailyFeeLoad(v3Positions: v3Positions.filter { $0.poolAddress != nil }, generation: generation)
+        if AppSettings.shared.trackClaimedFees {
+            startFeeHistoryLoad(v3ByWallet.filter { !$0.positions.isEmpty }, generation: generation)
+        }
+        startDailyFeeLoad(
+            v3Positions: v3ByWallet.flatMap(\.positions).filter { $0.poolAddress != nil },
+            generation: generation
+        )
     }
 
-    private func scheduleBootstrapFollowUpIfNeeded(chainIDs: [String], generation: UInt64) {
+    /// Valid saved wallets, the active one first.
+    private static func walletsToLoad() -> [String] {
+        let active = AppSettings.shared.walletAddress
+        guard WalletAddress.normalize(active) != nil else { return [] }
+        return [active] + AppSettings.shared.walletAddresses.filter {
+            $0.caseInsensitiveCompare(active) != .orderedSame && WalletAddress.normalize($0) != nil
+        }
+    }
+
+    private func scheduleBootstrapFollowUpIfNeeded(chainIDsByWallet: [String: [String]], generation: UInt64) {
         bootstrapFollowUpTask?.cancel()
-        let ids = Array(Set(chainIDs))
+        bootstrapChainIDsByWallet = chainIDsByWallet.filter { !$0.value.isEmpty }
+        let ids = Array(Set(bootstrapChainIDsByWallet.values.flatMap { $0 }))
         guard !ids.isEmpty else {
             bootstrapFollowUpDeadlineByChainID = [:]
             stopBootstrapCountdownTimer()
@@ -167,42 +210,45 @@ public final class UniswapService: ObservableObject {
         bootstrapFollowUpTask = Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: self.bootstrapFollowUpSeconds * 1_000_000_000)
-            await self.runBootstrapFollowUp(generation: generation, chainIDs: ids)
+            await self.runBootstrapFollowUp(generation: generation, chainIDsByWallet: self.bootstrapChainIDsByWallet)
         }
     }
 
-    private func runBootstrapFollowUp(generation: UInt64, chainIDs: [String]) async {
+    private func runBootstrapFollowUp(generation: UInt64, chainIDsByWallet: [String: [String]]) async {
         guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-        let wallet = AppSettings.shared.walletAddress
+        let saved = Self.walletsToLoad()
         let key = AppSettings.shared.infuraAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let activeChains = AppSettings.shared.enabledChains()
-        guard WalletAddress.normalize(wallet) != nil, !key.isEmpty, !activeChains.isEmpty else { return }
-
-        let idSet = Set(chainIDs)
-        let targetChains = activeChains.filter { idSet.contains($0.id) }
-        guard !targetChains.isEmpty else { return }
+        guard !saved.isEmpty, !key.isEmpty, !activeChains.isEmpty else { return }
         await EthereumClient.setCreditBudget(perSecond: AppSettings.shared.rpcCreditsPerSecondBudget)
 
-        LogStore.shared.log(
-            "v4 bootstrap in progress — running accelerated follow-up for \(targetChains.map(\.displayName).joined(separator: ", "))",
-            level: .info
+        var bootstrapping: [String: [String]] = [:]
+        for wallet in saved {
+            let idSet = Set(chainIDsByWallet[wallet] ?? [])
+            let targetChains = activeChains.filter { idSet.contains($0.id) }
+            guard !targetChains.isEmpty else { continue }
+            LogStore.shared.log(
+                "v4 bootstrap in progress — running accelerated follow-up for \(targetChains.map(\.displayName).joined(separator: ", "))",
+                level: .info
+            )
+
+            let results = await loadChains(targetChains, wallet: wallet)
+            guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+            let enrichedResults = await enrichChainResults(results)
+            guard isCurrentGeneration(generation), !Task.isCancelled else { return }
+            applyChainResults(enrichedResults, wallet: wallet, activeChains: activeChains)
+            bootstrapping[wallet] = activeChains
+                .compactMap { portfolio(for: wallet)?.chainResultsByID[$0.id] }
+                .filter(\.bootstrapInProgress)
+                .map { $0.chain.id }
+        }
+        NotificationService.fireRangeChangeNotificationsIfNeeded(
+            for: saved.compactMap { portfolio(for: $0) }.flatMap(\.positions)
         )
 
-        let results = await loadChains(targetChains, wallet: wallet)
-        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-
-        let enrichedResults = await enrichChainResults(results)
-        guard isCurrentGeneration(generation), !Task.isCancelled else { return }
-        applyChainResults(enrichedResults, activeChains: activeChains)
-        NotificationService.fireRangeChangeNotificationsIfNeeded(for: positions)
-
-        let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
-        scheduleBootstrapFollowUpIfNeeded(
-            chainIDs: snapshot.filter(\.bootstrapInProgress).map { $0.chain.id },
-            generation: generation
-        )
+        scheduleBootstrapFollowUpIfNeeded(chainIDsByWallet: bootstrapping, generation: generation)
         LogStore.shared.log(
-            "accelerated follow-up done — \(positions.count) positions, \(snapshot.filter(\.bootstrapInProgress).count) chain(s) still bootstrapping",
+            "accelerated follow-up done — \(bootstrapping.values.map(\.count).reduce(0, +)) chain(s) still bootstrapping",
             level: .info
         )
     }
@@ -258,7 +304,8 @@ public final class UniswapService: ObservableObject {
             PortfolioSnapshot(
                 positions: $0,
                 dailyFeesUSD: dailyFees.walletDailyUSD($0, days: 7, minDays: 1, endingAt: now),
-                updatedAt: updatedAt
+                updatedAt: updatedAt,
+                walletName: Self.widgetWalletName()
             )
         }
         if !PortfolioSnapshotStore.save(snapshot, to: url) {
@@ -270,31 +317,70 @@ public final class UniswapService: ObservableObject {
         #endif
     }
 
-    private func applyChainResults(_ results: [ChainLoadResult], activeChains: [SupportedChain]) {
-        let activeIDs = Set(activeChains.map(\.id))
-        for result in results {
-            chainResultsByID[result.chain.id] = result
-        }
-        chainResultsByID = chainResultsByID.filter { activeIDs.contains($0.key) }
+    private static func widgetWalletName() -> String? {
+        let settings = AppSettings.shared
+        guard let wallet = settings.activeWallet, settings.wallets.count > 1 || wallet.name != nil else { return nil }
+        return wallet.displayName
+    }
 
-        let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
+    private func applyChainResults(_ results: [ChainLoadResult], wallet: String, activeChains: [SupportedChain]) {
+        let activeIDs = Set(activeChains.map(\.id))
+        var portfolio = portfolio(for: wallet) ?? WalletPortfolio()
+        for result in results {
+            portfolio.chainResultsByID[result.chain.id] = result
+        }
+        portfolio.chainResultsByID = portfolio.chainResultsByID.filter { activeIDs.contains($0.key) }
+
+        let snapshot = activeChains.compactMap { portfolio.chainResultsByID[$0.id] }
         let all = snapshot
             .flatMap(\.positions)
             .sorted { lhs, rhs in (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0) }
-        allPositions = all
+        portfolio.allPositions = all
         feeLedger.record(all, at: Date())
         feeLedger.save()
         dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
 
         let errors = snapshot.compactMap(\.error)
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
-        lastError = errorText
+        portfolio.lastError = errorText
+        portfolio.lastUpdated = Date()
         if let err = errorText { LogStore.shared.log(err, level: .error) }
-        applyVisibility(flash: true, publishWidget: !(all.isEmpty && errorText != nil))
+        portfolios[wallet.lowercased()] = portfolio
+
+        if isActive(wallet) {
+            applyVisibility(flash: true, publishWidget: !(all.isEmpty && errorText != nil))
+        } else {
+            updateVisiblePositions(wallet: wallet, hidden: HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store))
+        }
     }
 
+    private func isActive(_ wallet: String) -> Bool {
+        wallet.caseInsensitiveCompare(AppSettings.shared.walletAddress) == .orderedSame
+    }
+
+    private func updateVisiblePositions(wallet: String, hidden: [HiddenPosition]) {
+        let key = wallet.lowercased()
+        guard let all = portfolios[key]?.allPositions else { return }
+        portfolios[key]?.positions = HiddenPositionStore.visible(all, hidden: hidden)
+    }
+
+    /// Publishes the active wallet: its positions, error, title and widget snapshot.
     private func applyVisibility(hidden: [HiddenPosition]? = nil, flash: Bool, publishWidget: Bool = true) {
-        positions = HiddenPositionStore.visible(allPositions, hidden: hidden ?? AppSettings.shared.hiddenPositions)
+        let wallet = AppSettings.shared.walletAddress
+        guard portfolio(for: wallet) != nil else {
+            // Not loaded yet: nothing to show, and the widgets keep the last wallet until it is.
+            flashTask?.cancel()
+            positions = []
+            lastError = nil
+            lastUpdated = nil
+            titleText = "… 👀"
+            return
+        }
+        updateVisiblePositions(wallet: wallet, hidden: hidden ?? AppSettings.shared.hiddenPositions)
+        let portfolio = portfolio(for: wallet) ?? WalletPortfolio()
+        positions = portfolio.positions
+        lastError = portfolio.lastError
+        lastUpdated = portfolio.lastUpdated
         if publishWidget {
             publishWidgetSnapshot(positions, updatedAt: flash ? Date() : (lastUpdated ?? Date()))
         }
@@ -329,46 +415,48 @@ public final class UniswapService: ObservableObject {
 
     // MARK: - Fee history (background)
 
-    private func startFeeHistoryLoad(v3Positions: [Position], wallet: String, generation: UInt64) {
+    private func startFeeHistoryLoad(_ v3ByWallet: [(wallet: String, positions: [Position])], generation: UInt64) {
         feeHistoryTask?.cancel()
         let chunkSize = AppSettings.shared.v4LogChunkSize
         let baseMaxChunks = AppSettings.shared.v4BootstrapMaxChunksPerRefresh
         feeHistoryTask = Task { [weak self] in
             guard let self else { return }
-            let byChain = Dictionary(grouping: v3Positions, by: \.chainID)
-            for (chainID, chainPositions) in byChain {
-                guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
-                guard let chain = SupportedChain.byID(chainID),
-                      let deployBlock = chain.v3DeployBlock,
-                      let nfpm = chain.v3NFPM,
-                      let rpcURL = AppSettings.shared.infuraRPCURL(for: chain) else { continue }
-                let eth = EthereumClient(rpcURL: rpcURL)
-                guard let currentBlock = try? await eth.ethBlockNumber() else { continue }
-                guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
-                let feeResult = await FeeHistoryService.scan(
-                    positions: chainPositions,
-                    nfpm: nfpm,
-                    deployBlock: deployBlock,
-                    currentBlock: currentBlock,
-                    eth: eth,
-                    chainID: chainID,
-                    wallet: wallet,
-                    chunkSize: chunkSize,
-                    baseMaxChunks: baseMaxChunks
-                )
-                guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
-                let tokenAddrs = Array(Set(chainPositions.flatMap { [$0.token0.lowercased(), $0.token1.lowercased()] }))
-                let priceMap = await priceService.fetchPrices(
-                    for: tokenAddrs,
-                    coingeckoPlatformID: chain.coingeckoPlatformID,
-                    defiLlamaChainKey: chain.defiLlamaChainKey
-                )
-                guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
-                applyFeeHistory(feeResult, priceMap: priceMap, chainID: chainID)
-                if feeResult.bootstrapInProgress {
-                    LogStore.shared.log("fee history [\(chain.displayName)]: syncing…", level: .info)
-                } else {
-                    LogStore.shared.log("fee history [\(chain.displayName)]: complete", level: .info)
+            for (wallet, v3Positions) in v3ByWallet {
+                let byChain = Dictionary(grouping: v3Positions, by: \.chainID)
+                for (chainID, chainPositions) in byChain {
+                    guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
+                    guard let chain = SupportedChain.byID(chainID),
+                          let deployBlock = chain.v3DeployBlock,
+                          let nfpm = chain.v3NFPM,
+                          let rpcURL = AppSettings.shared.infuraRPCURL(for: chain) else { continue }
+                    let eth = EthereumClient(rpcURL: rpcURL)
+                    guard let currentBlock = try? await eth.ethBlockNumber() else { continue }
+                    guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
+                    let feeResult = await FeeHistoryService.scan(
+                        positions: chainPositions,
+                        nfpm: nfpm,
+                        deployBlock: deployBlock,
+                        currentBlock: currentBlock,
+                        eth: eth,
+                        chainID: chainID,
+                        wallet: wallet,
+                        chunkSize: chunkSize,
+                        baseMaxChunks: baseMaxChunks
+                    )
+                    guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
+                    let tokenAddrs = Array(Set(chainPositions.flatMap { [$0.token0.lowercased(), $0.token1.lowercased()] }))
+                    let priceMap = await priceService.fetchPrices(
+                        for: tokenAddrs,
+                        coingeckoPlatformID: chain.coingeckoPlatformID,
+                        defiLlamaChainKey: chain.defiLlamaChainKey
+                    )
+                    guard !Task.isCancelled, isCurrentGeneration(generation) else { return }
+                    applyFeeHistory(feeResult, priceMap: priceMap, chainID: chainID, wallet: wallet)
+                    if feeResult.bootstrapInProgress {
+                        LogStore.shared.log("fee history [\(chain.displayName)]: syncing…", level: .info)
+                    } else {
+                        LogStore.shared.log("fee history [\(chain.displayName)]: complete", level: .info)
+                    }
                 }
             }
         }
@@ -400,8 +488,11 @@ public final class UniswapService: ObservableObject {
     private func applyFeeHistory(
         _ result: FeeHistoryService.Result,
         priceMap: [String: Double],
-        chainID: String
+        chainID: String,
+        wallet: String
     ) {
+        let key = wallet.lowercased()
+        guard var allPositions = portfolios[key]?.allPositions else { return }
         for i in allPositions.indices {
             guard allPositions[i].chainID == chainID, !allPositions[i].isV4, allPositions[i].error == nil else { continue }
             allPositions[i].feeHistoryBootstrapping = result.bootstrapInProgress
@@ -414,7 +505,13 @@ public final class UniswapService: ObservableObject {
             if let px = priceMap[allPositions[i].token1.lowercased()], claimed.amount1 > 0 { claimedUSD += claimed.amount1 * px; hasUSD = true }
             if hasUSD { allPositions[i].claimedUSD = claimedUSD }
         }
-        positions = HiddenPositionStore.visible(allPositions, hidden: AppSettings.shared.hiddenPositions)
+        portfolios[key]?.allPositions = allPositions
+        if isActive(wallet) {
+            updateVisiblePositions(wallet: wallet, hidden: AppSettings.shared.hiddenPositions)
+            positions = portfolios[key]?.positions ?? []
+        } else {
+            updateVisiblePositions(wallet: wallet, hidden: HiddenPositionStore.load(wallet: wallet, from: PoolserDefaults.store))
+        }
     }
 
     // MARK: - Per-chain load
@@ -542,13 +639,18 @@ public final class UniswapService: ObservableObject {
 
     private func refreshBootstrapCountdownMessage() {
         let activeChains = AppSettings.shared.enabledChains()
-        let snapshot = activeChains.compactMap { chainResultsByID[$0.id] }
-        guard snapshot.contains(where: \.bootstrapInProgress) else {
+        var bootstrapping = false
+        for (key, portfolio) in portfolios {
+            let snapshot = activeChains.compactMap { portfolio.chainResultsByID[$0.id] }
+            guard snapshot.contains(where: \.bootstrapInProgress) else { continue }
+            bootstrapping = true
+            portfolios[key]?.lastError = composedErrorText(snapshot: snapshot, fallbackErrors: snapshot.compactMap(\.error))
+        }
+        guard bootstrapping else {
             stopBootstrapCountdownTimer()
             return
         }
-        let errors = snapshot.compactMap(\.error)
-        lastError = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
+        lastError = portfolio(for: AppSettings.shared.walletAddress)?.lastError
     }
 
     #if os(macOS)

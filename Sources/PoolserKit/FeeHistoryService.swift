@@ -469,11 +469,10 @@ struct FeeHistoryService {
         }
     }
 
-    /// Clears cached fee history for a wallet across all chains (call on wallet change).
-    static func clearCache(wallet: String) {
+    /// Clears cached fee history for a wallet across all chains (call when the wallet is removed).
+    static func clearCache(wallet: String, in ud: UserDefaults = PoolserDefaults.store) {
         let prefix = cacheKeyPrefix
         let suffix = ".\(wallet.lowercased())"
-        let ud = PoolserDefaults.store
         for key in ud.dictionaryRepresentation().keys where key.hasPrefix(prefix) && key.hasSuffix(suffix) {
             ud.removeObject(forKey: key)
         }

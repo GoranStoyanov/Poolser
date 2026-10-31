@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Poolser
 @testable import PoolserKit
@@ -59,10 +60,96 @@ private let bareHex = String(address.dropFirst(2))
     func invalidFieldHasValidationError(_ input: String) {
         #expect(WalletAddress.validationError(for: input) != nil)
     }
+}
 
-    @Test func savedAddressesAreNormalizedAndDeduplicated() {
-        let second = "0x1111111111111111111111111111111111111111"
-        #expect(WalletAddress.unique([" \(address) ", address.lowercased(), "invalid", second]) == [address, second])
+@Suite struct SavedWalletTests {
+    private let second = "0x1111111111111111111111111111111111111111"
+
+    @Test func savedWalletsAreNormalizedAndDeduplicated() {
+        let wallets = SavedWallet.unique([
+            SavedWallet(address: " \(address) ", name: "Main"),
+            SavedWallet(address: address.lowercased(), name: "Copy"),
+            SavedWallet(address: "invalid"),
+            SavedWallet(address: second),
+        ])
+        #expect(wallets == [SavedWallet(address: address, name: "Main"), SavedWallet(address: second)])
+    }
+
+    @Test func blankNameMeansNoName() {
+        let wallet = SavedWallet(address: address, name: "  ")
+        #expect(wallet.name == nil)
+        #expect(wallet.displayName == "0x7A40…354f")
+        #expect(SavedWallet(address: address, name: " Cold ").displayName == "Cold")
+    }
+
+    @Test func addressListFromTheFirstMultiWalletBuildIsMigrated() throws {
+        let defaults = try #require(UserDefaults(suiteName: "SavedWalletTests-\(UUID().uuidString)"))
+        defaults.set([address, second], forKey: SavedWallet.legacyDefaultsKey)
+        #expect(SavedWallet.load(from: defaults) == [SavedWallet(address: address), SavedWallet(address: second)])
+
+        SavedWallet.save([SavedWallet(address: second, name: "Hot")], to: defaults)
+        #expect(SavedWallet.load(from: defaults) == [SavedWallet(address: second, name: "Hot")])
+    }
+
+    @Test func removingAWalletClearsOnlyItsCaches() throws {
+        let defaults = try #require(UserDefaults(suiteName: "SavedWalletTests-\(UUID().uuidString)"))
+        let keys = { (wallet: String) in [
+            HiddenPositionStore.key(for: wallet),
+            FeeHistoryService.cacheKey(chainID: "ethereum", wallet: wallet),
+            "v4OwnershipCache.base.\(wallet.lowercased())",
+        ] }
+        for key in keys(address) + keys(second) { defaults.set(Data([1]), forKey: key) }
+
+        WalletCaches.remove(wallet: address, from: defaults)
+
+        #expect(keys(address).allSatisfy { defaults.object(forKey: $0) == nil })
+        #expect(keys(second).allSatisfy { defaults.object(forKey: $0) != nil })
+    }
+}
+
+@Suite struct WalletListDraftTests {
+    private let second = "0x1111111111111111111111111111111111111111"
+
+    @Test func addedWalletKeepsItsNameAndClearsTheFields() {
+        var draft = WalletListDraft(wallets: [SavedWallet(address: address)], active: address)
+        draft.newAddress = " \(second)\n"
+        draft.newName = "Ledger"
+        draft.add()
+        #expect(draft.wallets.last == SavedWallet(address: second, name: "Ledger"))
+        #expect(draft.newAddress.isEmpty && draft.newName.isEmpty)
+        #expect(draft.active == address)
+    }
+
+    @Test func firstWalletBecomesActive() {
+        var draft = WalletListDraft(wallets: [], active: "")
+        draft.newAddress = second
+        draft.addPending()
+        #expect(draft.active == second)
+    }
+
+    @Test func savedAddressCannotBeAddedAgain() {
+        var draft = WalletListDraft(wallets: [SavedWallet(address: address)], active: address)
+        draft.newAddress = address.lowercased()
+        #expect(draft.newAddressError != nil)
+        #expect(!draft.canAdd)
+        draft.addPending()
+        #expect(draft.wallets.count == 1)
+    }
+
+    @Test func removingTheActiveWalletActivatesTheFirst() {
+        var draft = WalletListDraft(wallets: [SavedWallet(address: address), SavedWallet(address: second)], active: second)
+        draft.remove(SavedWallet(address: second))
+        #expect(draft.active == address)
+    }
+
+    @Test func walletsMove() {
+        let third = "0x2222222222222222222222222222222222222222"
+        let wallets = [address, second, third].map { SavedWallet(address: $0) }
+        var draft = WalletListDraft(wallets: wallets, active: address)
+        draft.move(wallets[2], to: wallets[0])
+        #expect(draft.wallets.map(\.address) == [third, address, second])
+        draft.move(fromOffsets: IndexSet(integer: 0), toOffset: 3)
+        #expect(draft.wallets.map(\.address) == [address, second, third])
     }
 }
 

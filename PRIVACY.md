@@ -33,7 +33,7 @@ Poolser never sees or stores your private keys and does not sign anything. The t
 
 ## Local Storage
 
-Your saved wallet addresses, active address, app settings, the daily fee history behind the fee charts and cached chain data are stored locally in macOS `UserDefaults`. Your Infura API key is stored in the macOS Keychain. Token logos and chain icons are cached in the app's Application Support folder. This data never leaves your device except as part of the RPC and pricing requests described above.
+Your saved wallet addresses and the names you give them, the active address, app settings, the daily fee history behind the fee charts and cached chain data are stored locally in macOS `UserDefaults`. Your Infura API key is stored in the macOS Keychain. Token logos and chain icons are cached in the app's Application Support folder. This data never leaves your device except as part of the RPC and pricing requests described above.
 
 ## Contact
 

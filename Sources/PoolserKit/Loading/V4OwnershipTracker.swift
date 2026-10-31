@@ -245,7 +245,17 @@ struct V4OwnershipTracker {
 
     private func cacheKey(wallet: String) -> String {
         let normalized = wallet.lowercased()
-        return "v4OwnershipCache.\(chain.id).\(normalized)"
+        return "\(Self.cacheKeyPrefix)\(chain.id).\(normalized)"
+    }
+
+    private static let cacheKeyPrefix = "v4OwnershipCache."
+
+    /// Clears the wallet's ownership caches on every chain.
+    static func clearCaches(wallet: String, in defaults: UserDefaults) {
+        let suffix = ".\(wallet.lowercased())"
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(cacheKeyPrefix) && key.hasSuffix(suffix) {
+            defaults.removeObject(forKey: key)
+        }
     }
 }
 

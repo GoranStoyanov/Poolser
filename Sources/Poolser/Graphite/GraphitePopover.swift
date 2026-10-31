@@ -5,7 +5,8 @@ import PoolserKit
 /// previewed with fixed data.
 struct PopoverSnapshot {
     var walletAddress: String
-    var walletAddresses: [String] = []
+    /// Every saved wallet, in page order.
+    var wallets: [SavedWallet] = []
     var positions: [Position]
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
     var dailyFeesUSD: [Double]?
@@ -55,17 +56,47 @@ struct GraphitePopover: View {
     let snapshot: PopoverSnapshot
     @Binding var listOptions: PositionListOptions
     var actions = GraphitePopoverActions()
+    /// The tallest the popover may be, so the footer stays on screen; nil for no limit.
+    var maxHeight: CGFloat?
 
     /// Narrows the list to positions that need attention, on top of the saved filters.
     @State private var attentionOnly = false
     @State private var chartDays = 14
     @State private var listContentHeight: CGFloat?
+    /// The popover's height and the position list's share of it, to keep within `maxHeight`.
+    @State private var popoverHeight: CGFloat = 0
+    @State private var listHeight: CGFloat = 0
+    /// Horizontal offset of the wallet page while it is swiped or slides to the next wallet.
+    @State private var pageOffset: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
 
     var body: some View {
         VStack(spacing: 0) {
             header
+            if snapshot.wallets.count > 1 {
+                pageDots
+            }
+            walletPage
+                .offset(x: pageOffset)
+            footer
+        }
+        .frame(width: Self.width)
+        .clipped()
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { popoverHeight = $0 }
+        .background(palette.popover)
+        .background {
+            if snapshot.wallets.count > 1 {
+                WalletSwipeMonitor(onChange: swipeChanged, onEnd: swipeEnded, onStep: { showWallet(step: $0) })
+            }
+        }
+    }
+
+    private static let width: CGFloat = 420
+
+    /// What belongs to the active wallet, which slides when the wallet changes.
+    private var walletPage: some View {
+        VStack(spacing: 0) {
             if let error = snapshot.lastError {
                 errorBanner(error)
             }
@@ -77,10 +108,78 @@ struct GraphitePopover: View {
                     .padding(.horizontal, 12)
             }
             content
-            footer
         }
-        .frame(width: 420)
-        .background(palette.popover)
+    }
+
+    // MARK: - Wallet pages
+
+    private var activeIndex: Int? {
+        snapshot.wallets.firstIndex { $0.matches(snapshot.walletAddress) }
+    }
+
+    private func adjacentWallet(_ step: Int) -> SavedWallet? {
+        guard let index = activeIndex else { return nil }
+        let target = index + step
+        return snapshot.wallets.indices.contains(target) ? snapshot.wallets[target] : nil
+    }
+
+    private func swipeChanged(_ distance: CGFloat) {
+        // Past the first or last wallet the page only gives a little.
+        let hasTarget = adjacentWallet(distance < 0 ? 1 : -1) != nil
+        pageOffset = hasTarget ? distance : distance * 0.25
+    }
+
+    private func swipeEnded(_ distance: CGFloat) {
+        if abs(distance) > 60 {
+            showWallet(step: distance < 0 ? 1 : -1)
+        } else {
+            withAnimation(.snappy) { pageOffset = 0 }
+        }
+    }
+
+    /// Slides the page out, switches wallets and slides the next one in from the other side.
+    private func showWallet(step: Int) {
+        guard let target = adjacentWallet(step), let selectWallet = actions.selectWallet else {
+            withAnimation(.snappy) { pageOffset = 0 }
+            return
+        }
+        let width = Self.width
+        withAnimation(.easeIn(duration: 0.12)) {
+            pageOffset = step > 0 ? -width : width
+        } completion: {
+            selectWallet(target.address)
+            var placement = Transaction()
+            placement.disablesAnimations = true
+            withTransaction(placement) { pageOffset = step > 0 ? width : -width }
+            // Next turn, so the new page is placed off screen before it slides in.
+            DispatchQueue.main.async {
+                withAnimation(.easeOut(duration: 0.2)) { pageOffset = 0 }
+            }
+        }
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: 6) {
+            ForEach(snapshot.wallets) { wallet in
+                let isActive = wallet.matches(snapshot.walletAddress)
+                Button {
+                    guard let index = activeIndex,
+                          let target = snapshot.wallets.firstIndex(of: wallet), target != index else { return }
+                    showWallet(step: target - index)
+                } label: {
+                    Circle()
+                        .fill(isActive ? palette.primaryText : palette.secondaryText.opacity(0.35))
+                        .frame(width: 6, height: 6)
+                        .padding(2)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(wallet.displayName)
+                .accessibilityLabel(wallet.displayName)
+                .accessibilityAddTraits(isActive ? .isSelected : [])
+            }
+        }
+        .padding(.bottom, 8)
     }
 
     // MARK: - Header
@@ -101,24 +200,26 @@ struct GraphitePopover: View {
         .padding(.bottom, 10)
     }
 
-    private var shortWallet: String {
+    private var walletLabel: String {
         let address = snapshot.walletAddress
-        guard address.count > 12 else { return address.isEmpty ? "no wallet" : address }
-        return "\(address.prefix(6))…\(address.suffix(4))"
+        if let wallet = snapshot.wallets.first(where: { $0.matches(address) }) { return wallet.displayName }
+        return address.isEmpty ? "no wallet" : WalletAddress.short(address)
     }
 
     @ViewBuilder
     private var walletBadge: some View {
-        if snapshot.walletAddresses.count > 1, let selectWallet = actions.selectWallet {
+        if snapshot.wallets.count > 1, actions.selectWallet != nil {
             Menu {
-                ForEach(snapshot.walletAddresses, id: \.self) { address in
+                ForEach(Array(snapshot.wallets.enumerated()), id: \.element.id) { index, wallet in
                     Button {
-                        selectWallet(address)
+                        guard let active = activeIndex, index != active else { return }
+                        showWallet(step: index - active)
                     } label: {
-                        if address.caseInsensitiveCompare(snapshot.walletAddress) == .orderedSame {
-                            Label(address, systemImage: "checkmark")
+                        let title = wallet.name.map { "\($0)  \(WalletAddress.short(wallet.address))" } ?? wallet.address
+                        if wallet.matches(snapshot.walletAddress) {
+                            Label(title, systemImage: "checkmark")
                         } else {
-                            Text(address)
+                            Text(title)
                         }
                     }
                 }
@@ -134,8 +235,10 @@ struct GraphitePopover: View {
     }
 
     private var walletBadgeLabel: some View {
-        Text(shortWallet)
-            .font(.system(.caption, design: .monospaced).weight(.semibold))
+        let hasName = snapshot.wallets.first { $0.matches(snapshot.walletAddress) }?.name != nil
+        return Text(walletLabel)
+            .font(.system(.caption, design: hasName ? .default : .monospaced).weight(.semibold))
+            .lineLimit(1)
             .foregroundStyle(palette.secondaryText)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
@@ -583,7 +686,16 @@ struct GraphitePopover: View {
         }
         // A definite height lets the menu window resize when the list changes; the estimate
         // only covers the first layout pass, before the cards are measured.
-        .frame(height: min(listContentHeight ?? CGFloat(positions.count) * 170 + 12, 560))
+        .frame(height: min(listContentHeight ?? CGFloat(positions.count) * 170 + 12, maxListHeight))
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listHeight = $0 }
+        .onDisappear { listHeight = 0 }
+    }
+
+    /// 560 points, or less when the rest of the popover leaves less room on screen.
+    private var maxListHeight: CGFloat {
+        guard let maxHeight else { return 560 }
+        let rest = popoverHeight - listHeight
+        return min(560, max(160, maxHeight - rest))
     }
 
     /// Nil when every position is on one chain or the list is already filtered to this one.
