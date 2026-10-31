@@ -57,14 +57,19 @@ public final class AppSettings: ObservableObject {
         Swift.max(Defaults.v4LogChunkSizeRange.lowerBound, Swift.min(value, Defaults.v4LogChunkSizeRange.upperBound))
     }
 
+    @Published public private(set) var walletAddresses: [String] {
+        didSet { PoolserDefaults.store.set(walletAddresses, forKey: "walletAddresses") }
+    }
     @Published public var walletAddress: String {
         didSet {
             PoolserDefaults.store.set(walletAddress, forKey: "walletAddress")
             if walletAddress != oldValue {
+                if let wallet = WalletAddress.normalize(walletAddress),
+                   !walletAddresses.contains(where: { $0.caseInsensitiveCompare(wallet) == .orderedSame }) {
+                    walletAddresses.append(wallet)
+                }
                 hiddenPositions = HiddenPositionStore.load(wallet: walletAddress, from: PoolserDefaults.store)
                 Task { @MainActor in LogStore.shared.clear() }
-                let old = oldValue
-                Task { FeeHistoryService.clearCache(wallet: old) }
             }
         }
     }
@@ -170,8 +175,15 @@ public final class AppSettings: ObservableObject {
         let wallet = WalletAddress.normalize(storedWallet)
             ?? storedWallet.trimmingCharacters(in: .whitespacesAndNewlines)
         if wallet != storedWallet { ud.set(wallet, forKey: "walletAddress") }
-        walletAddress = wallet
-        hiddenPositions = HiddenPositionStore.load(wallet: wallet, from: ud)
+        let storedWallets = ud.stringArray(forKey: "walletAddresses") ?? []
+        let wallets = WalletAddress.unique([wallet] + storedWallets)
+        if wallets != storedWallets { ud.set(wallets, forKey: "walletAddresses") }
+        let activeWallet = wallets.first(where: { $0.caseInsensitiveCompare(wallet) == .orderedSame })
+            ?? wallets.first ?? wallet
+        if activeWallet != wallet { ud.set(activeWallet, forKey: "walletAddress") }
+        walletAddresses = wallets
+        walletAddress = activeWallet
+        hiddenPositions = HiddenPositionStore.load(wallet: activeWallet, from: ud)
         infuraAPIKey = Self.loadInfuraAPIKey(defaults: ud, secrets: secrets)
         let enabledRaw = ud.string(forKey: "enabledChainIDs") ?? Defaults.enabledChainIDs.joined(separator: ",")
         let enabled = Set(enabledRaw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
@@ -233,6 +245,12 @@ public final class AppSettings: ObservableObject {
         SupportedChain.all.filter { enabledChainIDs.contains($0.id) }
     }
 
+    public func setWalletAddresses(_ addresses: [String], active: String) {
+        let wallets = WalletAddress.unique(addresses)
+        walletAddresses = wallets
+        walletAddress = wallets.first(where: { $0.caseInsensitiveCompare(active) == .orderedSame }) ?? wallets.first ?? ""
+    }
+
     public func hide(_ position: Position) {
         guard !hiddenPositions.contains(where: { $0.id == position.id }) else { return }
         hiddenPositions.append(HiddenPosition(position))
@@ -286,6 +304,11 @@ public final class AppSettings: ObservableObject {
 }
 
 public enum WalletAddress {
+    static func unique(_ addresses: [String]) -> [String] {
+        var seen = Set<String>()
+        return addresses.compactMap(normalize).filter { seen.insert($0.lowercased()).inserted }
+    }
+
     /// Returns the address as `0x` + 40 hex digits, without surrounding whitespace, or nil if
     /// the input is not an address. `ABI.encodeAddress` turns anything else into the zero address.
     public static func normalize(_ raw: String) -> String? {

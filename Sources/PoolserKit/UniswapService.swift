@@ -64,10 +64,14 @@ public final class UniswapService: ObservableObject {
     public func cancelRefresh() { activeLoadTask?.cancel() }
 
     public func refreshForWalletChange() {
+        flashTask?.cancel()
         allPositions = []
         positions = []
         chainDailyFees = DailyFees()
+        dailyFees = feeLedger.dailyFees
         titleText = "… 👀"
+        lastError = nil
+        lastUpdated = nil
         previousTotal = -1
         chainResultsByID = [:]
         startLoad()

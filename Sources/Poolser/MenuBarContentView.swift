@@ -33,6 +33,11 @@ struct MenuBarContentView: View {
                 snapshot: snapshot,
                 listOptions: $settings.positionListOptions,
                 actions: GraphitePopoverActions(
+                    selectWallet: { address in
+                        guard address != settings.walletAddress else { return }
+                        settings.walletAddress = address
+                        service.refreshForWalletChange()
+                    },
                     refresh: { service.refresh() },
                     settings: { showSettings = true },
                     logs: { showLogs = true },
@@ -58,6 +63,7 @@ struct MenuBarContentView: View {
         }
         return PopoverSnapshot(
             walletAddress: settings.walletAddress,
+            walletAddresses: settings.walletAddresses,
             positions: service.positions,
             // One day is enough for the wallet chart, which shows empty slots before it.
             dailyFeesUSD: dailyFees.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),

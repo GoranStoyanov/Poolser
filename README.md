@@ -85,7 +85,7 @@ The debug build writes the images and quits. Captions live in `Sources/Poolser/G
 
 - macOS 14 (Sonoma) or later
 - An [Infura](https://infura.io) API key
-- A wallet address that holds Uniswap v3 or v4 positions
+- One or more wallet addresses that hold Uniswap v3 or v4 positions
 
 ## Building
 
@@ -140,7 +140,7 @@ Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 
 | Field | Description |
 |---|---|
-| Wallet Address | Your Ethereum address (`0x…`) |
+| Wallet Addresses | Save Ethereum addresses (`0x…`) and choose the active wallet |
 | Infura API Key | The API key only (no full URL needed) |
 | Enabled Networks | Toggle supported Infura networks on/off |
 | Refresh Interval | Auto-refresh period |
@@ -149,6 +149,7 @@ Open **Settings** (gear icon in the popup, or `⌘,`) and configure:
 
 Important behavior:
 - Setting edits are draft-only until you press **Save & Refresh**
+- Switch between saved wallets from the address menu in the portfolio header
 - Closing settings with `X`/`Esc` discards unsaved changes
 - Settings are saved in `UserDefaults`; the Infura API key is saved in the macOS Keychain
 - Some Infura networks are gated per project; enable the network in your Infura dashboard first if needed
