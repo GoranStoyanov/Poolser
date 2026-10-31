@@ -132,6 +132,17 @@ public final class UniswapService: ObservableObject {
         return merged
     }
 
+    /// The name of the wallet holding each position, by `Position.id`.
+    public var walletNamesByPosition: [String: String] {
+        var names: [String: String] = [:]
+        for wallet in AppSettings.shared.wallets {
+            for position in portfolio(for: wallet.address)?.allPositions ?? [] where names[position.id] == nil {
+                names[position.id] = wallet.displayName
+            }
+        }
+        return names
+    }
+
     /// The saved wallet holding `position`, for actions that need its owner.
     public func wallet(of position: Position) -> String? {
         AppSettings.shared.wallets.first { wallet in

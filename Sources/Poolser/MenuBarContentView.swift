@@ -67,6 +67,7 @@ struct MenuBarContentView: View {
             walletAddress: settings.walletAddress,
             pages: settings.walletPages.count > 1 ? settings.walletPages : [],
             shownPage: settings.shownPage,
+            walletNames: settings.isShowingAllWallets ? service.walletNamesByPosition : [:],
             positions: service.positions,
             // One day is enough for the wallet chart, which shows empty slots before it.
             dailyFeesUSD: dailyFees.walletDailyUSD(service.positions, days: 30, minDays: 1, endingAt: now),

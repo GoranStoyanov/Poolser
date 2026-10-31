@@ -105,6 +105,8 @@ struct IOSPortfolioView: View {
         case .wallet(let wallet): service.portfolio(for: wallet.address)
         }
         return WalletPageContent(
+            isAllWallets: page == .allWallets,
+            walletNames: page == .allWallets ? service.walletNamesByPosition : [:],
             positions: isActive ? service.positions : loaded?.positions ?? [],
             lastError: isActive ? service.lastError : loaded?.lastError,
             lastUpdated: isActive ? service.lastUpdated : loaded?.lastUpdated,
@@ -119,6 +121,9 @@ struct IOSPortfolioView: View {
 }
 
 private struct WalletPageContent: View {
+    let isAllWallets: Bool
+    /// The wallet holding each position, by `Position.id`, on the All Wallets page.
+    let walletNames: [String: String]
     let positions: [Position]
     let lastError: String?
     let lastUpdated: Date?
@@ -149,7 +154,10 @@ private struct WalletPageContent: View {
                     )
                 } else {
                     ForEach(positions) { position in
-                        GraphitePositionCard(position: position, onOpen: { open(position) }, onHide: { hide(position) })
+                        GraphitePositionCard(
+                            position: position, walletName: walletNames[position.id],
+                            onOpen: { open(position) }, onHide: { hide(position) }
+                        )
                     }
                 }
             }
@@ -159,8 +167,16 @@ private struct WalletPageContent: View {
         }
     }
 
+    private var countsLabel: String {
+        let wallets = Set(walletNames.values).count
+        return wallets > 1 ? "\(positions.count) positions · \(wallets) wallets" : "\(positions.count) positions"
+    }
+
     private var summary: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if isAllWallets {
+                AllWalletsBadge()
+            }
             Text("Portfolio value")
                 .font(.subheadline)
                 .foregroundStyle(palette.secondaryText)
@@ -171,7 +187,7 @@ private struct WalletPageContent: View {
                 Text("+\(formatUSD(positions.compactMap(\.usd).reduce(0, +))) fees")
                     .foregroundStyle(palette.fees)
                 Spacer()
-                Text("\(positions.count) positions")
+                Text(countsLabel)
                     .foregroundStyle(palette.secondaryText)
             }
             .font(.subheadline.weight(.medium))

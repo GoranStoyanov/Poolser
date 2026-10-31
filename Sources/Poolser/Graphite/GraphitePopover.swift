@@ -8,6 +8,8 @@ struct PopoverSnapshot {
     /// All Wallets and every saved wallet, in swipe order; empty with a single wallet.
     var pages: [WalletPage] = []
     var shownPage: WalletPage?
+    /// The wallet holding each position, by `Position.id`; set on the All Wallets page only.
+    var walletNames: [String: String] = [:]
     var positions: [Position]
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
     var dailyFeesUSD: [Double]?
@@ -168,11 +170,21 @@ struct GraphitePopover: View {
                     guard let index = activeIndex, target != index else { return }
                     showWallet(step: target - index)
                 } label: {
-                    Circle()
-                        .fill(isActive ? palette.primaryText : palette.secondaryText.opacity(0.35))
-                        .frame(width: 6, height: 6)
-                        .padding(2)
-                        .contentShape(Rectangle())
+                    Group {
+                        if page == .allWallets {
+                            // Like the location arrow on Weather's first page.
+                            Image(systemName: "square.stack.3d.up.fill")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(isActive ? AnyShapeStyle(palette.brand) : AnyShapeStyle(palette.secondaryText.opacity(0.35)))
+                        } else {
+                            Circle()
+                                .fill(isActive ? palette.primaryText : palette.secondaryText.opacity(0.35))
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                    .frame(width: 8, height: 8)
+                    .padding(2)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(page.title)
@@ -228,11 +240,20 @@ struct GraphitePopover: View {
                     }
                 }
             } label: {
-                walletBadgeLabel
+                shownBadge
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
             .help("Switch wallet")
+        } else {
+            shownBadge
+        }
+    }
+
+    @ViewBuilder
+    private var shownBadge: some View {
+        if snapshot.shownPage == .allWallets {
+            AllWalletsBadge()
         } else {
             walletBadgeLabel
         }
@@ -489,7 +510,9 @@ struct GraphitePopover: View {
     private var countsLabel: String {
         let positions = snapshot.positions.count
         let chains = snapshot.chainCount
-        return "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
+        let label = "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
+        let wallets = Set(snapshot.walletNames.values).count
+        return wallets > 1 ? "\(label) · \(wallets) wallets" : label
     }
 
     // MARK: - Positions
@@ -676,6 +699,7 @@ struct GraphitePopover: View {
                 ForEach(positions) { pos in
                     GraphitePositionCard(
                         position: pos,
+                        walletName: snapshot.walletNames[pos.id],
                         recentDailyFees: snapshot.positionDailyFeesUSD[pos.id],
                         onOpen: actions.open.map { open in { open(pos) } },
                         onCollect: CollectRequest.canCollect(pos) ? actions.collect.map { collect in { collect(pos) } } : nil,
