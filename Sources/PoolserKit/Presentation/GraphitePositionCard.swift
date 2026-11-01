@@ -9,12 +9,9 @@ public struct GraphitePositionCard: View {
     var onHide: (() -> Void)? = nil
     /// Nil when every position is on one chain or the list is already filtered to this one.
     var onShowOnlyChain: (() -> Void)? = nil
-    /// The wallet holding the position, shown where positions of several wallets are listed.
-    var walletName: String? = nil
 
     public init(
         position: Position,
-        walletName: String? = nil,
         recentDailyFees: [Double]? = nil,
         onOpen: (() -> Void)? = nil,
         onCollect: (() -> Void)? = nil,
@@ -22,7 +19,6 @@ public struct GraphitePositionCard: View {
         onShowOnlyChain: (() -> Void)? = nil
     ) {
         self.position = position
-        self.walletName = walletName
         self.recentDailyFees = recentDailyFees
         self.onOpen = onOpen
         self.onCollect = onCollect
@@ -97,14 +93,9 @@ public struct GraphitePositionCard: View {
                 chain: SupportedChain.byID(position.chainID)
             )
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(info.pairLabel)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(palette.primaryText)
-                    if let walletName {
-                        WalletTag(name: walletName)
-                    }
-                }
+                Text(info.pairLabel)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(palette.primaryText)
                 Text(metaLabel)
                     .font(.caption)
                     .foregroundStyle(palette.secondaryText)
@@ -404,11 +395,14 @@ public struct PoolWater: View {
     let level: Double
     var base = 0.14
     var amplitude: CGFloat = 3.5
+    /// Water colour for a pool drawn over a coloured card; nil uses the logo's gradient.
+    var color: Color? = nil
 
-    public init(level: Double, base: Double = 0.14, amplitude: CGFloat = 3.5) {
+    public init(level: Double, base: Double = 0.14, amplitude: CGFloat = 3.5, color: Color? = nil) {
         self.level = level
         self.base = base
         self.amplitude = amplitude
+        self.color = color
     }
 
     @State private var shownLevel = 0.0
@@ -429,12 +423,12 @@ public struct PoolWater: View {
                 ZStack(alignment: .bottom) {
                     Wave(phase: restPhase + back.travel + .pi * 0.8,
                          amplitude: amplitude * back.swell, tilt: back.tilt)
-                        .fill(palette.brand)
+                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.brand))
                         .opacity(palette.waterBack)
                         .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
                     Wave(phase: restPhase + front.travel,
                          amplitude: amplitude * front.swell, tilt: front.tilt)
-                        .fill(palette.brand)
+                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.brand))
                         .opacity(palette.waterFront)
                         .frame(height: height)
                 }
@@ -731,46 +725,5 @@ public struct GraphiteStrongButtonStyle: ButtonStyle {
             .padding(.vertical, 4)
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(palette.strong))
             .opacity(configuration.isPressed ? 0.75 : 1)
-    }
-}
-
-/// The wallet a position belongs to, on the card when several wallets are listed together.
-public struct WalletTag: View {
-    let name: String
-
-    public init(name: String) {
-        self.name = name
-    }
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    public var body: some View {
-        let palette = GraphitePalette.current(colorScheme)
-        Label(name, systemImage: "wallet.bifold")
-            .labelStyle(.titleAndIcon)
-            .font(.caption2.weight(.semibold))
-            .lineLimit(1)
-            .foregroundStyle(palette.secondaryText)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(Capsule().fill(palette.control))
-            .accessibilityLabel("Wallet \(name)")
-    }
-}
-
-/// Marks the All Wallets page: its name on the brand gradient, with a stack of wallets.
-public struct AllWalletsBadge: View {
-    public init() {}
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    public var body: some View {
-        Label(WalletPage.allWallets.title, systemImage: "square.stack.3d.up.fill")
-            .labelStyle(.titleAndIcon)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(GraphitePalette.current(colorScheme).brand))
     }
 }

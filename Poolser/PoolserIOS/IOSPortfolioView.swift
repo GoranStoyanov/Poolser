@@ -105,8 +105,7 @@ struct IOSPortfolioView: View {
         case .wallet(let wallet): service.portfolio(for: wallet.address)
         }
         return WalletPageContent(
-            isAllWallets: page == .allWallets,
-            walletNames: page == .allWallets ? service.walletNamesByPosition : [:],
+            overview: page == .allWallets ? service.walletOverview : nil,
             positions: isActive ? service.positions : loaded?.positions ?? [],
             lastError: isActive ? service.lastError : loaded?.lastError,
             lastUpdated: isActive ? service.lastUpdated : loaded?.lastUpdated,
@@ -114,16 +113,16 @@ struct IOSPortfolioView: View {
             showsPageIndicator: settings.wallets.count > 1,
             palette: palette,
             open: { if let url = $0.uniswapURL { openURL(url) } },
-            hide: { settings.hide($0, wallet: service.wallet(of: $0) ?? settings.walletAddress) }
+            hide: { settings.hide($0, wallet: service.wallet(of: $0) ?? settings.walletAddress) },
+            openWallet: { shownPage.wrappedValue = WalletPage.wallet($0).id }
         )
         .refreshable { await service.refreshAndWait() }
     }
 }
 
 private struct WalletPageContent: View {
-    let isAllWallets: Bool
-    /// The wallet holding each position, by `Position.id`, on the All Wallets page.
-    let walletNames: [String: String]
+    /// Every wallet with its totals; set on the All Wallets page only.
+    let overview: WalletOverview?
     let positions: [Position]
     let lastError: String?
     let lastUpdated: Date?
@@ -132,11 +131,22 @@ private struct WalletPageContent: View {
     let palette: GraphitePalette
     let open: (Position) -> Void
     let hide: (Position) -> Void
+    let openWallet: (SavedWallet) -> Void
+
+    /// The wallet tapped in the share bar or the list, by `SavedWallet.id`.
+    @State private var highlightedWallet: String?
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
-                summary
+                if let overview, !positions.isEmpty {
+                    AllWalletsSummaryCard(overview: overview, highlighted: $highlightedWallet)
+                        .zIndex(1)
+                    updatedLabel
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    summary
+                }
                 if let error = lastError {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.footnote)
@@ -152,10 +162,17 @@ private struct WalletPageContent: View {
                         systemImage: "chart.bar.xaxis",
                         description: Text("Pull down or tap Refresh to check again.")
                     )
+                } else if let overview {
+                    WalletGroupList(
+                        overview: overview,
+                        highlighted: $highlightedWallet,
+                        actions: WalletOverviewActions(openWallet: openWallet, open: open, hide: hide)
+                    )
+                    .padding(.top, 4)
                 } else {
                     ForEach(positions) { position in
                         GraphitePositionCard(
-                            position: position, walletName: walletNames[position.id],
+                            position: position,
                             onOpen: { open(position) }, onHide: { hide(position) }
                         )
                     }
@@ -168,15 +185,11 @@ private struct WalletPageContent: View {
     }
 
     private var countsLabel: String {
-        let wallets = Set(walletNames.values).count
-        return wallets > 1 ? "\(positions.count) positions · \(wallets) wallets" : "\(positions.count) positions"
+        "\(positions.count) positions"
     }
 
     private var summary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if isAllWallets {
-                AllWalletsBadge()
-            }
             Text("Portfolio value")
                 .font(.subheadline)
                 .foregroundStyle(palette.secondaryText)
@@ -191,17 +204,22 @@ private struct WalletPageContent: View {
                     .foregroundStyle(palette.secondaryText)
             }
             .font(.subheadline.weight(.medium))
-            if let lastUpdated {
-                HStack(spacing: 4) {
-                    Text("Updated")
-                    Text(lastUpdated, style: .relative)
-                }
-                    .font(.caption)
-                    .foregroundStyle(palette.secondaryText)
-            }
+            updatedLabel
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 16).fill(palette.card))
+    }
+
+    @ViewBuilder
+    private var updatedLabel: some View {
+        if let lastUpdated {
+            HStack(spacing: 4) {
+                Text("Updated")
+                Text(lastUpdated, style: .relative)
+            }
+            .font(.caption)
+            .foregroundStyle(palette.secondaryText)
+        }
     }
 }

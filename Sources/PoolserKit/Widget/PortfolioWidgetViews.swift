@@ -224,35 +224,6 @@ private struct WeekFees: View {
     }
 }
 
-/// The popover's range gauge at widget scale: band, current-price marker, no labels.
-private struct MiniRangeGauge: View {
-    let gauge: RangeGaugeLayout?
-    let colors: GraphitePalette.StatusColors
-    let track: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            ZStack(alignment: .leading) {
-                Capsule().fill(track).frame(height: 3)
-                if let gauge {
-                    Capsule()
-                        .fill(colors.bandFill)
-                        .overlay(Capsule().strokeBorder(colors.bandEdge, lineWidth: 1))
-                        .frame(width: max((gauge.bandEnd - gauge.bandStart) * width, 4), height: 7)
-                        .offset(x: gauge.bandStart * width)
-                    Capsule()
-                        .fill(colors.tint)
-                        .frame(width: 3, height: 11)
-                        .offset(x: min(max(gauge.marker * width - 1.5, 0), width - 3))
-                }
-            }
-            .frame(height: 11)
-        }
-        .frame(height: 11)
-    }
-}
-
 private struct EmptyState: View {
     let hasSnapshot: Bool
     let walletName: String?

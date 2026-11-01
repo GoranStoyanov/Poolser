@@ -38,6 +38,9 @@ public struct GraphitePalette {
     /// Opacity of the front and back water layers in the fee pool.
     public let waterFront: Double
     public let waterBack: Double
+    /// Muted hues that tell saved wallets apart on the All Wallets page. They stay clear of the
+    /// status colours, so a wallet never reads as in range or out of range.
+    let walletColors: [Color]
 
     public let inRange: StatusColors
     public let nearEdge: StatusColors
@@ -53,6 +56,11 @@ public struct GraphitePalette {
         case .fullRange:  return fullRange
         case .unknown:    return unknown
         }
+    }
+
+    /// The colour of the saved wallet at `index` in the wallet list; repeats after eight.
+    public func walletColor(_ index: Int) -> Color {
+        walletColors[((index % walletColors.count) + walletColors.count) % walletColors.count]
     }
 
     public var brand: LinearGradient {
@@ -83,6 +91,7 @@ public struct GraphitePalette {
         brandEnd: Color(hex: 0x3B86EC),
         waterFront: 0.24,
         waterBack: 0.13,
+        walletColors: [0x4A6FA5, 0x7A6AA8, 0xA8657F, 0x4F8F98, 0x8A6F5A, 0x5C6B84, 0x93609A, 0x3F7E7A].map(Color.init(hex:)),
         inRange: StatusColors(tint: Color(hex: 0x0B7A55), background: Color(hex: 0xE8F4EF),
                               bandFill: Color(hex: 0xF0F1F3), bandEdge: Color(hex: 0xA9ADB5)),
         nearEdge: StatusColors(tint: Color(hex: 0x955800), background: Color(hex: 0xFBF2DC),
@@ -115,6 +124,7 @@ public struct GraphitePalette {
         brandEnd: Color(hex: 0x5A9EF5),
         waterFront: 0.30,
         waterBack: 0.16,
+        walletColors: [0x7C9DD0, 0xA898D4, 0xD490AA, 0x7DBCC4, 0xB89C86, 0x8E9BB3, 0xBF8EC6, 0x6FAEA9].map(Color.init(hex:)),
         inRange: StatusColors(tint: Color(hex: 0x4ADE9A), background: Color(hex: 0x16302A),
                               bandFill: Color(hex: 0x26272B), bandEdge: Color(hex: 0x5A5C63)),
         nearEdge: StatusColors(tint: Color(hex: 0xF5C451), background: Color(hex: 0x372E17),

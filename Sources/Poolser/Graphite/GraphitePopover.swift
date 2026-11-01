@@ -8,8 +8,8 @@ struct PopoverSnapshot {
     /// All Wallets and every saved wallet, in swipe order; empty with a single wallet.
     var pages: [WalletPage] = []
     var shownPage: WalletPage?
-    /// The wallet holding each position, by `Position.id`; set on the All Wallets page only.
-    var walletNames: [String: String] = [:]
+    /// Every wallet with its totals; set on the All Wallets page only.
+    var overview: WalletOverview?
     var positions: [Position]
     /// USD fees earned per day, oldest first and ending today; nil until daily history exists.
     var dailyFeesUSD: [Double]?
@@ -72,6 +72,8 @@ struct GraphitePopover: View {
     @State private var listHeight: CGFloat = 0
     /// Horizontal offset of the wallet page while it is swiped or slides to the next wallet.
     @State private var pageOffset: CGFloat = 0
+    /// The wallet under the pointer on the All Wallets page, by `SavedWallet.id`.
+    @State private var highlightedWallet: String?
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
 
@@ -107,11 +109,19 @@ struct GraphitePopover: View {
             if let notice = snapshot.notice {
                 noticeBanner(notice)
             }
-            if !snapshot.positions.isEmpty {
-                summaryCard
+            if let overview = snapshot.overview, !snapshot.positions.isEmpty {
+                AllWalletsSummaryCard(overview: overview, highlighted: $highlightedWallet)
                     .padding(.horizontal, 12)
+                    // Above the list, so the share bar's tooltip is never covered.
+                    .zIndex(1)
+                overviewList(overview)
+            } else {
+                if !snapshot.positions.isEmpty {
+                    summaryCard
+                        .padding(.horizontal, 12)
+                }
+                content
             }
-            content
         }
     }
 
@@ -139,6 +149,11 @@ struct GraphitePopover: View {
         } else {
             withAnimation(.snappy) { pageOffset = 0 }
         }
+    }
+
+    private func open(_ page: WalletPage) {
+        guard let index = snapshot.pages.firstIndex(where: { $0.id == page.id }), let active = activeIndex else { return }
+        showWallet(step: index - active)
     }
 
     /// Slides the page out, switches wallets and slides the next one in from the other side.
@@ -253,7 +268,7 @@ struct GraphitePopover: View {
     @ViewBuilder
     private var shownBadge: some View {
         if snapshot.shownPage == .allWallets {
-            AllWalletsBadge()
+            AllWalletsBadge(colorIndexes: snapshot.overview?.savedOrder.map(\.colorIndex) ?? [])
         } else {
             walletBadgeLabel
         }
@@ -510,9 +525,7 @@ struct GraphitePopover: View {
     private var countsLabel: String {
         let positions = snapshot.positions.count
         let chains = snapshot.chainCount
-        let label = "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
-        let wallets = Set(snapshot.walletNames.values).count
-        return wallets > 1 ? "\(label) · \(wallets) wallets" : label
+        return "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
     }
 
     // MARK: - Positions
@@ -694,12 +707,11 @@ struct GraphitePopover: View {
     }
 
     private func positionList(_ positions: [Position]) -> some View {
-        ScrollView {
+        scrollingList(estimate: CGFloat(positions.count) * 170) {
             VStack(spacing: 8) {
                 ForEach(positions) { pos in
                     GraphitePositionCard(
                         position: pos,
-                        walletName: snapshot.walletNames[pos.id],
                         recentDailyFees: snapshot.positionDailyFeesUSD[pos.id],
                         onOpen: actions.open.map { open in { open(pos) } },
                         onCollect: CollectRequest.canCollect(pos) ? actions.collect.map { collect in { collect(pos) } } : nil,
@@ -708,13 +720,35 @@ struct GraphitePopover: View {
                     )
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listContentHeight = $0 }
+        }
+    }
+
+    /// Every wallet's positions, grouped by wallet, on the All Wallets page.
+    private func overviewList(_ overview: WalletOverview) -> some View {
+        scrollingList(estimate: CGFloat(overview.positionCount) * 50 + CGFloat(overview.entries.count) * 80) {
+            WalletGroupList(
+                overview: overview,
+                highlighted: $highlightedWallet,
+                actions: WalletOverviewActions(
+                    openWallet: { wallet in open(.wallet(wallet)) },
+                    open: actions.open,
+                    hide: actions.hide
+                )
+            )
+        }
+        .padding(.top, 14)
+    }
+
+    private func scrollingList<Content: View>(estimate: CGFloat, @ViewBuilder content: () -> Content) -> some View {
+        ScrollView {
+            content()
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listContentHeight = $0 }
         }
         // A definite height lets the menu window resize when the list changes; the estimate
-        // only covers the first layout pass, before the cards are measured.
-        .frame(height: min(listContentHeight ?? CGFloat(positions.count) * 170 + 12, maxListHeight))
+        // only covers the first layout pass, before the content is measured.
+        .frame(height: min(listContentHeight ?? estimate + 12, maxListHeight))
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listHeight = $0 }
         .onDisappear { listHeight = 0 }
     }
