@@ -772,15 +772,16 @@ struct GraphitePopover: View {
     private var footer: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(snapshot.isLoading ? palette.nearEdge.tint : palette.fees)
+                .fill(snapshot.isLoading || snapshot.lastError != nil ? palette.nearEdge.tint
+                      : snapshot.lastUpdated == nil ? palette.unknown.tint : palette.fees)
                 .frame(width: 6, height: 6)
             if let updated = snapshot.lastUpdated {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
-                    Text("Updated \(updated.formatted(.relative(presentation: .named, unitsStyle: .wide)))")
+                    Text("\(snapshot.lastError == nil ? "Updated" : "Last successful update:") \(updated.formatted(.relative(presentation: .named, unitsStyle: .wide)))")
                         .id(context.date)
                 }
             } else {
-                Text(snapshot.isLoading ? "Updating…" : "Not updated yet")
+                Text(snapshot.isLoading ? "Updating…" : snapshot.lastError == nil ? "Not updated yet" : "No successful update yet")
             }
             Spacer()
             Button("Logs") { actions.logs?() }

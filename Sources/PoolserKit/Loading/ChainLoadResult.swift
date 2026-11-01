@@ -19,6 +19,20 @@ struct ChainLoadResult {
     let error: String?
     let bootstrapInProgress: Bool
     let bootstrapNextFromBlock: Int?
+    var failedV3 = false
+    var failedV4 = false
+
+    /// When every chain has the same failure, one message is enough for the wallet.
+    static func sharedFailure(_ results: [ChainLoadResult]) -> String? {
+        guard results.count > 1, results.allSatisfy({ $0.error != nil }) else { return nil }
+        let messages = results.compactMap { result -> String? in
+            guard let error = result.error else { return nil }
+            let prefix = "\(result.chain.displayName): "
+            return error.hasPrefix(prefix) ? String(error.dropFirst(prefix.count)) : error
+        }
+        guard let first = messages.first, messages.allSatisfy({ $0 == first }) else { return nil }
+        return "\(first) (all \(results.count) networks)"
+    }
 
     static func failed(_ chain: SupportedChain, error: String) -> ChainLoadResult {
         ChainLoadResult(
@@ -27,7 +41,9 @@ struct ChainLoadResult {
             feesUSD: 0,
             error: error,
             bootstrapInProgress: false,
-            bootstrapNextFromBlock: nil
+            bootstrapNextFromBlock: nil,
+            failedV3: true,
+            failedV4: true
         )
     }
 }

@@ -56,6 +56,8 @@ import Testing
 
     @Test func networkFailureIsRetried() {
         #expect(client.shouldRetry(URLError(.timedOut)))
+        #expect(client.shouldRetry(URLError(.networkConnectionLost)))
+        #expect(!client.shouldRetry(URLError(.notConnectedToInternet)))
     }
 
     @Test func cancelledRequestThrowsCancellation() async {
