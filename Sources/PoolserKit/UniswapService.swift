@@ -132,15 +132,13 @@ public final class UniswapService: ObservableObject {
         return merged
     }
 
-    /// The name of the wallet holding each position, by `Position.id`.
-    public var walletNamesByPosition: [String: String] {
-        var names: [String: String] = [:]
-        for wallet in AppSettings.shared.wallets {
-            for position in portfolio(for: wallet.address)?.allPositions ?? [] where names[position.id] == nil {
-                names[position.id] = wallet.displayName
-            }
-        }
-        return names
+    /// Every saved wallet with its last load, for the All Wallets page.
+    public var walletOverview: WalletOverview {
+        let settings = AppSettings.shared
+        return WalletOverview(
+            wallets: settings.wallets.map { ($0, portfolio(for: $0.address)?.positions) },
+            tracksClaimedFees: settings.trackClaimedFees
+        )
     }
 
     /// The saved wallet holding `position`, for actions that need its owner.
