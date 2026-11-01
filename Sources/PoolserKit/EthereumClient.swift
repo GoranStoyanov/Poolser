@@ -430,7 +430,9 @@ public struct EthereumClient {
 
     func shouldRetry(_ error: Error) -> Bool {
         if error is CancellationError { return false }
-        if let urlError = error as? URLError { return urlError.code != .cancelled }
+        if let urlError = error as? URLError {
+            return urlError.code != .cancelled && urlError.code != .notConnectedToInternet
+        }
         guard let rpcErr = error as? Err else { return false }
         switch rpcErr {
         case .noResult, .badJSON:

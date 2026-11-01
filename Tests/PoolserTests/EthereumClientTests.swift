@@ -54,6 +54,14 @@ private func rpcError(code: Int, message: String) -> FakeTransport.Reply {
 }
 
 @Suite struct EthereumClientRequestTests {
+    @Test func offlineRequestStopsAfterFirstAttempt() async {
+        let fake = FakeTransport([.failure(URLError(.notConnectedToInternet))])
+        await #expect(throws: URLError.self) {
+            _ = try await client(fake).ethChainId()
+        }
+        #expect(await fake.attempts == 1)
+    }
+
     @Test func blockTimestampReadsTheHeader() async throws {
         let fake = FakeTransport([result(#"{"number":"0x176ae5d","timestamp":"0x6553f100","hash":"0xab"}"#)])
         #expect(try await client(fake).ethBlockTimestamp(24_555_101) == 0x6553f100)

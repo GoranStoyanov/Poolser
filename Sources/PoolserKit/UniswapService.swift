@@ -12,6 +12,32 @@ public struct WalletPortfolio {
     public internal(set) var lastUpdated: Date?
     public internal(set) var lastError: String?
     var chainResultsByID: [String: ChainLoadResult] = [:]
+
+    /// A failed protocol keeps its last positions, but contributes no new fee sample or update time.
+    mutating func apply(_ results: [ChainLoadResult], activeChains: [SupportedChain], at now: Date) -> [Position] {
+        let fresh = results.flatMap(\.positions)
+        for result in results {
+            var displayed = result
+            if let previous = chainResultsByID[result.chain.id] {
+                let currentIDs = Set(result.positions.map(\.id))
+                displayed.positions += previous.positions.filter {
+                    ((result.failedV3 && !$0.isV4) || (result.failedV4 && $0.isV4))
+                        && !currentIDs.contains($0.id)
+                }
+            }
+            chainResultsByID[result.chain.id] = displayed
+        }
+        let activeIDs = Set(activeChains.map(\.id))
+        chainResultsByID = chainResultsByID.filter { activeIDs.contains($0.key) }
+        allPositions = activeChains.compactMap { chainResultsByID[$0.id] }
+            .flatMap(\.positions)
+            .sorted { ($0.positionUSD ?? $0.usd ?? 0) > ($1.positionUSD ?? $1.usd ?? 0) }
+        if Set(results.map { $0.chain.id }) == activeIDs,
+           activeChains.allSatisfy({ chainResultsByID[$0.id]?.error == nil }) {
+            lastUpdated = now
+        }
+        return fresh
+    }
 }
 
 /// Drives refreshes of every saved wallet across the enabled chains and publishes the merged
@@ -126,9 +152,15 @@ public final class UniswapService: ObservableObject {
         merged.positions = loaded.flatMap(\.1.positions).sorted(by: byValue)
         merged.lastUpdated = loaded.compactMap(\.1.lastUpdated).min()
         let errors = loaded.compactMap { wallet, portfolio in
-            portfolio.lastError.map { wallets.count > 1 ? "\(wallet.displayName): \($0)" : $0 }
+            portfolio.lastError.map { (wallet.displayName, $0) }
         }
-        merged.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+        if errors.count == wallets.count, let first = errors.first?.1,
+           errors.allSatisfy({ $0.1 == first }) {
+            merged.lastError = first
+        } else {
+            let lines = errors.map { wallets.count > 1 ? "\($0.0): \($0.1)" : $0.1 }
+            merged.lastError = lines.isEmpty ? nil : lines.joined(separator: "\n")
+        }
         return merged
     }
 
@@ -237,11 +269,18 @@ public final class UniswapService: ObservableObject {
         )
         scheduleBootstrapFollowUpIfNeeded(chainIDsByWallet: bootstrapping, generation: generation)
 
-        NotificationService.fireRangeChangeNotificationsIfNeeded(for: loaded.flatMap(\.positions))
+        if loaded.allSatisfy({ $0.chainResultsByID.values.allSatisfy { $0.error == nil } }) {
+            NotificationService.fireRangeChangeNotificationsIfNeeded(for: loaded.flatMap(\.positions))
+        }
 
         // Launch fee history scan in background — positions are already displayed.
         let v3ByWallet = wallets.map { wallet in
-            (wallet: wallet, positions: portfolio(for: wallet)?.positions.filter { !$0.isV4 && $0.error == nil } ?? [])
+            let portfolio = portfolio(for: wallet)
+            let freshChains = Set(portfolio?.chainResultsByID.values
+                .filter { $0.error == nil }.map { $0.chain.id } ?? [])
+            return (wallet: wallet, positions: portfolio?.positions.filter {
+                freshChains.contains($0.chainID) && !$0.isV4 && $0.error == nil
+            } ?? [])
         }
         if AppSettings.shared.trackClaimedFees {
             startFeeHistoryLoad(v3ByWallet.filter { !$0.positions.isEmpty }, generation: generation)
@@ -311,9 +350,10 @@ public final class UniswapService: ObservableObject {
                 .filter(\.bootstrapInProgress)
                 .map { $0.chain.id }
         }
-        NotificationService.fireRangeChangeNotificationsIfNeeded(
-            for: saved.compactMap { portfolio(for: $0) }.flatMap(\.positions)
-        )
+        let loaded = saved.compactMap { portfolio(for: $0) }
+        if loaded.allSatisfy({ $0.chainResultsByID.values.allSatisfy { $0.error == nil } }) {
+            NotificationService.fireRangeChangeNotificationsIfNeeded(for: loaded.flatMap(\.positions))
+        }
 
         scheduleBootstrapFollowUpIfNeeded(chainIDsByWallet: bootstrapping, generation: generation)
         LogStore.shared.log(
@@ -410,26 +450,16 @@ public final class UniswapService: ObservableObject {
     }
 
     private func applyChainResults(_ results: [ChainLoadResult], wallet: String, activeChains: [SupportedChain]) {
-        let activeIDs = Set(activeChains.map(\.id))
         var portfolio = portfolio(for: wallet) ?? WalletPortfolio()
-        for result in results {
-            portfolio.chainResultsByID[result.chain.id] = result
-        }
-        portfolio.chainResultsByID = portfolio.chainResultsByID.filter { activeIDs.contains($0.key) }
-
+        let fresh = portfolio.apply(results, activeChains: activeChains, at: Date())
         let snapshot = activeChains.compactMap { portfolio.chainResultsByID[$0.id] }
-        let all = snapshot
-            .flatMap(\.positions)
-            .sorted { lhs, rhs in (lhs.positionUSD ?? lhs.usd ?? 0) > (rhs.positionUSD ?? rhs.usd ?? 0) }
-        portfolio.allPositions = all
-        feeLedger.record(all, at: Date())
+        feeLedger.record(fresh, at: Date())
         feeLedger.save()
         dailyFees = feeLedger.dailyFees.overlaid(with: chainDailyFees)
 
         let errors = snapshot.compactMap(\.error)
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
         portfolio.lastError = errorText
-        portfolio.lastUpdated = Date()
         if let err = errorText { LogStore.shared.log(err, level: .error) }
         portfolios[wallet.lowercased()] = portfolio
         updateVisiblePositions(wallet: wallet, hidden: AppSettings.shared.hiddenPositions(for: wallet))
@@ -468,7 +498,9 @@ public final class UniswapService: ObservableObject {
         let positions = portfolio.positions
         let total = positions.compactMap(\.usd).reduce(0, +)
         let value = positions.compactMap(\.positionUSD).reduce(0, +)
-        let title = positions.isEmpty ? "$0.00 👀" : MenuBarTitle.text(valueUSD: value, feesUSD: total)
+        let title = positions.isEmpty
+            ? (portfolio.lastError == nil ? "$0.00 👀" : "– 👀")
+            : MenuBarTitle.text(valueUSD: value, feesUSD: total)
         // A republish of the same title leaves a running flash alone.
         guard flash || title != baseTitle else { return }
         flashTask?.cancel()
@@ -675,13 +707,16 @@ public final class UniswapService: ObservableObject {
             feesUSD: v3.feesUSD + v4.feesUSD,
             error: errors.isEmpty ? nil : errors.joined(separator: "\n"),
             bootstrapInProgress: v4.bootstrapInProgress,
-            bootstrapNextFromBlock: v4.bootstrapNextFromBlock
+            bootstrapNextFromBlock: v4.bootstrapNextFromBlock,
+            failedV3: v3.error != nil,
+            failedV4: v4.error != nil
         )
     }
 
     // MARK: - Error text and bootstrap countdown
 
     private func composedErrorText(snapshot: [ChainLoadResult], fallbackErrors: [String]) -> String? {
+        if let shared = ChainLoadResult.sharedFailure(snapshot) { return shared }
         var messages: [String] = []
         for result in snapshot {
             if result.bootstrapInProgress, let next = result.bootstrapNextFromBlock {

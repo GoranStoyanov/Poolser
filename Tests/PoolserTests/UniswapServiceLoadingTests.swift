@@ -5,6 +5,29 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct UniswapServiceLoadingTests {
+    private let ethereum = SupportedChain.byID("ethereum")!
+    private let base = SupportedChain.byID("base")!
+
+    private func position(_ tokenID: String, chain: SupportedChain, isV4: Bool = false) -> Position {
+        Position(
+            chainID: chain.id, chainName: chain.displayName, chainNumericID: chain.chainId,
+            tokenId: tokenID, token0: "", token1: "", sym0: "A", sym1: "B",
+            feePct: "0.05", feeRaw: 500, fees0: 1, fees1: 0,
+            tickLower: -100, tickUpper: 100, liquidity: 1, inRange: true, isV4: isV4
+        )
+    }
+
+    private func result(
+        _ chain: SupportedChain, positions: [Position] = [], error: String? = nil,
+        failedV3: Bool = false, failedV4: Bool = false
+    ) -> ChainLoadResult {
+        ChainLoadResult(
+            chain: chain, positions: positions, feesUSD: 0, error: error,
+            bootstrapInProgress: false, bootstrapNextFromBlock: nil,
+            failedV3: failedV3, failedV4: failedV4
+        )
+    }
+
     /// Polls the main actor until `condition` holds or the timeout elapses.
     private func waitUntil(timeout: Duration = .seconds(2), _ condition: () -> Bool) async throws {
         let deadline = ContinuousClock.now + timeout
@@ -32,5 +55,116 @@ struct UniswapServiceLoadingTests {
         try await waitUntil { service.lastError != nil }
         #expect(service.lastError != nil)
         #expect(service.isLoading == false)
+    }
+
+    @Test func offlineRefreshKeepsLastPositionsAndUpdateTimeWithoutRecordingStaleFees() {
+        var portfolio = WalletPortfolio()
+        let earlier = Date(timeIntervalSince1970: 1_800_000_000)
+        let ethPosition = position("1", chain: ethereum)
+        let basePosition = position("2", chain: base)
+        let active = [ethereum, base]
+
+        #expect(portfolio.apply([
+            result(ethereum, positions: [ethPosition]), result(base, positions: [basePosition])
+        ], activeChains: active, at: earlier).map(\.id) == [ethPosition.id, basePosition.id])
+        #expect(portfolio.lastUpdated == earlier)
+
+        _ = portfolio.apply([result(base, positions: [basePosition])],
+                            activeChains: active, at: earlier.addingTimeInterval(30))
+        #expect(portfolio.lastUpdated == earlier)
+
+        let offline = earlier.addingTimeInterval(60)
+        #expect(portfolio.apply([
+            result(ethereum, error: "Ethereum: RPC unavailable", failedV3: true, failedV4: true),
+            result(base, error: "Base: RPC unavailable", failedV3: true, failedV4: true)
+        ], activeChains: active, at: offline).isEmpty)
+        #expect(Set(portfolio.allPositions.map(\.id)) == Set([ethPosition.id, basePosition.id]))
+        #expect(portfolio.lastUpdated == earlier)
+        #expect(portfolio.chainResultsByID[ethereum.id]?.error == "Ethereum: RPC unavailable")
+        #expect(portfolio.chainResultsByID[base.id]?.error == "Base: RPC unavailable")
+
+        let partial = offline.addingTimeInterval(60)
+        let freshBase = position("3", chain: base)
+        #expect(portfolio.apply([
+            result(ethereum, error: "Ethereum: RPC unavailable", failedV3: true, failedV4: true),
+            result(base, positions: [freshBase])
+        ], activeChains: active, at: partial).map(\.id) == [freshBase.id])
+        #expect(Set(portfolio.allPositions.map(\.id)) == Set([ethPosition.id, freshBase.id]))
+        #expect(portfolio.lastUpdated == earlier)
+
+        let restored = partial.addingTimeInterval(60)
+        #expect(portfolio.apply([
+            result(ethereum, positions: []), result(base, positions: [freshBase])
+        ], activeChains: active, at: restored).map(\.id) == [freshBase.id])
+        #expect(portfolio.allPositions.map(\.id) == [freshBase.id])
+        #expect(portfolio.chainResultsByID[ethereum.id]?.error == nil)
+        #expect(portfolio.lastUpdated == restored)
+    }
+
+    @Test func coldOfflineLoadAndDisabledChainDoNotShowInventedPositions() {
+        var portfolio = WalletPortfolio()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(portfolio.apply([
+            result(ethereum, error: "Ethereum: RPC unavailable", failedV3: true, failedV4: true)
+        ], activeChains: [ethereum], at: now).isEmpty)
+        #expect(portfolio.allPositions.isEmpty)
+        #expect(portfolio.lastUpdated == nil)
+
+        _ = portfolio.apply([result(ethereum, positions: [position("1", chain: ethereum)])],
+                            activeChains: [ethereum], at: now)
+        _ = portfolio.apply([result(base, positions: [])], activeChains: [base], at: now.addingTimeInterval(60))
+        #expect(portfolio.allPositions.isEmpty)
+        #expect(portfolio.chainResultsByID[ethereum.id] == nil)
+    }
+
+    @Test func oneProtocolFailureKeepsOnlyItsPreviousPositions() {
+        var portfolio = WalletPortfolio()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let oldV3 = position("1", chain: ethereum)
+        let oldV4 = position("2", chain: ethereum, isV4: true)
+        _ = portfolio.apply([result(ethereum, positions: [oldV3, oldV4])], activeChains: [ethereum], at: now)
+
+        let newV4 = position("3", chain: ethereum, isV4: true)
+        let fresh = portfolio.apply([
+            result(ethereum, positions: [newV4], error: "v3 failed", failedV3: true)
+        ], activeChains: [ethereum], at: now.addingTimeInterval(60))
+        #expect(fresh.map(\.id) == [newV4.id])
+        #expect(Set(portfolio.allPositions.map(\.id)) == Set([oldV3.id, newV4.id]))
+        #expect(portfolio.lastUpdated == now)
+
+        let newV3 = position("4", chain: ethereum)
+        _ = portfolio.apply([
+            result(ethereum, positions: [newV3], error: "v4 failed", failedV4: true)
+        ], activeChains: [ethereum], at: now.addingTimeInterval(120))
+        #expect(Set(portfolio.allPositions.map(\.id)) == Set([newV3.id, newV4.id]))
+
+        _ = portfolio.apply([result(ethereum, positions: [newV3])],
+                            activeChains: [ethereum], at: now.addingTimeInterval(180))
+        #expect(portfolio.allPositions.map(\.id) == [newV3.id])
+    }
+
+    @Test func offlineProbeDoesNotDisableNetwork() async {
+        let eth = EthereumClient(
+            rpcURL: URL(string: "https://rpc.test")!,
+            limiter: RPCCreditLimiter(creditsPerSecond: 1_000, maxBurstCredits: 1_000)
+        ) { _ in throw URLError(.notConnectedToInternet) }
+        let failure = await ChainPrefetch.probe(chain: ethereum, eth: eth)
+        #expect(failure?.accessDenied == false)
+        #expect(failure?.error?.contains("RPC unavailable") == true)
+    }
+
+    @Test func identicalChainFailuresAreShownOnce() {
+        let offline = "RPC unavailable – The Internet connection appears to be offline."
+        let failures = [
+            result(ethereum, error: "Ethereum: \(offline)"),
+            result(base, error: "Base: \(offline)")
+        ]
+        #expect(ChainLoadResult.sharedFailure(failures) == "\(offline) (all 2 networks)")
+        #expect(ChainLoadResult.sharedFailure([
+            failures[0], result(base, error: "Base: rate limited")
+        ]) == nil)
+        #expect(ChainLoadResult.sharedFailure([
+            failures[0], result(base)
+        ]) == nil)
     }
 }
