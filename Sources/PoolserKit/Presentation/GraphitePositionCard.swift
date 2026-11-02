@@ -51,7 +51,7 @@ public struct GraphitePositionCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .onTapGesture { showingDetails = true }
             .popover(isPresented: $showingDetails) {
-                details(info, colors: colors)
+                PositionDetailsView(position: position, recentDailyFees: recentDailyFees, onOpen: onOpen) { showingDetails = false }
             }
             .contextMenu { cardMenu }
             .accessibilityElement(children: .contain)
@@ -182,7 +182,7 @@ public struct GraphitePositionCard: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Current price \(price) \(info.quoteSymbol), range \(info.minPrice) to \(info.maxPrice)")
                 .accessibilityHint(gauge.isMarkerClamped ? "Price is beyond the displayed scale" : "")
-                .help("Current \(price) \(info.quoteSymbol) · Min \(info.minPrice) · Max \(info.maxPrice)")
+                .help("Price in \(info.quoteSymbol) per \(info.baseSymbol). The coloured band is this position’s active price range.")
             } else if let reason = position.poolStateError {
                 Label("Pool data unavailable", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption.weight(.medium))
@@ -261,80 +261,18 @@ public struct GraphitePositionCard: View {
     }
 
     private var cardActions: some View {
-        let info = PositionPresentation(position)
-        return HStack(spacing: 10) {
+        HStack(spacing: 10) {
             Button("Details", systemImage: "info.circle") { showingDetails = true }
                 .labelStyle(.titleAndIcon)
                 .buttonStyle(.plain)
                 .font(.caption)
                 .foregroundStyle(palette.secondaryText)
-                .help(rangeHelp(info))
+                .help("Holdings, opening date, fee history and pool statistics")
             if let onCollect {
                 Button("Collect", action: onCollect)
                     .buttonStyle(GraphiteStrongButtonStyle())
             }
         }
-    }
-
-    private func rangeHelp(_ info: PositionPresentation) -> String {
-        "Current \(info.currentPrice ?? "–") \(info.quoteSymbol)\nMin \(info.minPrice) · Max \(info.maxPrice)\n\(assetsLabel(info))\nPosition #\(position.tokenId)"
-    }
-
-    private func details(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text(info.pairLabel).font(PoolTypography.heading(18))
-                    Spacer()
-                    Button("Done") { showingDetails = false }
-                        .buttonStyle(.plain).foregroundStyle(palette.fees)
-                }
-                Text(metaLabel).font(.caption).foregroundStyle(palette.secondaryText)
-                StatusPill(status: info.status, colors: colors)
-                Text(assetsLabel(info))
-                    .font(.callout.monospacedDigit())
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Position #\(position.tokenId)").font(.caption.monospaced())
-                    .textSelection(.enabled)
-                if let openedAt = position.openedAt {
-                    Text("Opened \(openedAt.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption).foregroundStyle(palette.secondaryText)
-                }
-                if let error = position.feesError {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(palette.outOfRange.tint)
-                }
-                if let error = position.poolStateError {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(palette.outOfRange.tint)
-                }
-                if !position.feeHistoryBootstrapping, let level = position.feeReturnOnAssets {
-                    HStack(spacing: 8) {
-                        PoolGauge(level: level)
-                        Text("\(formatPercent(level)) of value earned")
-                            .font(.callout.monospacedDigit())
-                    }
-                    .help(realizedReturnHelp)
-                }
-                if let stats = poolStatsLabel {
-                    Text(stats).font(.caption).foregroundStyle(palette.secondaryText)
-                    Text(poolStatsHelp).font(.caption2).foregroundStyle(palette.secondaryText)
-                }
-                if let recentDailyFees, !recentDailyFees.isEmpty {
-                    MiniFeeBars(values: recentDailyFees, today: palette.barToday, earlier: palette.bar)
-                    Text(feeHistoryHelp(recentDailyFees)).font(.caption).foregroundStyle(palette.secondaryText)
-                }
-                if let onOpen {
-                    Button("Open in Uniswap", action: onOpen)
-                        .buttonStyle(GraphiteStrongButtonStyle())
-                }
-            }
-            .padding(20)
-        }
-        .frame(idealWidth: 340, maxWidth: 380, idealHeight: 400, maxHeight: 520)
-        .background(palette.card)
-        .foregroundStyle(palette.primaryText)
     }
 
     private func errorCard(_ error: String) -> some View {
@@ -371,28 +309,6 @@ public struct GraphitePositionCard: View {
         return "\(chainName) · \(position.versionLabel) · \(fee)"
     }
 
-    private func assetsLabel(_ info: PositionPresentation) -> String {
-        // Without pool state the amounts are unknown, not zero.
-        guard position.poolStateError == nil else { return "Assets –" }
-        let tokens = [
-            (amount: position.amount0, label: position.amount0Label, symbol: position.sym0),
-            (amount: position.amount1, label: position.amount1Label, symbol: position.sym1),
-        ]
-        let parts = (info.isInverted ? tokens.reversed() : tokens)
-            .filter { $0.amount > 0 }
-            .map { "\($0.label) \($0.symbol)" }
-        return "Assets " + (parts.isEmpty ? "0" : parts.joined(separator: " + "))
-    }
-
-    /// The pool's last 24 hours, from GeckoTerminal.
-    private var poolStatsLabel: String? {
-        var parts: [String] = []
-        if let volume = position.volumeUSD24h { parts.append("Vol \(PositionPresentation.compactUSD(volume))") }
-        if let apr = position.feeAPR { parts.append(String(format: "Yield %.1f%%", apr)) }
-        if let tvl = position.tvlUSD { parts.append("TVL \(PositionPresentation.compactUSD(tvl))") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
     private var realizedReturnHelp: String {
         let opened = position.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
         return """
@@ -411,23 +327,9 @@ public struct GraphitePositionCard: View {
         return "Fees already collected from this position, valued at current token prices. When USD prices are unavailable, token amounts are shown. While history is syncing, the amount may be partial. A dash means the amount is unavailable, not zero."
     }
 
-    private var poolStatsHelp: String {
-        """
-        The pool over the last 24 hours: trading volume, yield and total liquidity (TVL).
-        Yield: if the last 24h repeated for a year, this is the estimated return. Calculated from \
-        24h trading volume × fee rate, divided by TVL. It is the pool's figure; an out-of-range \
-        position earns none of it.
-        """
-    }
-
-    private func feeHistoryHelp(_ values: [Double]) -> String {
-        let today = formatUSD(values.last ?? 0)
-        let best = formatUSD(values.max() ?? 0)
-        return "Fees this position earned per day, last \(values.count) days.\nToday \(today) · best day \(best). The rightmost bar is today."
-    }
 }
 
-private struct PositionMetric: View {
+struct PositionMetric: View {
     let title: String
     let value: String
     let explanation: String

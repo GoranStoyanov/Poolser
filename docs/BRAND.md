@@ -66,6 +66,12 @@ At narrow widths or large text sizes, stack the header, Min/Max labels and foote
 
 Reference captures from the implemented shared cards: [light](screenshots/redesign/position-cards-light.png), [dark](screenshots/redesign/position-cards-dark.png), [accessibility layout](screenshots/redesign/position-cards-accessibility.png). Use `POOLSER_SCREENSHOT_FILTER=position-cards` to regenerate this set.
 
+Details is a compact supplementary panel: holdings, position ID, opening date, position pool level, pool statistics and daily fee history. Do not repeat the pair heading, chain/version/fee tier, range status, prices, position value, unclaimed fees, claimed amount or realized APR from the main card. Use a generic Position details heading; token symbols remain as units beside holdings. Show detailed read errors when present.
+
+Let the popup fit its content instead of reserving a fixed 400-point height. Ordinary text and data fit without a scroll container. Keep explanations for pool yield, pool level and fee history behind accessible info controls rather than permanent paragraphs. Retain a scrolling fallback only when large accessibility text, long error messages or a short screen cannot fit the content within 520 points; never crop data or actions to remove scrolling. Keep Open in Uniswap as a separate action.
+
+Compact Details references: [light](screenshots/redesign/position-details-light.png), [dark](screenshots/redesign/position-details-dark.png).
+
 The all-wallets summary uses a deeper jade-to-petrol gradient for white-text contrast and retains its allocation bar and grouped positions. The mobile app keeps its existing wallet navigation; the concept's extra bottom tabs are not part of this implementation.
 
 Reference captures from the actual shared views (demo data): [macOS light](screenshots/redesign/macos-light.png), [macOS dark](screenshots/redesign/macos-dark.png), [small widget](screenshots/redesign/widget-small-light.png), [medium widget](screenshots/redesign/widget-medium-light.png).
