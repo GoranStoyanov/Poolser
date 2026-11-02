@@ -43,8 +43,10 @@ enum StoreScreenshots {
 
     private static func render(into folder: URL) async throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        await DemoWallet.prefetchIcons()
+        let selection = ProcessInfo.processInfo.environment["POOLSER_SCREENSHOT_FILTER"]
+        if selection == nil { await DemoWallet.prefetchIcons() }
         for shot in shots {
+            guard selection.map({ shot.name.contains($0) }) ?? true else { continue }
             let image = try await capture(shot)
             let url = folder.appendingPathComponent(shot.name)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -60,6 +62,18 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/soft-crest.png", size: CGSize(width: 420, height: 120), view: AnyView(
+                VStack(spacing: 16) {
+                    PoolBrandRibbon(animated: false)
+                    HStack(spacing: 20) {
+                        PoolBrandMark()
+                        PoolEyes(width: 70)
+                        Text("Poolser").font(PoolTypography.heading(20))
+                    }
+                }
+                .padding(.bottom, 12)
+                .background(GraphitePalette.light.card)
+            )),
             Shot(name: "redesign/widget-small-light.png", size: CGSize(width: 170, height: 170), view: AnyView(
                 PortfolioWidgetView(snapshot: .preview, size: .small, date: .now)
                     .padding(16).background(GraphitePalette.light.popover)

@@ -24,7 +24,7 @@ Green conveys earnings or an active range. Amber conveys attention; retain a tex
 
 Use Avenir Next Demi Bold for the wordmark and prominent financial figures, with tabular digits. Use the native text face for labels and controls so accessibility sizes remain familiar. Keep addresses and technical identifiers monospaced. Reserve bold for the amount and section hierarchy.
 
-Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline separators and capsule range tracks. The signature is an asymmetric jade-to-blue ribbon with small curious eyes. It is decorative, hidden from accessibility, and does not intercept interaction. Do not substitute decoration for the existing fee-pool level visualization.
+Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline separators and capsule range tracks. The signature is Soft Crest: a broad, softly layered green-to-turquoise-to-blue wave at the upper right, with the original character peeking from behind its front edge. The crest uses the brighter icon colours; data, text and controls retain the semantic palette above. It is decorative, hidden from accessibility, and does not intercept interaction. Do not substitute decoration for the existing fee-pool level visualization.
 
 ## Information and interaction
 
@@ -36,7 +36,7 @@ Daily bars reveal their date and amount on hover or tap; keyboard and screen-rea
 
 ## Motion
 
-Preserve the existing fee pool pouring and settling on opening. The brand ribbon enters briefly and its eyes fade in slightly later. Show data immediately. No perpetual decorative animation or repeated animation during ordinary refreshes. Respect Reduce Motion: no wave travel or slosh, only a short dissolve for the brand accent. Widgets are static.
+Preserve the existing fee pool pouring and settling on opening. The Soft Crest wave enters briefly and its eyes fade in slightly later. Show data immediately. No perpetual decorative animation or repeated animation during ordinary refreshes. Respect Reduce Motion: no wave travel or slosh, only a short dissolve for the brand accent. Widgets are static.
 
 ## Platforms
 
@@ -57,3 +57,11 @@ The native macOS hover help exposes exact prices, holdings and identifiers witho
 The all-wallets summary uses a deeper jade-to-petrol gradient for white-text contrast and retains its allocation bar and grouped positions. The mobile app keeps its existing wallet navigation; the concept's extra bottom tabs are not part of this implementation.
 
 Reference captures from the actual shared views (demo data): [macOS light](screenshots/redesign/macos-light.png), [macOS dark](screenshots/redesign/macos-dark.png), [small widget](screenshots/redesign/widget-small-light.png), [medium widget](screenshots/redesign/widget-medium-light.png).
+
+### Soft Crest character
+
+Use the original icon artwork for the character. `Sources/PoolserKit/Resources/PoolserCharacter.png` is an unmodified copy of the 1024-pixel app icon, shared by macOS, iOS and widgets through the package resource bundle. `PoolCharacterArtwork` loads the PNG explicitly from its bundle URL on each platform. `PoolEyes` samples the eye region and masks each eyeball at display time, preserving the original glossy pupils, pale rims and reflected highlights. Do not redraw the eyes with ellipses and dots or substitute emoji. The front crest partly covers the eyes; they belong inside the coloured pool, never floating on the white card. `PoolBrandMark` uses the same original icon.
+
+Use a satin crest with a soft rim and restrained depth. Avoid multiple shiny glass folds: the selected direction is Soft Crest. Widgets use a shorter crest and smaller character to keep titles and data readable. The existing fee-pool filling animation remains separate and unchanged.
+
+For a focused reference export, set `POOLSER_SCREENSHOT_FILTER=redesign` with `POOLSER_SCREENSHOTS`. This captures the crest, original character, summary and widgets without waiting for external token icons. Use `popover` to capture only the Mac panels, or omit the filter for the complete screenshot set.

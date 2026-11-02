@@ -513,33 +513,6 @@ struct PoolGauge: View {
     }
 }
 
-/// The logo's eyes, small enough to sit beside a caption.
-public struct PoolEyes: View {
-    public init() {}
-
-    public var body: some View {
-        HStack(spacing: 1.5) {
-            eye
-            eye
-        }
-        .accessibilityHidden(true)
-    }
-
-    private var eye: some View {
-        Ellipse()
-            .fill(.white)
-            .overlay(Ellipse().strokeBorder(Color(white: 0.2), lineWidth: 1.2))
-            .overlay(alignment: .bottomTrailing) {
-                Ellipse()
-                    .fill(Color(white: 0.07))
-                    .frame(width: 4, height: 5)
-                    .padding(.trailing, 1.5)
-                    .padding(.bottom, 1.5)
-            }
-            .frame(width: 8, height: 10)
-    }
-}
-
 // MARK: - Small parts
 
 struct StatusPill: View {

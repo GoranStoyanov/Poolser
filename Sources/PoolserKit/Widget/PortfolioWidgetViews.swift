@@ -26,7 +26,7 @@ public struct PortfolioWidgetView: View {
     public var body: some View {
         let palette = GraphitePalette.current(colorScheme)
         ZStack(alignment: .topTrailing) {
-            PoolBrandRibbon(animated: false)
+            PoolBrandRibbon(animated: false, compact: true)
                 .padding(.top, -16)
                 .padding(.trailing, -16)
             if let snapshot, snapshot.positionCount > 0 {
