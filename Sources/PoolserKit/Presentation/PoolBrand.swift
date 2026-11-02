@@ -39,19 +39,23 @@ public struct PoolBrandRibbon: View {
                         ],
                         startPoint: .trailing, endPoint: .leading
                     ))
+                    .allowsHitTesting(false)
                 // A low highlight rounds the crest without turning the whole card glossy.
                 CrestShape(front: false)
                     .fill(LinearGradient(colors: [.white.opacity(0.3), .clear, .clear],
                                          startPoint: .top, endPoint: .bottom))
-                PoolEyes(width: eyesWidth)
+                    .allowsHitTesting(false)
+                PoolEyes(width: eyesWidth, blinks: animated)
                     .padding(.top, compact ? 5 : 7.5)
                     .padding(.leading, compact ? 16 : 22)
                     .opacity(appeared || !animated ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2).delay(0.22), value: appeared)
                 CrestShape(front: true)
                     .fill(surface)
+                    .allowsHitTesting(false)
                 CrestEdge()
                     .stroke(surface.opacity(0.4), lineWidth: 0.6)
+                    .allowsHitTesting(false)
             }
             .frame(width: geometry.size.width, height: height)
             .scaleEffect(x: 1, y: reduceMotion || appeared || !animated ? 1 : 0.2, anchor: .topLeading)
@@ -61,7 +65,7 @@ public struct PoolBrandRibbon: View {
         .animation(.easeOut(duration: reduceMotion ? 0.15 : 0.55), value: appeared)
         .onAppear { appeared = true }
         .onDisappear { appeared = false }
-        .allowsHitTesting(false)
+        .allowsHitTesting(animated)
         .accessibilityHidden(true)
     }
 }
@@ -106,8 +110,17 @@ private struct CrestEdge: Shape {
 /// Samples the unmodified app icon; the crop and masks retain its actual pupils and reflections.
 public struct PoolEyes: View {
     private let width: CGFloat
+    private let blinks: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var isBlinking = false
+    @State private var hoverBlink = 0
+    @State private var lastBlink = Date.distantPast
 
-    public init(width: CGFloat = 18) { self.width = width }
+    public init(width: CGFloat = 18, blinks: Bool = false) {
+        self.width = width
+        self.blinks = blinks
+    }
 
     public var body: some View {
         let scale = width / 700
@@ -127,7 +140,47 @@ public struct PoolEyes: View {
                 Ellipse()
             }
         }
+        .scaleEffect(x: 1, y: isBlinking ? 0.08 : 1)
+        .contentShape(Rectangle())
+        .onHover { inside in
+            if inside && canBlink && !isBlinking { hoverBlink += 1 }
+        }
+        .task(id: hoverBlink) {
+            if hoverBlink > 0 { await blink() }
+        }
+        .task(id: canBlink) {
+            guard canBlink else { isBlinking = false; return }
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(Double.random(in: 12...24)))
+                } catch { return }
+                await blink()
+            }
+        }
         .accessibilityHidden(true)
+    }
+
+    private var canBlink: Bool {
+        #if os(iOS)
+        blinks && !reduceMotion && scenePhase == .active
+        #else
+        blinks && !reduceMotion
+        #endif
+    }
+
+    @MainActor
+    private func blink() async {
+        guard canBlink, !isBlinking, !Task.isCancelled,
+              Date().timeIntervalSince(lastBlink) >= 1 else { return }
+        lastBlink = .now
+        withAnimation(.easeIn(duration: 0.08)) { isBlinking = true }
+        do {
+            try await Task.sleep(for: .milliseconds(100))
+        } catch {
+            isBlinking = false
+            return
+        }
+        withAnimation(.easeOut(duration: 0.12)) { isBlinking = false }
     }
 }
 

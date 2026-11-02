@@ -63,6 +63,11 @@ public struct GraphitePalette {
         LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
     }
 
+    public var water: LinearGradient {
+        LinearGradient(colors: [Color(hex: 0x18D6B0), Color(hex: 0x23C5CF)],
+                       startPoint: .leading, endPoint: .trailing)
+    }
+
     public static func current(_ scheme: ColorScheme) -> GraphitePalette {
         scheme == .dark ? .dark : .light
     }

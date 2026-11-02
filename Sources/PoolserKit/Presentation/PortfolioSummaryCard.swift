@@ -64,11 +64,6 @@ public struct PortfolioSummaryCard<Actions: View>: View {
                 .font(PoolTypography.amount(32, relativeTo: .largeTitle))
                 .foregroundStyle(palette.primaryText)
                 .lineLimit(1).minimumScaleFactor(0.6)
-            if let today = dailyFees?.last {
-                Text("Today +\(formatUSD(today))")
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(palette.fees)
-            }
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -90,36 +85,71 @@ public struct PortfolioSummaryCard<Actions: View>: View {
             Rectangle().fill(palette.cardLine).frame(height: 0.5)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 16) {
-                    stat("Claimed", formatUSD(summary.claimedUSD))
+                    SummaryMetric(title: "Claimed", value: formatUSD(summary.claimedUSD), explanation: claimedHelp)
                     Spacer(minLength: 0)
-                    if let level = summary.returnOnAssets { stat("Pool level", formatPercent(level)) }
+                    if let level = summary.returnOnAssets { SummaryMetric(title: "Pool level", value: formatPercent(level), explanation: poolHelp) }
                     Spacer(minLength: 0)
-                    if let apr = summary.realizedAPR { stat("APR", formatPercent(apr)) }
+                    if let apr = summary.realizedAPR { SummaryMetric(title: "APR", value: formatPercent(apr), explanation: aprHelp) }
                 }
                 VStack(alignment: .leading, spacing: 8) {
-                    stat("Claimed", formatUSD(summary.claimedUSD))
-                    if let level = summary.returnOnAssets { stat("Pool level", formatPercent(level)) }
-                    if let apr = summary.realizedAPR { stat("APR", formatPercent(apr)) }
+                    SummaryMetric(title: "Claimed", value: formatUSD(summary.claimedUSD), explanation: claimedHelp)
+                    if let level = summary.returnOnAssets { SummaryMetric(title: "Pool level", value: formatPercent(level), explanation: poolHelp) }
+                    if let apr = summary.realizedAPR { SummaryMetric(title: "APR", value: formatPercent(apr), explanation: aprHelp) }
                 }
             }
-            DisclosureGroup("Fee context") {
-                Text("All-time fees \(formatUSD(summary.allTimeUSD)). Claimed v3 fees are valued at current prices; v4 claimed fees are not tracked. Pool level is all-time fees divided by current value. APR annualizes that return since opening and is not a forecast.")
-                    .font(.caption).foregroundStyle(palette.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .font(.caption2)
-            .tint(palette.fees)
-            .foregroundStyle(palette.secondaryText)
-            .help("All-time \(formatUSD(summary.allTimeUSD)). Pool level: all-time fees / current value. APR: realized return annualized since opening.")
         }
     }
 
-    private func stat(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.caption2).foregroundStyle(palette.secondaryText)
-            Text(value).font(PoolTypography.amount(16, relativeTo: .callout)).foregroundStyle(palette.primaryText)
+    private var claimedHelp: String {
+        "Fees already collected from v3 positions, valued at current token prices. Claimed v4 fees are not tracked."
+    }
+
+    private var poolHelp: String {
+        "All-time fees (claimed + unclaimed) ÷ current position value × 100. Only positions with known fees and value are included. The water rises with this percentage, up to a full pool. Changes in token prices or liquidity also change the level."
+    }
+
+    private var aprHelp: String {
+        "Annualized fee return since opening, weighted by each position’s current value and age.\n\nΣ all-time fees ÷ Σ (current position value × years open) × 100.\n\nOnly positions with known fees, value and an opening date at least one day ago are included. Claimed fees use current token prices. Liquidity changes affect the estimate; this is not a forecast."
+    }
+}
+
+private struct SummaryMetric: View {
+    let title: String
+    let value: String
+    let explanation: String
+    @State private var showingExplanation = false
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let palette = GraphitePalette.current(scheme)
+        Button { showingExplanation.toggle() } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 3) {
+                    Text(title)
+                    Image(systemName: "info.circle").imageScale(.small)
+                }
+                .font(.caption2).foregroundStyle(palette.primaryText)
+                Text(value).font(PoolTypography.amount(16, relativeTo: .callout))
+                    .foregroundStyle(palette.primaryText)
+            }
+            .fixedSize(horizontal: true, vertical: false)
+            .contentShape(Rectangle())
         }
-        .fixedSize(horizontal: true, vertical: false)
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(value)")
+        .accessibilityHint("Show explanation")
+        .help(explanation)
+        .popover(isPresented: $showingExplanation) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).font(PoolTypography.heading(16))
+                Text(explanation).font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(idealWidth: 280, maxWidth: 320, alignment: .leading)
+            .foregroundStyle(palette.primaryText)
+            .background(palette.card)
+            .presentationCompactAdaptation(.popover)
+        }
     }
 }

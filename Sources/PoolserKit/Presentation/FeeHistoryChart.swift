@@ -119,7 +119,7 @@ public struct FeeHistoryChart: View {
         let isToday = index == shown.count - 1
         let value = formatUSD(shown.indices.contains(index) ? shown[index] : 0)
         let date = startDate(daysBack: shown.count - 1 - index).formatted(.dateTime.month(.abbreviated).day())
-        return Text(isToday ? value : "\(date) · \(value)")
+        return Text(isToday ? "Today \(value)" : "\(date) · \(value)")
             .font(.caption2.weight(.bold).monospacedDigit())
             .foregroundStyle(isToday ? palette.onBarToday : palette.primaryText)
             .padding(.horizontal, 5)

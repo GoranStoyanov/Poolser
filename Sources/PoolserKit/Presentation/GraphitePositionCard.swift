@@ -359,7 +359,7 @@ public struct GraphitePositionCard: View {
 
 // MARK: - Fee pool
 
-/// The fee pool: water in the logo's colours filling its container from the bottom to `level`,
+/// The fee pool: turquoise water filling its container from the bottom to `level`,
 /// the share of the value already earned back in fees. Pours in and sloshes from side to side
 /// when shown or when the level changes, then settles; it stays still otherwise, so an open
 /// popover costs nothing.
@@ -369,7 +369,7 @@ public struct PoolWater: View {
     let level: Double
     var base = 0.14
     var amplitude: CGFloat = 3.5
-    /// Water colour for a pool drawn over a coloured card; nil uses the logo's gradient.
+    /// Water colour for a pool drawn over a coloured card; nil uses the turquoise fee-pool gradient.
     var color: Color? = nil
 
     public init(level: Double, base: Double = 0.14, amplitude: CGFloat = 3.5, color: Color? = nil) {
@@ -397,13 +397,13 @@ public struct PoolWater: View {
                 ZStack(alignment: .bottom) {
                     Wave(phase: restPhase + back.travel + .pi * 0.8,
                          amplitude: amplitude * back.swell, tilt: back.tilt)
-                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.brand))
-                        .opacity(palette.waterBack)
+                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.water))
+                        .opacity(color == nil ? palette.waterBack + 0.02 : palette.waterBack)
                         .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
                     Wave(phase: restPhase + front.travel,
                          amplitude: amplitude * front.swell, tilt: front.tilt)
-                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.brand))
-                        .opacity(palette.waterFront)
+                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.water))
+                        .opacity(color == nil ? palette.waterFront + (colorScheme == .dark ? 0 : 0.08) : palette.waterFront)
                         .frame(height: height)
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)

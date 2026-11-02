@@ -28,7 +28,7 @@ Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline s
 
 ## Information and interaction
 
-Always show unclaimed fees, portfolio value, today's fees when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Do not repeat position and chain counts beneath Total value; the position list provides that context. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
+Always show unclaimed fees, portfolio value, today's fees once in the blue chart badge labelled Today when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Do not repeat position and chain counts beneath Total value; the position list provides that context. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
 
 Position cards always show pair, chain/version/fee tier, value, fees, range status, range track and current marker. Out-of-range distance remains visible. Exact prices, holdings, position ID, claimed return and pool statistics are secondary details: reveal on hover or keyboard-accessible Details on macOS, and via Details on iOS. Opening Uniswap remains a separate explicit action. Do not hide error or collection status inside hover content.
 
@@ -36,7 +36,7 @@ Daily bars reveal their date and amount on hover or tap; keyboard and screen-rea
 
 ## Motion
 
-Preserve the existing fee pool pouring and settling on opening. The Soft Crest wave enters briefly and its eyes fade in slightly later. Show data immediately. No perpetual decorative animation or repeated animation during ordinary refreshes. Respect Reduce Motion: no wave travel or slosh, only a short dissolve for the brand accent. Widgets are static.
+Preserve the existing fee pool pouring and settling on opening. The Soft Crest wave enters briefly and its eyes fade in slightly later. Show data immediately. The eyes blink briefly on hover and at random 12–24-second intervals while the app view is visible. Use sleeping, cancellable tasks rather than a continuously rendering timeline. Widgets never schedule blinks; inline eye marks remain still. Ordinary refreshes do not restart the entrance animation. Respect Reduce Motion: no wave travel or slosh, only a short dissolve for the brand accent and no blinking. Widgets are static.
 
 ## Platforms
 
@@ -52,7 +52,7 @@ Shared colours live in `Sources/PoolserKit/Presentation/GraphitePalette.swift`; 
 
 ## Implementation details
 
-The native macOS hover help exposes exact prices, holdings and identifiers without moving the position rows. The Details button opens the full position view on both platforms and supports keyboard access. Fee context expands below the summary; the chart heading opens period totals and daily average on tap or click. Preserve these explicit alternatives to hover.
+The native macOS hover help exposes exact prices, holdings and identifiers without moving the position rows. The Details button opens the full position view on both platforms and supports keyboard access. Claimed, Pool level and APR each expose their own contextual tooltip on Mac and an accessible click/tap popover; there is no expanding Fee context row. The Claimed explanation describes collected v3 fees at current prices without repeating the displayed amount. Pool level explains all-time fees divided by current eligible position value. APR explains Σ all-time fees / Σ (current value × years open), annualized, excluding positions younger than one day or missing data; the chart heading opens period totals and daily average on tap or click. Preserve these explicit alternatives to hover.
 
 The all-wallets summary uses a deeper jade-to-petrol gradient for white-text contrast and retains its allocation bar and grouped positions. The mobile app keeps its existing wallet navigation; the concept's extra bottom tabs are not part of this implementation.
 
@@ -65,3 +65,5 @@ Use the original icon artwork for the character. `Sources/PoolserKit/Resources/P
 Use a satin crest with a soft rim and restrained depth. Leave a small blue-green cushion below the eyes by lowering the shared curve locally under the character; keep the eye position fixed. The crest is 62 points tall in the app and 40 in widgets, with the eyes held near the top so added depth goes below them. Avoid multiple shiny glass folds: the selected direction is Soft Crest. Widgets use a shorter crest and smaller character to keep titles and data readable. Their title sits to the right of the character, below the coloured edge, with space reserved for the eyes rather than a duplicate eye mark. The existing fee-pool filling animation remains separate and unchanged.
 
 For a focused reference export, set `POOLSER_SCREENSHOT_FILTER=redesign` with `POOLSER_SCREENSHOTS`. This captures the crest, original character, summary and widgets without waiting for external token icons. Use `popover` to capture only the Mac panels, or omit the filter for the complete screenshot set.
+
+The fee-pool water uses a separate vivid turquoise gradient (`#18D6B0` → `#23C5CF`) with slightly stronger opacity than the previous muted brand wash. Keep primary and secondary figures legible in both appearances; do not change the level calculation.
