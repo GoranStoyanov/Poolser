@@ -364,15 +364,14 @@ public struct GraphitePositionCard: View {
 /// when shown or when the level changes, then settles; it stays still otherwise, so an open
 /// popover costs nothing.
 public struct PoolWater: View {
-    /// All-time fees over value, clamped to 0…1. Drawn above a fixed `base` so the bottom of the
-    /// container always sits in water; 1 fills it.
+    /// All-time fees over value: 0 is empty, 1 fills the container, and higher returns stay full.
     let level: Double
-    var base = 0.14
+    var base = 0.0
     var amplitude: CGFloat = 3.5
     /// Water colour for a pool drawn over a coloured card; nil uses the turquoise fee-pool gradient.
     var color: Color? = nil
 
-    public init(level: Double, base: Double = 0.14, amplitude: CGFloat = 3.5, color: Color? = nil) {
+    public init(level: Double, base: Double = 0, amplitude: CGFloat = 3.5, color: Color? = nil) {
         self.level = level
         self.base = base
         self.amplitude = amplitude
@@ -393,18 +392,15 @@ public struct PoolWater: View {
             // The back layer trails the front a little, which reads as depth.
             let back = Slosh(elapsed: elapsed.map { max($0 - 0.12, 0) })
             GeometryReader { geo in
-                let height = geo.size.height * shownLevel
                 ZStack(alignment: .bottom) {
-                    Wave(phase: restPhase + back.travel + .pi * 0.8,
+                    Wave(level: shownLevel, phase: restPhase + back.travel + .pi * 0.8,
                          amplitude: amplitude * back.swell, tilt: back.tilt)
                         .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.water))
-                        .opacity(color == nil ? palette.waterBack + 0.02 : palette.waterBack)
-                        .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
-                    Wave(phase: restPhase + front.travel,
+                        .opacity(palette.waterBack)
+                    Wave(level: shownLevel, phase: restPhase + front.travel,
                          amplitude: amplitude * front.swell, tilt: front.tilt)
                         .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.water))
-                        .opacity(color == nil ? palette.waterFront + (colorScheme == .dark ? 0 : 0.08) : palette.waterFront)
-                        .frame(height: height)
+                        .opacity(palette.waterFront)
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
             }
@@ -426,7 +422,8 @@ public struct PoolWater: View {
 
     /// The share of the container a pool at `level` fills, starting from `base`.
     static func fill(level: Double, base: Double) -> Double {
-        base + (1 - base) * min(max(level, 0), 1)
+        guard !level.isNaN else { return 0 }
+        return base + (1 - base) * min(max(level, 0), 1)
     }
 
     private func pour() {
@@ -467,21 +464,32 @@ struct Slosh {
 /// A filled shape whose top edge is a sine wave, one and a half periods across, tilted by `tilt`
 /// points from the middle to each side.
 struct Wave: Shape {
+    var level: Double
     var phase: Double
     var amplitude: CGFloat
     var tilt: CGFloat = 0
 
+    var animatableData: Double {
+        get { level }
+        set { level = newValue }
+    }
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        guard rect.height > 0 else { return path }
+        guard rect.height > 0, rect.width > 0, level > 0 else { return path }
+        if level >= 1 { return Path(rect) }
         let wavelength = rect.width / 1.5
-        let crest = min(amplitude, rect.height / 2)
+        let surface = rect.maxY - rect.height * min(level, 1)
+        // Taper both motions near empty/full so neither layer crosses the container limits.
+        let room = max(0, min(surface - rect.minY, rect.maxY - surface))
+        let crest = min(amplitude, room / 2)
+        let lean = min(max(tilt, -room / 2), room / 2)
         let halfWidth = max(rect.width / 2, 1)
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         for x in stride(from: rect.minX, through: rect.maxX, by: 2) {
             let angle = Double((x - rect.minX) / wavelength) * 2 * .pi + phase
-            let lean = tilt * (x - rect.midX) / halfWidth
-            path.addLine(to: CGPoint(x: x, y: rect.minY + crest + crest * CGFloat(sin(angle)) + lean))
+            let y = surface + crest * CGFloat(sin(angle)) + lean * (x - rect.midX) / halfWidth
+            path.addLine(to: CGPoint(x: x, y: y))
         }
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()

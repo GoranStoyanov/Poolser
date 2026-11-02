@@ -30,7 +30,7 @@ public struct PoolBrandRibbon: View {
         let eyesWidth: CGFloat = compact ? 34 : 52
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
-                CrestShape(front: false)
+                CrestShape()
                     .fill(LinearGradient(
                         stops: [
                             .init(color: Color(red: 0.35, green: 0.80, blue: 0.42), location: 0.3),
@@ -41,7 +41,7 @@ public struct PoolBrandRibbon: View {
                     ))
                     .allowsHitTesting(false)
                 // A low highlight rounds the crest without turning the whole card glossy.
-                CrestShape(front: false)
+                CrestShape()
                     .fill(LinearGradient(colors: [.white.opacity(0.3), .clear, .clear],
                                          startPoint: .top, endPoint: .bottom))
                     .allowsHitTesting(false)
@@ -50,14 +50,12 @@ public struct PoolBrandRibbon: View {
                     .padding(.leading, compact ? 16 : 22)
                     .opacity(appeared || !animated ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2).delay(0.22), value: appeared)
-                CrestShape(front: true)
-                    .fill(surface)
-                    .allowsHitTesting(false)
                 CrestEdge()
                     .stroke(surface.opacity(0.4), lineWidth: 0.6)
                     .allowsHitTesting(false)
             }
             .frame(width: geometry.size.width, height: height)
+            .mask(CrestShape())
             .scaleEffect(x: 1, y: reduceMotion || appeared || !animated ? 1 : 0.2, anchor: .topLeading)
         }
         .frame(height: height)
@@ -71,17 +69,10 @@ public struct PoolBrandRibbon: View {
 }
 
 private struct CrestShape: Shape {
-    let front: Bool
-
     func path(in r: CGRect) -> Path {
         var p = CrestEdge.curve(in: r)
-        if front {
-            p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
-        } else {
-            p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
-            p.addLine(to: CGPoint(x: r.minX, y: r.minY))
-        }
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.minY))
         p.closeSubpath()
         return p.applying(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: r.width, ty: 0))
     }

@@ -45,6 +45,7 @@ public struct PortfolioSummaryCard<Actions: View>: View {
             }
         }
         .padding(16)
+        .compositingGroup()
         .background {
             ZStack {
                 palette.card
@@ -105,7 +106,7 @@ public struct PortfolioSummaryCard<Actions: View>: View {
     }
 
     private var poolHelp: String {
-        "All-time fees (claimed + unclaimed) ÷ current position value × 100. Only positions with known fees and value are included. The water rises with this percentage, up to a full pool. Changes in token prices or liquidity also change the level."
+        "All-time fees (claimed + unclaimed) ÷ current position value × 100. Only positions with known fees and value are included.\n\nThe water fills the card from bottom to top: 0% is empty, 50% is halfway, and 100% is full. Above 100% the card stays full; the percentage still shows the actual return.\n\nChanges in token prices or liquidity also change the level."
     }
 
     private var aprHelp: String {

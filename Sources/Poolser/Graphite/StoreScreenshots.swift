@@ -62,6 +62,8 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/pool-levels-light.png", size: nil, opaque: false, view: AnyView(poolLevels(scheme: .light))),
+            Shot(name: "redesign/pool-levels-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(poolLevels(scheme: .dark))),
             Shot(name: "redesign/soft-crest.png", size: CGSize(width: 420, height: 120), view: AnyView(
                 VStack(spacing: 16) {
                     PoolBrandRibbon(animated: false)
@@ -138,6 +140,29 @@ enum StoreScreenshots {
                 PopoverCutout(snapshot: snapshot)
             )),
         ]
+    }
+
+    private static func poolLevels(scheme: ColorScheme) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            ForEach([0.0, 0.25, 0.5, 1.0, 1.5], id: \.self) { level in
+                VStack(spacing: 10) {
+                    Text(formatPercent(level)).font(PoolTypography.heading(18))
+                    poolLevelFixture(level).frame(width: 340)
+                }
+            }
+        }
+        .padding(16)
+        .foregroundStyle(GraphitePalette.current(scheme).primaryText)
+        .background(GraphitePalette.current(scheme).popover)
+    }
+
+    private static func poolLevelFixture(_ level: Double) -> some View {
+        let snapshot = DemoWallet.snapshot
+        var summary = WalletFeeSummary(positions: snapshot.positions)
+        summary.returnOnAssets = level
+        return PortfolioSummaryCard(positions: snapshot.positions, dailyFees: snapshot.dailyFeesUSD, feeSummary: summary) {
+            EmptyView()
+        }
     }
 
     private static func capture(_ shot: Shot) async throws -> CGImage {

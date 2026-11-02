@@ -64,7 +64,8 @@ public struct FeeHistoryChart: View {
                                 shape.fill(palette.track).frame(height: 3)
                             } else {
                                 shape
-                                    .fill(index == shown.count - 1 ? palette.barToday : hovered == index ? palette.fees : palette.bar)
+                                    .fill(index == shown.count - 1 ? palette.barToday : hovered == index ? palette.primaryText : palette.fees)
+                                    .overlay(shape.strokeBorder(palette.primaryText.opacity(0.35), lineWidth: 0.5))
                                     .frame(height: barHeight(shown[index], peak: peak))
                             }
                         }
