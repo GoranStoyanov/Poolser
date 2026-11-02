@@ -76,7 +76,7 @@ private struct Summary: View {
         VStack(alignment: .leading, spacing: 0) {
             Header(walletName: snapshot.walletName, palette: palette)
                 .padding(.leading, 52)
-                .padding(.top, 8)
+                .padding(.top, 18)
             Spacer(minLength: 5)
             Text("Unclaimed fees")
                 .font(.caption2).foregroundStyle(palette.secondaryText)

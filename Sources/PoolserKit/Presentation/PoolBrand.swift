@@ -26,7 +26,7 @@ public struct PoolBrandRibbon: View {
     public var body: some View {
         let palette = GraphitePalette.current(scheme)
         let surface = compact ? palette.popover : palette.card
-        let height: CGFloat = compact ? 36 : 54
+        let height: CGFloat = compact ? 40 : 62
         let eyesWidth: CGFloat = compact ? 34 : 52
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
@@ -44,7 +44,7 @@ public struct PoolBrandRibbon: View {
                     .fill(LinearGradient(colors: [.white.opacity(0.3), .clear, .clear],
                                          startPoint: .top, endPoint: .bottom))
                 PoolEyes(width: eyesWidth)
-                    .padding(.top, height * 0.14)
+                    .padding(.top, compact ? 5 : 7.5)
                     .padding(.leading, compact ? 16 : 22)
                     .opacity(appeared || !animated ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2).delay(0.22), value: appeared)
@@ -96,9 +96,9 @@ private struct CrestEdge: Shape {
         p.addCurve(to: CGPoint(x: r.width * 0.61, y: r.height * 0.82),
                    control1: CGPoint(x: r.width * 0.43, y: 0),
                    control2: CGPoint(x: r.width * 0.46, y: r.height * 0.89))
-        p.addCurve(to: CGPoint(x: r.width, y: r.height * 0.78),
-                   control1: CGPoint(x: r.width * 0.86, y: r.height * 0.37),
-                   control2: CGPoint(x: r.width * 0.89, y: r.height * 0.90))
+        p.addCurve(to: CGPoint(x: r.width, y: r.height * 0.96),
+                   control1: CGPoint(x: r.width * 0.86, y: r.height * 0.53),
+                   control2: CGPoint(x: r.width * 0.89, y: r.height * 0.98))
         return p
     }
 }
