@@ -44,18 +44,14 @@ public struct PoolBrandRibbon: View {
                     .fill(LinearGradient(colors: [.white.opacity(0.3), .clear, .clear],
                                          startPoint: .top, endPoint: .bottom))
                 PoolEyes(width: eyesWidth)
-                    .padding(.top, height * 0.29)
+                    .padding(.top, height * 0.14)
                     .padding(.leading, compact ? 16 : 22)
                     .opacity(appeared || !animated ? 1 : 0)
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2).delay(0.22), value: appeared)
                 CrestShape(front: true)
                     .fill(surface)
                 CrestEdge()
-                    .stroke(palette.brandEnd.opacity(scheme == .dark ? 0.2 : 0.12), lineWidth: 3)
-                    .blur(radius: 2)
-                CrestEdge()
-                    .stroke(LinearGradient(colors: [surface, .white.opacity(0.75), palette.brandEnd.opacity(0.35)],
-                                           startPoint: .leading, endPoint: .trailing), lineWidth: 0.8)
+                    .stroke(surface.opacity(0.4), lineWidth: 0.6)
             }
             .frame(width: geometry.size.width, height: height)
             .scaleEffect(x: 1, y: reduceMotion || appeared || !animated ? 1 : 0.2, anchor: .topLeading)
@@ -74,7 +70,7 @@ private struct CrestShape: Shape {
     let front: Bool
 
     func path(in r: CGRect) -> Path {
-        var p = CrestEdge.curve(in: r, front: front)
+        var p = CrestEdge.curve(in: r)
         if front {
             p.addLine(to: CGPoint(x: r.maxX, y: r.maxY))
             p.addLine(to: CGPoint(x: r.minX, y: r.maxY))
@@ -89,20 +85,20 @@ private struct CrestShape: Shape {
 
 private struct CrestEdge: Shape {
     func path(in r: CGRect) -> Path {
-        Self.curve(in: r, front: true)
+        Self.curve(in: r)
             .applying(CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: r.width, ty: 0))
     }
 
-    static func curve(in r: CGRect, front: Bool) -> Path {
+    static func curve(in r: CGRect) -> Path {
         var p = Path()
         p.move(to: CGPoint(x: 0, y: 0))
         p.addLine(to: CGPoint(x: r.width * 0.25, y: 0))
-        p.addCurve(to: CGPoint(x: r.width * 0.61, y: r.height * (front ? 0.82 : 0.56)),
+        p.addCurve(to: CGPoint(x: r.width * 0.61, y: r.height * 0.82),
                    control1: CGPoint(x: r.width * 0.43, y: 0),
-                   control2: CGPoint(x: r.width * 0.46, y: r.height * (front ? 0.89 : 0.63)))
-        p.addCurve(to: CGPoint(x: r.width, y: r.height * (front ? 0.78 : 1)),
-                   control1: CGPoint(x: r.width * 0.86, y: r.height * (front ? 0.37 : 0.25)),
-                   control2: CGPoint(x: r.width * 0.89, y: r.height * (front ? 0.90 : 0.88)))
+                   control2: CGPoint(x: r.width * 0.46, y: r.height * 0.89))
+        p.addCurve(to: CGPoint(x: r.width, y: r.height * 0.78),
+                   control1: CGPoint(x: r.width * 0.86, y: r.height * 0.37),
+                   control2: CGPoint(x: r.width * 0.89, y: r.height * 0.90))
         return p
     }
 }
