@@ -1,5 +1,7 @@
 # 👀 Poolser
 
+Visual identity and interface guidance: [brand reference](docs/BRAND.md).
+
 Your Uniswap v3 and v4 positions in the macOS menu bar.
 
 Poolser shows your total value and unclaimed fees at a glance, flags the ranges that need attention, and lets you collect fees with your browser wallet. It reads everything straight from the chain through your own Infura key: no account, no indexer, no tracking.

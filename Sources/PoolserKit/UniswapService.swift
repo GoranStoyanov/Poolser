@@ -486,7 +486,7 @@ public final class UniswapService: ObservableObject {
         }
     }
 
-    /// Writes a snapshot with a week of daily fees for every wallet and for all of them
+    /// Writes a snapshot with fourteen days of daily fees for every wallet and for all of them
     /// together, then reloads the widgets when what they show changed.
     private func publishWidgets() {
         guard PortfolioSnapshotStore.fileURL != nil else { return }
@@ -497,7 +497,7 @@ public final class UniswapService: ObservableObject {
             guard !(portfolio.positions.isEmpty && portfolio.lastError != nil) else { return nil }
             return PortfolioSnapshot(
                 positions: portfolio.positions,
-                dailyFeesUSD: dailyFees.walletDailyUSD(portfolio.positions, days: 7, minDays: 1, endingAt: now),
+                dailyFeesUSD: dailyFees.walletDailyUSD(portfolio.positions, days: 14, minDays: 1, endingAt: now),
                 updatedAt: portfolio.lastUpdated ?? now,
                 walletName: name
             )

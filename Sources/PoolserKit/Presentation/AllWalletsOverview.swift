@@ -46,7 +46,7 @@ public struct AllWalletsSummaryCard: View {
                     .foregroundStyle(.white.opacity(0.78))
             }
             Text(formatUSD(overview.totalValueUSD))
-                .font(.largeTitle.weight(.bold).monospacedDigit())
+                .font(PoolTypography.amount(32, relativeTo: .largeTitle))
                 .fontDesign(.rounded)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -86,8 +86,8 @@ public struct AllWalletsSummaryCard: View {
     /// The logo's green and blue, deepened so white text reads on every part of it.
     static func gradient(_ scheme: ColorScheme) -> LinearGradient {
         let stops: [Color] = scheme == .dark
-            ? [Color(red: 0.18, green: 0.50, blue: 0.28), Color(red: 0.16, green: 0.42, blue: 0.45), Color(red: 0.15, green: 0.31, blue: 0.56)]
-            : [Color(red: 0.24, green: 0.62, blue: 0.36), Color(red: 0.21, green: 0.53, blue: 0.56), Color(red: 0.18, green: 0.41, blue: 0.72)]
+            ? [Color(red: 0.08, green: 0.31, blue: 0.29), Color(red: 0.10, green: 0.25, blue: 0.38)]
+            : [Color(red: 0.12, green: 0.43, blue: 0.36), Color(red: 0.16, green: 0.35, blue: 0.52)]
         return LinearGradient(colors: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 

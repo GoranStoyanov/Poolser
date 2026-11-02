@@ -26,17 +26,24 @@ struct IOSPortfolioView: View {
                 }
             }
             .navigationTitle(title)
-            .navigationBarTitleDisplayMode(settings.wallets.count > 1 ? .inline : .automatic)
-            .toolbarTitleMenu {
-                if isConfigured && settings.wallets.count > 1 {
-                    Picker("Wallet", selection: shownPage) {
-                        ForEach(settings.walletPages) { page in
-                            Text(page.title).tag(page.id)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    if isConfigured && settings.wallets.count > 1 {
+                        Menu {
+                            Picker("Wallet", selection: shownPage) {
+                                ForEach(settings.walletPages) { page in
+                                    Text(page.title).tag(page.id)
+                                }
+                            }
+                        } label: {
+                            navigationBrand
                         }
+                        .accessibilityLabel("Switch wallet, \(title)")
+                    } else {
+                        navigationBrand
                     }
                 }
-            }
-            .toolbar {
                 if isConfigured {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Settings", systemImage: "gearshape") { showingSettings = true }
@@ -65,6 +72,18 @@ struct IOSPortfolioView: View {
             if phase == .active && isConfigured { service.refresh() }
             if phase == .background && isConfigured { IOSBackgroundRefresh.schedule() }
         }
+    }
+
+    private var navigationBrand: some View {
+        HStack(spacing: 7) {
+            PoolBrandMark()
+            Text(title).font(PoolTypography.heading(18)).lineLimit(1)
+            if isConfigured && settings.wallets.count > 1 {
+                Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
+            }
+        }
+        .foregroundStyle(palette.primaryText)
+        .accessibilityElement(children: .combine)
     }
 
     private var title: String {
@@ -109,6 +128,8 @@ struct IOSPortfolioView: View {
             positions: isActive ? service.positions : loaded?.positions ?? [],
             lastError: isActive ? service.lastError : loaded?.lastError,
             lastUpdated: isActive ? service.lastUpdated : loaded?.lastUpdated,
+            dailyFees: service.dailyFees,
+            tracksClaimedFees: settings.trackClaimedFees,
             isLoading: service.isLoading,
             showsPageIndicator: settings.wallets.count > 1,
             palette: palette,
@@ -126,6 +147,8 @@ private struct WalletPageContent: View {
     let positions: [Position]
     let lastError: String?
     let lastUpdated: Date?
+    let dailyFees: DailyFees
+    let tracksClaimedFees: Bool
     let isLoading: Bool
     let showsPageIndicator: Bool
     let palette: GraphitePalette
@@ -170,9 +193,16 @@ private struct WalletPageContent: View {
                     )
                     .padding(.top, 4)
                 } else {
+                    HStack {
+                        Text("Positions").font(PoolTypography.heading(19))
+                        Spacer()
+                        Text("\(positions.count) total").font(.caption).foregroundStyle(palette.secondaryText)
+                    }
+                    .foregroundStyle(palette.primaryText)
                     ForEach(positions) { position in
                         GraphitePositionCard(
                             position: position,
+                            recentDailyFees: dailyFees.dailyUSD(for: position, days: 7, endingAt: .now),
                             onOpen: { open(position) }, onHide: { hide(position) }
                         )
                     }
@@ -184,31 +214,15 @@ private struct WalletPageContent: View {
         }
     }
 
-    private var countsLabel: String {
-        "\(positions.count) positions"
-    }
-
     private var summary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Portfolio value")
-                .font(.subheadline)
-                .foregroundStyle(palette.secondaryText)
-            Text(PositionPresentation.compactUSD(positions.compactMap(\.positionUSD).reduce(0, +)))
-                .font(.largeTitle.bold().monospacedDigit())
-                .foregroundStyle(palette.primaryText)
-            HStack {
-                Text("+\(formatUSD(positions.compactMap(\.usd).reduce(0, +))) fees")
-                    .foregroundStyle(palette.fees)
-                Spacer()
-                Text(countsLabel)
-                    .foregroundStyle(palette.secondaryText)
-            }
-            .font(.subheadline.weight(.medium))
+            PortfolioSummaryCard(
+                positions: positions,
+                dailyFees: dailyFees.walletDailyUSD(positions, days: 30, minDays: 1, endingAt: .now),
+                feeSummary: tracksClaimedFees && !positions.isEmpty ? WalletFeeSummary(positions: positions) : nil
+            ) { EmptyView() }
             updatedLabel
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(palette.card))
     }
 
     @ViewBuilder

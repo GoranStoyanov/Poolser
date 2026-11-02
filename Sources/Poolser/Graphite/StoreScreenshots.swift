@@ -60,6 +60,25 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/widget-small-light.png", size: CGSize(width: 170, height: 170), view: AnyView(
+                PortfolioWidgetView(snapshot: .preview, size: .small, date: .now)
+                    .padding(16).background(GraphitePalette.light.popover)
+            )),
+            Shot(name: "redesign/widget-medium-light.png", size: CGSize(width: 360, height: 170), view: AnyView(
+                PortfolioWidgetView(snapshot: .preview, size: .medium, date: .now)
+                    .padding(16).background(GraphitePalette.light.popover)
+            )),
+            Shot(name: "redesign/widget-medium-dark.png", size: CGSize(width: 360, height: 170), scheme: .dark, view: AnyView(
+                PortfolioWidgetView(snapshot: .preview, size: .medium, date: .now)
+                    .padding(16).background(GraphitePalette.dark.popover)
+            )),
+            Shot(name: "redesign/summary-accessibility.png", size: nil, view: AnyView(
+                PortfolioSummaryCard(positions: snapshot.positions, dailyFees: snapshot.dailyFeesUSD, feeSummary: snapshot.feeSummary) {
+                    EmptyView()
+                }
+                .frame(width: 340)
+                .dynamicTypeSize(.accessibility2)
+            )),
             Shot(name: "appstore/1-menu-bar.jpg", view: AnyView(
                 StoreCanvas(title: "Uniswap fees, always in view",
                             subtitle: "Every position on every chain, one click away in the menu bar.") {
@@ -69,7 +88,7 @@ enum StoreScreenshots {
             Shot(name: "appstore/2-daily-fees.jpg", view: AnyView(
                 StoreCanvas(title: "See what you earn each day",
                             subtitle: "Daily fees, all-time return and APR since you opened each position.") {
-                    PopoverArt(snapshot: snapshot, scale: 1.5, visibleHeight: 306)
+                    PopoverArt(snapshot: snapshot, scale: 1.5, visibleHeight: 408)
                 }
             )),
             Shot(name: "appstore/3-ranges.jpg", view: AnyView(

@@ -65,7 +65,6 @@ struct GraphitePopover: View {
 
     /// Narrows the list to positions that need attention, on top of the saved filters.
     @State private var attentionOnly = false
-    @State private var chartDays = 14
     @State private var listContentHeight: CGFloat?
     /// The popover's height and the position list's share of it, to keep within `maxHeight`.
     @State private var popoverHeight: CGFloat = 0
@@ -216,7 +215,7 @@ struct GraphitePopover: View {
         HStack(spacing: 8) {
             BrandMark(size: 22)
             Text("Poolser")
-                .font(.headline)
+                .font(PoolTypography.heading(16))
                 .foregroundStyle(palette.primaryText)
             walletBadge
             Spacer()
@@ -374,124 +373,12 @@ struct GraphitePopover: View {
     // MARK: - Summary
 
     private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 5) {
-                        PoolEyes()
-                        Text("Unclaimed fees")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(palette.secondaryText)
-                    }
-                    Text(formatUSD(snapshot.unclaimedFeesUSD))
-                        .font(.largeTitle.weight(.bold).monospacedDigit())
-                        .fontDesign(.rounded)
-                        .foregroundStyle(palette.primaryText)
-                    HStack(spacing: 6) {
-                        if let today = snapshot.dailyFeesUSD?.last {
-                            Text("+\(formatUSD(today)) today")
-                                .foregroundStyle(palette.fees)
-                        }
-                        if let summary = snapshot.feeSummary {
-                            // Until the history scan catches up the claimed part is incomplete, so no total yet.
-                            Text(summary.isSyncing ? "All-time fees syncing…" : "All-time \(formatUSD(summary.allTimeUSD))")
-                                .foregroundStyle(summary.isSyncing || snapshot.dailyFeesUSD != nil
-                                                 ? palette.secondaryText : palette.fees)
-                        }
-                    }
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Total value")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.secondaryText)
-                    Text(formatUSD(snapshot.totalValueUSD))
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                        .fontDesign(.rounded)
-                        .foregroundStyle(palette.primaryText)
-                    Text(countsLabel)
-                        .font(.caption)
-                        .foregroundStyle(palette.secondaryText)
-                    collectAllButton
-                        .padding(.top, 6)
-                }
-                .padding(.top, 2)
-            }
-            if let daily = snapshot.dailyFeesUSD, !daily.isEmpty {
-                FeeHistoryChart(values: daily, days: $chartDays)
-            }
-            if let summary = snapshot.feeSummary, !summary.isSyncing {
-                poolStats(summary)
-            }
-        }
-        .padding(14)
-        .background {
-            ZStack {
-                palette.card
-                if let level = poolLevel {
-                    PoolWater(level: level)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.cardLine, lineWidth: 1))
-    }
-
-    /// How full the fee pool is: all-time fees over the current value. Nil while the claimed
-    /// history is incomplete, since a partial total would show the pool too low.
-    private var poolLevel: Double? {
-        guard let summary = snapshot.feeSummary, !summary.isSyncing else { return nil }
-        return summary.returnOnAssets
-    }
-
-    @ViewBuilder
-    private func poolStats(_ summary: WalletFeeSummary) -> some View {
-        if summary.claimedUSD > 0 || summary.returnOnAssets != nil || summary.realizedAPR != nil {
-            HStack(alignment: .bottom, spacing: 18) {
-                if summary.claimedUSD > 0 {
-                    poolStat("Claimed", formatUSD(summary.claimedUSD))
-                }
-                if let feeReturn = summary.returnOnAssets {
-                    poolStat("Pool level", formatPercent(feeReturn), unit: "of value")
-                }
-                Spacer(minLength: 0)
-                if let apr = summary.realizedAPR {
-                    poolStat("APR since open", formatPercent(apr), tint: palette.fees, alignment: .trailing)
-                }
-            }
-            .accessibilityElement(children: .combine)
-            .help("""
-            Claimed fees come from the v3 Collect history, valued at current prices; v4 claimed fees \
-            are not tracked. Totals include every unhidden position, even when list filters are active.
-            Pool level is all-time fees over the current value; the card fills to that level. The APR \
-            weighs each position by its value and how long it has been open.
-            """)
-        }
-    }
-
-    private func poolStat(
-        _ label: String,
-        _ value: String,
-        unit: String? = nil,
-        tint: Color? = nil,
-        alignment: HorizontalAlignment = .leading
-    ) -> some View {
-        VStack(alignment: alignment, spacing: 1) {
-            Text(label)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(palette.secondaryText)
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value)
-                    .font(.callout.weight(.semibold).monospacedDigit())
-                    .fontDesign(.rounded)
-                    .foregroundStyle(tint ?? palette.primaryText)
-                if let unit {
-                    Text(unit)
-                        .font(.caption2)
-                        .foregroundStyle(palette.secondaryText)
-                }
-            }
+        PortfolioSummaryCard(
+            positions: snapshot.positions,
+            dailyFees: snapshot.dailyFeesUSD,
+            feeSummary: snapshot.feeSummary
+        ) {
+            collectAllButton
         }
     }
 
@@ -795,157 +682,5 @@ struct GraphitePopover: View {
         .overlay(alignment: .top) {
             Rectangle().fill(palette.hairline).frame(height: 1)
         }
-    }
-}
-
-// MARK: - Fee history chart
-
-struct FeeHistoryChart: View {
-    let values: [Double]
-    @Binding var days: Int
-
-    @Environment(\.colorScheme) private var colorScheme
-
-    /// A short history still gets a week of slots, empty before its first day, so the chart
-    /// shows from the first day of recording instead of appearing a day later.
-    private var periods: [Int] {
-        [7, 14, 30].filter { $0 == 7 || $0 <= values.count }
-    }
-
-    private var slots: Int {
-        periods.contains(days) ? days : periods.last ?? 7
-    }
-
-    /// Value labels fit over a week of bars; longer periods label only their best day and show
-    /// the others on hover.
-    private var labelsBars: Bool { slots <= 7 }
-
-    @State private var hovered: Int?
-
-    var body: some View {
-        let palette = GraphitePalette.current(colorScheme)
-        let shown = Array(values.suffix(slots))
-        let empty = slots - shown.count
-        let peak = shown.max() ?? 0
-        let peakIndex = peak > 0 ? shown.lastIndex(of: peak) : nil
-        let total = shown.reduce(0, +)
-        VStack(spacing: 6) {
-            HStack {
-                if shown.count > 1 {
-                    Text("\(shown.count) days: \(formatUSD(total)) · avg \(formatUSD(total / Double(shown.count)))/day")
-                        .font(.caption2.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(palette.secondaryText)
-                }
-                Spacer()
-                badge(shown: shown, palette: palette)
-            }
-            HStack(alignment: .bottom, spacing: slots > 20 ? 2 : 4) {
-                ForEach(0..<slots, id: \.self) { slot in
-                    let index = slot - empty
-                    let shape = UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3, style: .continuous)
-                    VStack(spacing: 2) {
-                        if index < 0 {
-                            shape.fill(palette.track).frame(height: 3)
-                        } else if index == shown.count - 1 {
-                            shape
-                                .fill(LinearGradient(colors: [palette.brandStart, palette.brandEnd],
-                                                     startPoint: .top, endPoint: .bottom))
-                                .opacity(hovered == nil || hovered == index ? 1 : 0.6)
-                                .frame(height: barHeight(shown[index], peak: peak))
-                        } else {
-                            // Today's value is in the badge above; past days get their own label
-                            // while the slots are wide enough to hold one.
-                            if labelsBars {
-                                barLabel(shown[index], palette: palette)
-                                    .minimumScaleFactor(0.6)
-                            }
-                            shape
-                                .fill(hovered == index ? palette.secondaryText : palette.bar)
-                                .frame(height: barHeight(shown[index], peak: peak))
-                                .overlay(alignment: .top) {
-                                    // Narrower slots label only the best day. It is the tallest
-                                    // bar, so its label clears the others; as an overlay it does
-                                    // not widen its slot.
-                                    if !labelsBars && index == peakIndex {
-                                        barLabel(shown[index], palette: palette)
-                                            .fixedSize()
-                                            .offset(y: -13)
-                                    }
-                                }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .onHover { inside in
-                        if inside, index >= 0 {
-                            hovered = index
-                        } else if hovered == index {
-                            hovered = nil
-                        }
-                    }
-                }
-            }
-            .frame(height: 62, alignment: .bottom)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Fees per day, last \(shown.count) days")
-            .accessibilityValue("Today \(formatUSD(shown.last ?? 0)), total \(formatUSD(total))")
-            HStack {
-                if values.count < 2 {
-                    Text("History starts today")
-                } else {
-                    Text(startDate(daysBack: slots - 1), format: .dateTime.month(.abbreviated).day())
-                }
-                Spacer()
-                if periods.count > 1 {
-                    Picker("Period", selection: $days) {
-                        ForEach(periods, id: \.self) { Text("\($0)D").tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .controlSize(.mini)
-                    .fixedSize()
-                    Spacer()
-                }
-                Text("Today")
-            }
-            .font(.caption2)
-            .foregroundStyle(palette.secondaryText)
-        }
-        .onChange(of: slots) { hovered = nil }
-    }
-
-    private func barLabel(_ value: Double, palette: GraphitePalette) -> some View {
-        Text(formatUSD(value))
-            .font(.system(size: 9, weight: .semibold).monospacedDigit())
-            .foregroundStyle(palette.secondaryText)
-            .lineLimit(1)
-    }
-
-    /// Today's fees, or the hovered day's with its date.
-    private func badge(shown: [Double], palette: GraphitePalette) -> some View {
-        let index = hovered.flatMap { shown.indices.contains($0) ? $0 : nil } ?? shown.count - 1
-        let isToday = index == shown.count - 1
-        let value = formatUSD(shown.indices.contains(index) ? shown[index] : 0)
-        let date = startDate(daysBack: shown.count - 1 - index).formatted(.dateTime.month(.abbreviated).day())
-        return Text(isToday ? value : "\(date) · \(value)")
-            .font(.caption2.weight(.bold).monospacedDigit())
-            .foregroundStyle(isToday ? .white : palette.primaryText)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background {
-                let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
-                if isToday { shape.fill(palette.brand) } else { shape.fill(palette.bar) }
-            }
-    }
-
-    /// A day that earned anything stays taller than the 3pt empty-slot track, so a small day
-    /// next to a large one still reads as data.
-    private func barHeight(_ value: Double, peak: Double) -> CGFloat {
-        guard value > 0, peak > 0 else { return 2 }
-        return max(6, 48 * value / peak)
-    }
-
-    private func startDate(daysBack: Int) -> Date {
-        Calendar.current.date(byAdding: .day, value: -daysBack, to: Date()) ?? Date()
     }
 }

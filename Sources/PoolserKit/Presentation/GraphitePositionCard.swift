@@ -26,6 +26,8 @@ public struct GraphitePositionCard: View {
         self.onShowOnlyChain = onShowOnlyChain
     }
 
+    @State private var showingDetails = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
 
@@ -38,18 +40,19 @@ public struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
-                assetsRow(info)
-                earningsRow
                 footer(info, colors: colors)
             }
             .padding(12)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(palette.card))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(info.status == .outOfRange ? colors.bandEdge : palette.cardLine, lineWidth: 1)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .onTapGesture { onOpen?() }
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .onTapGesture { showingDetails = true }
+            .popover(isPresented: $showingDetails) {
+                details(info, colors: colors)
+            }
             .contextMenu { cardMenu }
             .accessibilityElement(children: .contain)
             .accessibilityAction(named: "Open in Uniswap") { onOpen?() }
@@ -79,7 +82,8 @@ public struct GraphitePositionCard: View {
     // MARK: - Sections
 
     private func header(_ info: PositionPresentation) -> some View {
-        HStack(spacing: 10) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
             TokenPairAvatar(
                 base: TokenPairAvatar.Token(
                     symbol: info.baseSymbol,
@@ -94,7 +98,7 @@ public struct GraphitePositionCard: View {
             )
             VStack(alignment: .leading, spacing: 1) {
                 Text(info.pairLabel)
-                    .font(.body.weight(.semibold))
+                    .font(PoolTypography.heading(15, relativeTo: .body))
                     .foregroundStyle(palette.primaryText)
                 Text(metaLabel)
                     .font(.caption)
@@ -104,7 +108,7 @@ public struct GraphitePositionCard: View {
             VStack(alignment: .trailing, spacing: 1) {
                 // Without pool state the amounts, and so the value, are unknown.
                 Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
-                    .font(.body.weight(.semibold).monospacedDigit())
+                    .font(PoolTypography.amount(15, relativeTo: .body))
                     .foregroundStyle(palette.primaryText)
                 feesLabel
             }
@@ -132,20 +136,16 @@ public struct GraphitePositionCard: View {
     @ViewBuilder
     private func rangeSection(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
         if let gauge = info.gauge, let price = info.currentPrice {
-            VStack(spacing: 3) {
-                PriceRangeGauge(
-                    layout: gauge,
-                    colors: colors,
-                    bubble: [price, info.distanceLabel].compactMap { $0 }.joined(separator: " · ")
-                )
-                HStack {
-                    Text("Min \(info.minPrice)")
-                    Spacer()
-                    Text("Max \(info.maxPrice)")
+            VStack(alignment: .trailing, spacing: 5) {
+                MiniRangeGauge(gauge: gauge, colors: colors, track: palette.track)
+                if let distance = info.distanceLabel {
+                    Text(distance)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(colors.tint)
                 }
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(palette.secondaryText)
             }
+            .padding(.vertical, 3)
+            .help("Current \(price) \(info.quoteSymbol) · Min \(info.minPrice) · Max \(info.maxPrice)")
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Range \(info.minPrice) to \(info.maxPrice) \(info.quoteSymbol), current price \(price)")
         } else if let reason = position.poolStateError {
@@ -154,20 +154,6 @@ public struct GraphitePositionCard: View {
                 .foregroundStyle(palette.outOfRange.tint)
                 .help("\(reason)\nRetried on the next refresh.")
         }
-    }
-
-    /// Tokens the position holds now, base token first, and its NFT ID.
-    private func assetsRow(_ info: PositionPresentation) -> some View {
-        HStack(spacing: 8) {
-            Text(assetsLabel(info))
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 8)
-            Text("#\(position.tokenId)")
-                .textSelection(.enabled)
-        }
-        .font(.caption.monospacedDigit())
-        .foregroundStyle(palette.secondaryText)
     }
 
     /// Claimed fees and the realized return, once the claimed-fee history is known: the
@@ -219,28 +205,16 @@ public struct GraphitePositionCard: View {
     }
 
     private func footer(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        HStack(spacing: 8) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        return layout {
             StatusPill(status: info.status, colors: colors)
-            if let stats = poolStatsLabel {
-                Text(stats)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(palette.secondaryText)
-                    .lineLimit(1)
-                    .help(poolStatsHelp)
-            }
             Spacer(minLength: 4)
-            if let recentDailyFees, !recentDailyFees.isEmpty {
-                HStack(spacing: 4) {
-                    MiniFeeBars(values: recentDailyFees, today: colors.tint, earlier: colors.bandEdge)
-                    Text("\(recentDailyFees.count)d")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(palette.secondaryText)
-                }
-                .help(feeHistoryHelp(recentDailyFees))
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Fees per day, last \(recentDailyFees.count) days")
-                .accessibilityValue("Today \(formatUSD(recentDailyFees.last ?? 0))")
-            }
+            Button("Details", systemImage: "info.circle") { showingDetails = true }
+                .labelStyle(.titleAndIcon)
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(palette.secondaryText)
+                .help(rangeHelp(info))
             if let onCollect {
                 Button("Collect", action: onCollect)
                     .buttonStyle(GraphiteStrongButtonStyle())
@@ -250,6 +224,54 @@ public struct GraphitePositionCard: View {
         .overlay(alignment: .top) {
             Rectangle().fill(palette.hairline).frame(height: 1)
         }
+    }
+
+    private func rangeHelp(_ info: PositionPresentation) -> String {
+        "Current \(info.currentPrice ?? "–") \(info.quoteSymbol)\nMin \(info.minPrice) · Max \(info.maxPrice)\n\(assetsLabel(info))\nPosition #\(position.tokenId)"
+    }
+
+    private func details(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(info.pairLabel).font(PoolTypography.heading(18))
+                    Spacer()
+                    Button("Done") { showingDetails = false }
+                        .buttonStyle(.plain).foregroundStyle(palette.fees)
+                }
+                Text(metaLabel).font(.caption).foregroundStyle(palette.secondaryText)
+                StatusPill(status: info.status, colors: colors)
+                Text(rangeHelp(info))
+                    .font(.callout.monospacedDigit())
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let error = position.feesError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(palette.outOfRange.tint)
+                }
+                if let error = position.poolStateError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(palette.outOfRange.tint)
+                }
+                earningsRow
+                if let stats = poolStatsLabel {
+                    Text(stats).font(.caption).foregroundStyle(palette.secondaryText)
+                    Text(poolStatsHelp).font(.caption2).foregroundStyle(palette.secondaryText)
+                }
+                if let recentDailyFees, !recentDailyFees.isEmpty {
+                    MiniFeeBars(values: recentDailyFees, today: palette.barToday, earlier: palette.bar)
+                    Text(feeHistoryHelp(recentDailyFees)).font(.caption).foregroundStyle(palette.secondaryText)
+                }
+                if let onOpen {
+                    Button("Open in Uniswap", action: onOpen)
+                        .buttonStyle(GraphiteStrongButtonStyle())
+                }
+            }
+            .padding(20)
+        }
+        .frame(idealWidth: 340, maxWidth: 380, idealHeight: 400, maxHeight: 520)
+        .background(palette.card)
+        .foregroundStyle(palette.primaryText)
     }
 
     private func errorCard(_ error: String) -> some View {
@@ -263,9 +285,9 @@ public struct GraphitePositionCard: View {
         }
         .font(.caption)
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(palette.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(palette.outOfRange.bandEdge, lineWidth: 1)
         )
         .contextMenu {
@@ -332,54 +354,6 @@ public struct GraphitePositionCard: View {
         let today = formatUSD(values.last ?? 0)
         let best = formatUSD(values.max() ?? 0)
         return "Fees this position earned per day, last \(values.count) days.\nToday \(today) · best day \(best). The rightmost bar is today."
-    }
-}
-
-// MARK: - Range gauge
-
-struct PriceRangeGauge: View {
-    let layout: RangeGaugeLayout
-    let colors: GraphitePalette.StatusColors
-    let bubble: String
-
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var bubbleWidth: CGFloat = 0
-
-    var body: some View {
-        let palette = GraphitePalette.current(colorScheme)
-        GeometryReader { geo in
-            let width = geo.size.width
-            let markerX = layout.marker * width
-            ZStack(alignment: .topLeading) {
-                Capsule()
-                    .fill(palette.track)
-                    .frame(width: width, height: 4)
-                    .offset(y: 24)
-                Capsule()
-                    .fill(colors.bandFill)
-                    .overlay(Capsule().strokeBorder(colors.bandEdge, lineWidth: 1.5))
-                    .frame(width: max((layout.bandEnd - layout.bandStart) * width, 8), height: 12)
-                    .offset(x: layout.bandStart * width, y: 20)
-                Capsule()
-                    .fill(colors.tint)
-                    .frame(width: 4, height: 18)
-                    .padding(2)
-                    .background(Capsule().fill(palette.card))
-                    .offset(x: markerX - 4, y: 15)
-                Text(bubble)
-                    .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(palette.onStatus)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(colors.tint))
-                    .fixedSize()
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { bubbleWidth = $0 }
-                    // Centred on the marker, but kept inside the card near either end.
-                    .offset(x: min(max(markerX - bubbleWidth / 2, 0), max(width - bubbleWidth, 0)))
-            }
-            .animation(.easeInOut(duration: 0.35), value: layout)
-        }
-        .frame(height: 36)
     }
 }
 
