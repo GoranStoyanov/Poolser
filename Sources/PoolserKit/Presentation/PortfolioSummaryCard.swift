@@ -80,8 +80,6 @@ public struct PortfolioSummaryCard<Actions: View>: View {
                 .font(PoolTypography.amount(20, relativeTo: .title3))
                 .foregroundStyle(palette.primaryText)
                 .lineLimit(1).minimumScaleFactor(0.7)
-            Text("\(positions.count) positions · \(Set(positions.map(\.chainID)).count) chains")
-                .font(.caption2).foregroundStyle(palette.secondaryText)
             actions
         }
         .fixedSize(horizontal: true, vertical: false)

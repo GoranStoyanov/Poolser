@@ -28,7 +28,7 @@ Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline s
 
 ## Information and interaction
 
-Always show unclaimed fees, portfolio value, today's fees when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
+Always show unclaimed fees, portfolio value, today's fees when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Do not repeat position and chain counts beneath Total value; the position list provides that context. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
 
 Position cards always show pair, chain/version/fee tier, value, fees, range status, range track and current marker. Out-of-range distance remains visible. Exact prices, holdings, position ID, claimed return and pool statistics are secondary details: reveal on hover or keyboard-accessible Details on macOS, and via Details on iOS. Opening Uniswap remains a separate explicit action. Do not hide error or collection status inside hover content.
 
