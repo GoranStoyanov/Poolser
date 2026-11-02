@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+#if os(macOS)
+import Network
+#endif
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -39,6 +42,55 @@ public struct WalletPortfolio {
         return fresh
     }
 }
+
+/// The last complete read for one wallet, used while a new session is offline.
+struct WalletPortfolioCache: Codable {
+    let positions: [Position]
+    let updatedAt: Date
+
+    static func key(for wallet: String) -> String { "walletPortfolio.\(wallet.lowercased())" }
+
+    static func load(wallet: String, from defaults: UserDefaults = PoolserDefaults.store) -> Self? {
+        guard let data = defaults.data(forKey: key(for: wallet)) else { return nil }
+        return try? JSONDecoder().decode(Self.self, from: data)
+    }
+
+    func save(wallet: String, to defaults: UserDefaults = PoolserDefaults.store) {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        defaults.set(data, forKey: Self.key(for: wallet))
+    }
+
+    static func remove(wallet: String, from defaults: UserDefaults = PoolserDefaults.store) {
+        defaults.removeObject(forKey: key(for: wallet))
+    }
+
+    func portfolio(activeChains: [SupportedChain]) -> WalletPortfolio {
+        var portfolio = WalletPortfolio()
+        for chain in activeChains {
+            let saved = positions.filter { $0.chainID == chain.id }
+            portfolio.chainResultsByID[chain.id] = ChainLoadResult(
+                chain: chain, positions: saved, feesUSD: 0, error: nil,
+                bootstrapInProgress: false, bootstrapNextFromBlock: nil
+            )
+        }
+        portfolio.allPositions = positions.filter { position in
+            activeChains.contains { $0.id == position.chainID }
+        }.sorted { ($0.positionUSD ?? $0.usd ?? 0) > ($1.positionUSD ?? $1.usd ?? 0) }
+        portfolio.lastUpdated = updatedAt
+        return portfolio
+    }
+}
+
+#if os(macOS)
+struct NetworkRecovery {
+    private var wasAvailable: Bool?
+
+    mutating func update(available: Bool) -> Bool {
+        defer { wasAvailable = available }
+        return wasAvailable == false && available
+    }
+}
+#endif
 
 /// Drives refreshes of every saved wallet across the enabled chains and publishes the merged
 /// result to the UI. `positions`, `lastError` and `lastUpdated` follow the page on screen (one
@@ -85,8 +137,13 @@ public final class UniswapService: ObservableObject {
     private var bootstrapFollowUpDeadlineByChainID: [String: Date] = [:]
     private var loadGeneration: UInt64 = 0
     private var widgetReload = WidgetReloadThrottle()
+    #if os(macOS)
+    private var networkMonitor: NWPathMonitor?
+    private var networkRecovery = NetworkRecovery()
+    #endif
 
     public init() {
+        restoreCachedPortfolios()
         visibilityCancellable = AppSettings.shared.$hiddenPositions
             .dropFirst()
             .sink { [weak self] hidden in
@@ -99,12 +156,30 @@ public final class UniswapService: ObservableObject {
             }
         #if os(macOS)
         configureTimer()
+        configureNetworkMonitor()
         refreshIntervalCancellable = AppSettings.shared.$refreshIntervalMinutes
             .removeDuplicates()
             .sink { [weak self] _ in self?.configureTimer() }
         #endif
         dailyFees = feeLedger.dailyFees
         startLoad()
+    }
+
+    deinit {
+        #if os(macOS)
+        networkMonitor?.cancel()
+        #endif
+    }
+
+    private func restoreCachedPortfolios() {
+        let settings = AppSettings.shared
+        let chains = settings.enabledChains()
+        for wallet in settings.wallets where WalletAddress.normalize(wallet.address) != nil {
+            guard let cached = WalletPortfolioCache.load(wallet: wallet.address) else { continue }
+            portfolios[wallet.id] = cached.portfolio(activeChains: chains)
+            updateVisiblePositions(wallet: wallet.address, hidden: settings.hiddenPositions(for: wallet.address))
+        }
+        if !portfolios.isEmpty { publish(flash: false, publishWidgets: false) }
     }
 
     public func refresh() { startLoad() }
@@ -124,6 +199,12 @@ public final class UniswapService: ObservableObject {
     public func refreshForWalletChange() {
         let saved = Set(AppSettings.shared.walletAddresses.map { $0.lowercased() })
         portfolios = portfolios.filter { saved.contains($0.key) }
+        for wallet in AppSettings.shared.wallets where portfolios[wallet.id] == nil {
+            if let cached = WalletPortfolioCache.load(wallet: wallet.address) {
+                portfolios[wallet.id] = cached.portfolio(activeChains: AppSettings.shared.enabledChains())
+                updateVisiblePositions(wallet: wallet.address, hidden: AppSettings.shared.hiddenPositions(for: wallet.address))
+            }
+        }
         publish(flash: false)
         startLoad()
     }
@@ -460,6 +541,9 @@ public final class UniswapService: ObservableObject {
         let errors = snapshot.compactMap(\.error)
         let errorText = composedErrorText(snapshot: snapshot, fallbackErrors: errors)
         portfolio.lastError = errorText
+        if results.count == activeChains.count, errorText == nil, let updatedAt = portfolio.lastUpdated {
+            WalletPortfolioCache(positions: portfolio.allPositions, updatedAt: updatedAt).save(wallet: wallet)
+        }
         if let err = errorText { LogStore.shared.log(err, level: .error) }
         portfolios[wallet.lowercased()] = portfolio
         updateVisiblePositions(wallet: wallet, hidden: AppSettings.shared.hiddenPositions(for: wallet))
@@ -778,6 +862,19 @@ public final class UniswapService: ObservableObject {
     }
 
     #if os(macOS)
+    private func configureNetworkMonitor() {
+        let monitor = NWPathMonitor()
+        networkMonitor = monitor
+        monitor.pathUpdateHandler = { [weak self] path in
+            let available = path.status == .satisfied
+            Task { @MainActor [weak self] in
+                guard let self, self.networkRecovery.update(available: available) else { return }
+                self.startLoad()
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "Poolser.network"))
+    }
+
     private func configureTimer() {
         timer?.invalidate()
         let interval = TimeInterval(AppSettings.shared.refreshIntervalMinutes * 60)

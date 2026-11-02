@@ -13,7 +13,7 @@ public enum V4Fee {
     }
 }
 
-public struct Position: Identifiable {
+public struct Position: Identifiable, Codable {
     /// v3 and v4 token IDs are independent sequences, so the version is part of the identity.
     public var id: String { "\(chainID)-\(versionLabel)-\(tokenId)" }
     /// Pre-version id format, still present in persisted notification state.

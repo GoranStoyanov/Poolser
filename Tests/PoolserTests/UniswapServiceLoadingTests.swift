@@ -101,6 +101,46 @@ struct UniswapServiceLoadingTests {
         #expect(portfolio.lastUpdated == restored)
     }
 
+    @Test func cachedPortfolioSurvivesOfflineRestartAndRespectsEnabledChains() throws {
+        let suite = "PoolserTests.portfolio.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let wallet = "0x1111111111111111111111111111111111111111"
+        let updated = Date(timeIntervalSince1970: 1_800_000_000)
+        var eth = position("1", chain: ethereum)
+        eth.positionUSD = 123
+        eth.poolAddress = "0xpool"
+        let basePosition = position("2", chain: base)
+        WalletPortfolioCache(positions: [eth, basePosition], updatedAt: updated).save(wallet: wallet, to: defaults)
+
+        let cached = try #require(WalletPortfolioCache.load(wallet: wallet.uppercased(), from: defaults))
+        var restored = cached.portfolio(activeChains: [ethereum])
+        #expect(restored.allPositions.map(\.id) == [eth.id])
+        #expect(restored.allPositions[0].positionUSD == 123)
+        #expect(restored.allPositions[0].poolAddress == "0xpool")
+        #expect(restored.lastUpdated == updated)
+
+        let fresh = restored.apply([
+            result(ethereum, error: "Ethereum: RPC unavailable", failedV3: true, failedV4: true)
+        ], activeChains: [ethereum], at: updated.addingTimeInterval(60))
+        #expect(fresh.isEmpty)
+        #expect(restored.allPositions.map(\.id) == [eth.id])
+        #expect(restored.lastUpdated == updated)
+
+        WalletPortfolioCache.remove(wallet: wallet, from: defaults)
+        #expect(WalletPortfolioCache.load(wallet: wallet, from: defaults) == nil)
+    }
+
+    #if os(macOS)
+    @Test func networkRecoveryRefreshesOnlyAfterAnActualOutage() {
+        var recovery = NetworkRecovery()
+        let refreshes = [true, true, false, false, true, true].map {
+            recovery.update(available: $0)
+        }
+        #expect(refreshes == [false, false, false, false, true, false])
+    }
+    #endif
+
     @Test func coldOfflineLoadAndDisabledChainDoNotShowInventedPositions() {
         var portfolio = WalletPortfolio()
         let now = Date(timeIntervalSince1970: 1_800_000_000)
