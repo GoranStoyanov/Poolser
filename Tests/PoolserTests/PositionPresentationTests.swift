@@ -112,6 +112,21 @@ struct RangeGaugeLayoutTests {
         #expect(abs(mirrored.bandEnd - 0.8) < 1e-9)
         #expect(abs(mirrored.marker - 0.7) < 1e-9)
     }
+
+    @Test(arguments: [(0.0, 50.0), (0.5, 150.0), (1.0, 250.0)])
+    func priceLabelStaysInsideTrack(marker: Double, center: Double) {
+        let gauge = RangeGaugeLayout(bandStart: 0.1, bandEnd: 0.9, marker: marker, isMarkerClamped: false)
+        #expect(gauge.labelCenter(labelWidth: 100, containerWidth: 300) == center)
+        #expect(gauge.marker == marker)
+    }
+
+    @Test func oversizedPriceLabelIsCentredAndMirroringMovesItsAnchor() {
+        let gauge = RangeGaugeLayout(bandStart: 0.1, bandEnd: 0.9, marker: 0.1, isMarkerClamped: false)
+        #expect(gauge.labelCenter(labelWidth: 180, containerWidth: 120) == 60)
+        #expect(gauge.labelCenter(labelWidth: 40, containerWidth: 300) == 30)
+        #expect(gauge.mirrored().labelCenter(labelWidth: 40, containerWidth: 300) == 270)
+        #expect(gauge.labelCenter(labelWidth: 40, containerWidth: 0) == 0)
+    }
 }
 
 @Suite("Menu bar title")
@@ -122,6 +137,32 @@ struct MenuBarTitleTests {
 
     @Test func trendIsAppended() {
         #expect(MenuBarTitle.text(valueUSD: 48_213.40, feesUSD: 312.58, trend: "🔼") == "$48.2k │ $312.58 🔼")
+    }
+}
+
+@Suite("Claimed fees on cards")
+struct ClaimedCardLabelTests {
+    @Test func completedZeroIsDistinctFromUnknownAndSyncing() {
+        var position = makePosition()
+        #expect(position.claimedCardLabel == nil)
+        position.openedAt = Date().addingTimeInterval(-86_400)
+        #expect(position.claimedCardLabel == "$0.00")
+        position.feeHistoryBootstrapping = true
+        #expect(position.claimedCardLabel == nil)
+        position.claimedUSD = 12.34
+        #expect(position.claimedCardLabel == "$12.34")
+        position.claimedUSD = nil
+        position.feeHistoryBootstrapping = false
+        position.isV4 = true
+        #expect(position.claimedCardLabel == nil)
+    }
+
+    @Test func tokenAmountsSurviveMissingUSDPrices() {
+        var position = makePosition()
+        position.claimedFees0 = 12.5
+        #expect(position.claimedCardLabel == "12.5 WBTC")
+        position.claimedUSD = 0
+        #expect(position.claimedCardLabel == "$0.00")
     }
 }
 

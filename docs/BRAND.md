@@ -1,6 +1,6 @@
 # Poolser brand reference
 
-Status: redesign branch, 2 November 2026. Update this document whenever a visual or interaction decision changes. It describes the product implementation, not just concept images.
+Status: redesign branch, 3 November 2026. Update this document whenever a visual or interaction decision changes. It describes the product implementation, not just concept images.
 
 ## Character
 
@@ -18,7 +18,7 @@ Poolser is a precise financial instrument with a curious, quietly playful person
 | Brand wave | Jade `#278D78` → blue `#3979B7` | Jade `#42B69C` → blue `#629FE0` |
 | Attention | Amber `#A45417` | Apricot `#F2B174` |
 
-Green conveys earnings or an active range. Amber conveys attention; retain a text status and marker so colour is never the only signal. Blue identifies today and selected controls. Token and network logos retain their own colours. Avoid unrelated gradients, rainbow bars, glossy oversized characters, and decorative scenery.
+Green conveys earnings or an active range. Amber conveys attention; retain a text status and marker so colour is never the only signal. Blue identifies today, the current-price marker and selected controls. Token and network logos retain their own colours. Avoid unrelated gradients, rainbow bars, glossy oversized characters, and decorative scenery.
 
 ## Typography and geometry
 
@@ -30,7 +30,7 @@ Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline s
 
 Always show unclaimed fees, portfolio value, today's fees once in the blue chart badge labelled Today when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Do not repeat position and chain counts beneath Total value; the position list provides that context. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
 
-Position cards always show pair, chain/version/fee tier, value, fees, range status, range track and current marker. Out-of-range distance remains visible. Exact prices, holdings, position ID, claimed return and pool statistics are secondary details: reveal on hover or keyboard-accessible Details on macOS, and via Details on iOS. Opening Uniswap remains a separate explicit action. Do not hide error or collection status inside hover content.
+Position cards use Range + Return (Диапазон + доходност): pair, chain/version/fee tier, value and unclaimed fees in the header; a labelled price range with a blue current-price badge and marker; Min/Max prices; claimed fees and realized APR since opening in a quiet footer. Range status sits beside the range heading, and out-of-range distance stays visible with a directional arrow. Holdings, opening date, position ID, the position's pool level, daily fee history and pool statistics stay in the keyboard-accessible Details popup on macOS and iOS. Opening Uniswap remains a separate explicit action. Do not hide error or collection status inside hover content.
 
 Daily bars reveal their date and amount on hover or tap; keyboard and screen-reader users can activate each bar for the same information. Show average daily earnings in the chart context rather than repeating it across the summary. Explain pool return and APR alongside those metrics; do not imply projected yield is realized return.
 
@@ -52,7 +52,19 @@ Shared colours live in `Sources/PoolserKit/Presentation/GraphitePalette.swift`; 
 
 ## Implementation details
 
-The native macOS hover help exposes exact prices, holdings and identifiers without moving the position rows. The Details button opens the full position view on both platforms and supports keyboard access. Claimed, Pool level and APR each expose their own contextual tooltip on Mac and an accessible click/tap popover; there is no expanding Fee context row. The Claimed explanation describes collected v3 fees at current prices without repeating the displayed amount. Pool level explains all-time fees divided by current eligible position value. APR explains Σ all-time fees / Σ (current value × years open), annualized, excluding positions younger than one day or missing data; the chart heading opens period totals and daily average on tap or click. Preserve these explicit alternatives to hover.
+The native macOS hover help adds context without moving the position rows. The Details button opens the full position view on both platforms and supports keyboard access. Claimed and APR on each position expose contextual hover help and an accessible click/tap explanation, using the same interaction as the summary's Claimed, Pool level and APR. There is no expanding Fee context row. The Claimed explanation describes collected v3 fees at current prices without repeating the displayed amount. Pool level explains all-time fees divided by current eligible position value. Summary APR explains Σ all-time fees / Σ (current value × years open), annualized, excluding positions younger than one day or missing data; the chart heading opens period totals and daily average on tap or click. Preserve these explicit alternatives to hover.
+
+### Position cards: Range + Return
+
+Use the existing opaque card surface, a neutral hairline border, 18-point corners and 16-point padding. Keep the Avenir Next amounts and wordmark; use native caption labels and tabular digits for prices and financial figures. Reserve jade and amber for the range band, its labelled status and the out-of-range distance; do not outline the whole healthy or out-of-range card in a status colour. Error cards retain their warning border.
+
+The blue price badge follows the current marker, measuring its actual text width and clamping the label at the card edges. The marker retains its original position, including a clamped marker for a price beyond the displayed scale. Keep both range-bound ticks visible. Min/Max are explicitly labelled values below the track, not extra axis ticks; full range remains 0 to ∞. Retain the existing quote-token orientation, logarithmic tick geometry, exclusive upper bound and numeric formatting. Never shorten a tiny price or change the scale just to fit its label.
+
+Claimed and APR since open are always labelled on the main card. Show a known USD amount, including a known zero; completed v3 history without any Collect events is also a known zero. Retain token amounts if USD pricing is unavailable. Unknown data and untracked v4 claims are a dash. Label partial claimed history as syncing and suppress APR until syncing is complete; APR still requires the existing minimum age and priced data. The realized position APR remains distinct from the pool's estimated 24-hour Yield. Keep claimed/APR explanations accessible and do not repeat these metrics as another row inside Details.
+
+At narrow widths or large text sizes, stack the header, Min/Max labels and footer as needed. Move Details and Collect onto a separate action row before compressing the financial data. Preserve Collect, errors, context menus and all existing actions. All Wallets rows and widgets keep their existing compact gauges.
+
+Reference captures from the implemented shared cards: [light](screenshots/redesign/position-cards-light.png), [dark](screenshots/redesign/position-cards-dark.png), [accessibility layout](screenshots/redesign/position-cards-accessibility.png). Use `POOLSER_SCREENSHOT_FILTER=position-cards` to regenerate this set.
 
 The all-wallets summary uses a deeper jade-to-petrol gradient for white-text contrast and retains its allocation bar and grouped positions. The mobile app keeps its existing wallet navigation; the concept's extra bottom tabs are not part of this implementation.
 

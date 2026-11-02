@@ -40,13 +40,13 @@ public struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
-                footer(info, colors: colors)
+                footer
             }
-            .padding(12)
+            .padding(16)
             .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(palette.card))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(info.status == .outOfRange ? colors.bandEdge : palette.cardLine, lineWidth: 1)
+                    .strokeBorder(palette.cardLine, lineWidth: 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .onTapGesture { showingDetails = true }
@@ -82,6 +82,23 @@ public struct GraphitePositionCard: View {
     // MARK: - Sections
 
     private func header(_ info: PositionPresentation) -> some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) { identity(info); value }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        identity(info).fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 8)
+                        value.fixedSize(horizontal: true, vertical: false)
+                    }
+                    VStack(alignment: .leading, spacing: 10) { identity(info); value }
+                }
+            }
+        }
+    }
+
+    private func identity(_ info: PositionPresentation) -> some View {
         let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         return layout {
             TokenPairAvatar(
@@ -104,14 +121,16 @@ public struct GraphitePositionCard: View {
                     .font(.caption)
                     .foregroundStyle(palette.secondaryText)
             }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 1) {
-                // Without pool state the amounts, and so the value, are unknown.
-                Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
-                    .font(PoolTypography.amount(15, relativeTo: .body))
-                    .foregroundStyle(palette.primaryText)
-                feesLabel
-            }
+        }
+    }
+
+    private var value: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            // Without pool state the amounts, and so the value, are unknown.
+            Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
+                .font(PoolTypography.amount(15, relativeTo: .body))
+                .foregroundStyle(palette.primaryText)
+            feesLabel
         }
     }
 
@@ -133,82 +152,117 @@ public struct GraphitePositionCard: View {
         }
     }
 
-    @ViewBuilder
     private func rangeSection(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        if let gauge = info.gauge, let price = info.currentPrice {
-            VStack(alignment: .trailing, spacing: 5) {
-                MiniRangeGauge(gauge: gauge, colors: colors, track: palette.track)
-                if let distance = info.distanceLabel {
-                    Text(distance)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(colors.tint)
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Text("Price range · \(info.quoteSymbol)")
+                        .font(.caption2).foregroundStyle(palette.secondaryText)
+                    Spacer(minLength: 8)
+                    StatusPill(status: info.status, colors: colors)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Price range · \(info.quoteSymbol)")
+                        .font(.caption2).foregroundStyle(palette.secondaryText)
+                    StatusPill(status: info.status, colors: colors)
                 }
             }
-            .padding(.vertical, 3)
-            .help("Current \(price) \(info.quoteSymbol) · Min \(info.minPrice) · Max \(info.maxPrice)")
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Range \(info.minPrice) to \(info.maxPrice) \(info.quoteSymbol), current price \(price)")
-        } else if let reason = position.poolStateError {
-            Label("Pool data unavailable", systemImage: "exclamationmark.triangle.fill")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(palette.outOfRange.tint)
-                .help("\(reason)\nRetried on the next refresh.")
-        }
-    }
-
-    /// Claimed fees and the realized return, once the claimed-fee history is known: the
-    /// position's fee pool with its level beside it, the claimed total and its APR since open.
-    @ViewBuilder
-    private var earningsRow: some View {
-        let claimed = position.claimedUSDLabel ?? position.claimedFeesLabel
-        let feeReturn = position.feeReturnOnAssets
-        let apr = position.realizedAPR()
-        if claimed != nil || position.feeHistoryBootstrapping || feeReturn != nil || apr != nil {
-            HStack(alignment: .center, spacing: 16) {
-                if let feeReturn {
-                    HStack(spacing: 7) {
-                        PoolGauge(level: feeReturn)
-                        earningsStat(formatPercent(feeReturn), "of value earned")
+            if let gauge = info.gauge, let price = info.currentPrice {
+                VStack(spacing: 4) {
+                    RangePriceLabelLayout(gauge: gauge) {
+                        Text("\(price) \(info.quoteSymbol)")
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(palette.onBarToday)
+                            .padding(.horizontal, 7).padding(.vertical, 4)
+                            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(palette.barToday))
                     }
+                    PositionRangeTrack(gauge: gauge, colors: colors, palette: palette)
                 }
-                if let claimed {
-                    earningsStat(claimed, "claimed")
-                } else if position.feeHistoryBootstrapping {
-                    earningsStat("–", "claimed, syncing…")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Current price \(price) \(info.quoteSymbol), range \(info.minPrice) to \(info.maxPrice)")
+                .accessibilityHint(gauge.isMarkerClamped ? "Price is beyond the displayed scale" : "")
+                .help("Current \(price) \(info.quoteSymbol) · Min \(info.minPrice) · Max \(info.maxPrice)")
+            } else if let reason = position.poolStateError {
+                Label("Pool data unavailable", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(palette.outOfRange.tint)
+                    .help("\(reason)\nRetried on the next refresh.")
+            } else {
+                Text("Current price unavailable")
+                    .font(.caption).foregroundStyle(palette.secondaryText)
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    priceBound("Min", info.minPrice).fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 12)
+                    priceBound("Max", info.maxPrice).fixedSize(horizontal: true, vertical: false)
                 }
-                Spacer(minLength: 4)
-                if let apr {
-                    earningsStat(formatPercent(apr), "APR since open", tint: palette.fees, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 4) {
+                    priceBound("Min", info.minPrice)
+                    priceBound("Max", info.maxPrice)
                 }
             }
-            .help(realizedReturnHelp)
-            .accessibilityElement(children: .combine)
+            if let distance = info.distanceLabel, let gauge = info.gauge {
+                Label("\(distance) range", systemImage: gauge.marker < gauge.bandStart ? "arrow.down.left" : "arrow.up.right")
+                    .font(.caption2.weight(.semibold)).foregroundStyle(colors.tint)
+            }
         }
+        .padding(.top, 6)
     }
 
-    private func earningsStat(
-        _ value: String,
-        _ label: String,
-        tint: Color? = nil,
-        alignment: HorizontalAlignment = .leading
-    ) -> some View {
-        VStack(alignment: alignment, spacing: 0) {
-            Text(value)
-                .font(.callout.weight(.semibold).monospacedDigit())
-                .fontDesign(.rounded)
-                .foregroundStyle(tint ?? palette.primaryText)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(palette.secondaryText)
+    private func priceBound(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title).foregroundStyle(palette.secondaryText)
+            Text(value).foregroundStyle(palette.primaryText)
         }
-        .lineLimit(1)
+        .font(.caption2.monospacedDigit())
     }
 
-    private func footer(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+    private var earnings: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+        let claimed = position.claimedCardLabel
+        let syncing = position.feeHistoryBootstrapping
+        let apr = syncing ? nil : position.realizedAPR()
         return layout {
-            StatusPill(status: info.status, colors: colors)
-            Spacer(minLength: 4)
+            PositionMetric(title: syncing ? "Claimed · syncing" : "Claimed", value: claimed ?? (syncing ? "Syncing…" : "–"),
+                           explanation: claimedHelp)
+            PositionMetric(title: "APR since open", value: apr.map { formatPercent($0) } ?? "–",
+                           explanation: realizedReturnHelp, tint: apr == nil ? palette.secondaryText : palette.fees)
+        }
+    }
+
+    private var footer: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                stackedFooter
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 12) {
+                        earnings.fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 0)
+                        cardActions.fixedSize(horizontal: true, vertical: false)
+                    }
+                    stackedFooter
+                }
+            }
+        }
+        .padding(.top, 11)
+        .overlay(alignment: .top) {
+            Rectangle().fill(palette.hairline).frame(height: 1)
+        }
+    }
+
+    private var stackedFooter: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            earnings
+            HStack { Spacer(minLength: 0); cardActions }
+        }
+    }
+
+    private var cardActions: some View {
+        let info = PositionPresentation(position)
+        return HStack(spacing: 10) {
             Button("Details", systemImage: "info.circle") { showingDetails = true }
                 .labelStyle(.titleAndIcon)
                 .buttonStyle(.plain)
@@ -219,10 +273,6 @@ public struct GraphitePositionCard: View {
                 Button("Collect", action: onCollect)
                     .buttonStyle(GraphiteStrongButtonStyle())
             }
-        }
-        .padding(.top, 9)
-        .overlay(alignment: .top) {
-            Rectangle().fill(palette.hairline).frame(height: 1)
         }
     }
 
@@ -241,10 +291,16 @@ public struct GraphitePositionCard: View {
                 }
                 Text(metaLabel).font(.caption).foregroundStyle(palette.secondaryText)
                 StatusPill(status: info.status, colors: colors)
-                Text(rangeHelp(info))
+                Text(assetsLabel(info))
                     .font(.callout.monospacedDigit())
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                Text("Position #\(position.tokenId)").font(.caption.monospaced())
+                    .textSelection(.enabled)
+                if let openedAt = position.openedAt {
+                    Text("Opened \(openedAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption).foregroundStyle(palette.secondaryText)
+                }
                 if let error = position.feesError {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.caption).foregroundStyle(palette.outOfRange.tint)
@@ -253,7 +309,14 @@ public struct GraphitePositionCard: View {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.caption).foregroundStyle(palette.outOfRange.tint)
                 }
-                earningsRow
+                if !position.feeHistoryBootstrapping, let level = position.feeReturnOnAssets {
+                    HStack(spacing: 8) {
+                        PoolGauge(level: level)
+                        Text("\(formatPercent(level)) of value earned")
+                            .font(.callout.monospacedDigit())
+                    }
+                    .help(realizedReturnHelp)
+                }
                 if let stats = poolStatsLabel {
                     Text(stats).font(.caption).foregroundStyle(palette.secondaryText)
                     Text(poolStatsHelp).font(.caption2).foregroundStyle(palette.secondaryText)
@@ -334,11 +397,18 @@ public struct GraphitePositionCard: View {
         let opened = position.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
         return """
         All-time fees (claimed + unclaimed) as a share of the position's current value, and that \
-        return per year since the position was opened\(opened). Compare with Yield below, the \
+        return per year since the position was opened\(opened). Compare with Yield in Details, the \
         pool's estimate from the last 24 hours, also per year.
         Claimed fees are valued at today's prices. If liquidity was added or removed, the current \
         value is not the capital the fees were earned on.
+        APR is unavailable while history is syncing, before one full day, or when required data \
+        is missing. It is not a forecast.
         """
+    }
+
+    private var claimedHelp: String {
+        if position.isV4 { return "Claimed v4 fees are not tracked. A dash means unavailable, not zero." }
+        return "Fees already collected from this position, valued at current token prices. When USD prices are unavailable, token amounts are shown. While history is syncing, the amount may be partial. A dash means the amount is unavailable, not zero."
     }
 
     private var poolStatsHelp: String {
@@ -354,6 +424,48 @@ public struct GraphitePositionCard: View {
         let today = formatUSD(values.last ?? 0)
         let best = formatUSD(values.max() ?? 0)
         return "Fees this position earned per day, last \(values.count) days.\nToday \(today) · best day \(best). The rightmost bar is today."
+    }
+}
+
+private struct PositionMetric: View {
+    let title: String
+    let value: String
+    let explanation: String
+    var tint: Color? = nil
+    @State private var showingExplanation = false
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        let palette = GraphitePalette.current(scheme)
+        Button { showingExplanation.toggle() } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 3) {
+                    Text(title)
+                    Image(systemName: "info.circle").imageScale(.small)
+                }
+                .font(.caption2).foregroundStyle(palette.secondaryText)
+                Text(value).font(PoolTypography.amount(13, relativeTo: .callout))
+                    .foregroundStyle(tint ?? palette.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .multilineTextAlignment(.leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(value)")
+        .accessibilityHint("Show explanation")
+        .help(explanation)
+        .popover(isPresented: $showingExplanation) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).font(PoolTypography.heading(16))
+                Text(explanation).font(.callout).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(idealWidth: 280, maxWidth: 320, alignment: .leading)
+            .foregroundStyle(palette.primaryText)
+            .background(palette.card)
+            .presentationCompactAdaptation(.popover)
+        }
     }
 }
 

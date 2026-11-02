@@ -594,7 +594,7 @@ struct GraphitePopover: View {
     }
 
     private func positionList(_ positions: [Position]) -> some View {
-        scrollingList(estimate: CGFloat(positions.count) * 170) {
+        scrollingList(estimate: CGFloat(positions.count) * 260) {
             VStack(spacing: 8) {
                 ForEach(positions) { pos in
                     GraphitePositionCard(

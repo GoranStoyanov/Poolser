@@ -62,6 +62,11 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/position-cards-light.png", size: nil, opaque: false, view: AnyView(positionCards(width: 420))),
+            Shot(name: "redesign/position-cards-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(positionCards(width: 420))),
+            Shot(name: "redesign/position-cards-accessibility.png", size: nil, opaque: false, view: AnyView(
+                positionCards(width: 320).dynamicTypeSize(.accessibility2)
+            )),
             Shot(name: "redesign/pool-levels-light.png", size: nil, opaque: false, view: AnyView(poolLevels(scheme: .light))),
             Shot(name: "redesign/pool-levels-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(poolLevels(scheme: .dark))),
             Shot(name: "redesign/soft-crest.png", size: CGSize(width: 420, height: 120), view: AnyView(
@@ -154,6 +159,23 @@ enum StoreScreenshots {
         .padding(16)
         .foregroundStyle(GraphitePalette.current(scheme).primaryText)
         .background(GraphitePalette.current(scheme).popover)
+    }
+
+    private static func positionCards(width: CGFloat) -> some View {
+        let smallPrice = GraphitePreviewData.position(
+            chain: "ethereum", chainName: "Ethereum", chainNumericID: 1, tokenId: "1213952",
+            sym0: "WALLET", sym1: "WETH", dec0: 18, dec1: 18, feeRaw: 10_000,
+            lower: 0.000004204, upper: 0.000006026, current: 0.00001025,
+            valueUSD: 15_572.50, feesUSD: 0, fees0: 0, fees1: 0, apr: 14.3,
+            amounts: (0, 6.869919), volume: 82_400, tvl: 2_100_000,
+            claimedUSD: 3_410, openedDaysAgo: 251
+        )
+        return VStack(spacing: 12) {
+            GraphitePositionCard(position: DemoWallet.positions[0], onCollect: {})
+            GraphitePositionCard(position: smallPrice)
+        }
+        .padding(12)
+        .frame(width: width)
     }
 
     private static func poolLevelFixture(_ level: Double) -> some View {

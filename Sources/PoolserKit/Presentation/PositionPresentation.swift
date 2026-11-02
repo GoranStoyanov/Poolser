@@ -66,6 +66,13 @@ public struct RangeGaugeLayout: Equatable, Codable, Sendable {
     func mirrored() -> RangeGaugeLayout {
         RangeGaugeLayout(bandStart: 1 - bandEnd, bandEnd: 1 - bandStart, marker: 1 - marker, isMarkerClamped: isMarkerClamped)
     }
+
+    /// Keep the price label inside the track while the marker retains its true position.
+    func labelCenter(labelWidth: Double, containerWidth: Double) -> Double {
+        let width = max(containerWidth, 0)
+        let inset = min(max(labelWidth, 0), width) / 2
+        return min(max(marker * width, inset), width - inset)
+    }
 }
 
 /// Status item text. Range problems are left to the popover's Needs attention chip.
@@ -78,6 +85,14 @@ public enum MenuBarTitle {
 }
 
 extension Position {
+    /// Completed v3 history with no Collect events is a known zero, even without token prices.
+    var claimedCardLabel: String? {
+        if let claimedUSD { return formatUSD(claimedUSD) }
+        if let claimedFeesLabel { return claimedFeesLabel }
+        if !isV4, !feeHistoryBootstrapping, openedAt != nil { return formatUSD(0) }
+        return nil
+    }
+
     /// The position's page on app.uniswap.org.
     public var uniswapURL: URL? {
         let slug = SupportedChain.byID(chainID)?.uniswapChainSlug ?? chainID
