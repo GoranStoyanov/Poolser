@@ -55,6 +55,7 @@ public struct SavedWallet: Codable, Equatable, Hashable, Identifiable, Sendable 
 enum WalletCaches {
     static func remove(wallet: String, from defaults: UserDefaults) {
         defaults.removeObject(forKey: HiddenPositionStore.key(for: wallet))
+        WalletPortfolioCache.remove(wallet: wallet, from: defaults)
         FeeHistoryService.clearCache(wallet: wallet, in: defaults)
         V4OwnershipTracker.clearCaches(wallet: wallet, in: defaults)
     }
