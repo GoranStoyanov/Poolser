@@ -28,7 +28,7 @@ public struct PortfolioWidgetView: View {
         ZStack(alignment: .topTrailing) {
             PoolBrandRibbon(animated: false, compact: true)
                 .padding(.top, -16)
-                .padding(.trailing, -16)
+                .padding(.horizontal, -16)
             if let snapshot, snapshot.positionCount > 0 {
                 switch size {
                 case .small:
@@ -75,7 +75,8 @@ private struct Summary: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Header(walletName: snapshot.walletName, palette: palette)
-                .padding(.trailing, 24)
+                .padding(.leading, 52)
+                .padding(.top, 8)
             Spacer(minLength: 5)
             Text("Unclaimed fees")
                 .font(.caption2).foregroundStyle(palette.secondaryText)
@@ -109,7 +110,6 @@ private struct Header: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            PoolEyes().scaleEffect(0.8).frame(width: 16, height: 12)
             Text(walletName ?? "Poolser")
                 .font(PoolTypography.heading(12, relativeTo: .caption))
                 .foregroundStyle(palette.primaryText)
