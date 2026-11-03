@@ -57,6 +57,16 @@ Shared colours live in `Sources/PoolserKit/Presentation/GraphitePalette.swift`; 
 
 ## Implementation details
 
+### Local wallet handoff
+
+The single-position and batch collect pages use one self-contained browser style under the existing nonce-based content security policy. A compact original app logo and Wallet handoff label lead into Review collection. The porcelain or deep-pool canvas holds white or petrol cards with 18-point corners; a narrow jade-to-blue crest line marks the fee summary. Avenir Next, when installed, leads the wordmark and tabular financial amounts, with system-font fallbacks. Technical identifiers use a selectable monospace face. Muted rose marks errors and unavailable positions; blue marks selected checkboxes and visible keyboard focus. Ordinary hover has a brief opacity transition only when Reduce Motion is off.
+
+The page order is fee amount and position context, batch position selection when relevant, full transaction review, explicit collect action, live status and a quiet wallet-signing reminder. Transaction review keeps network, full wallet account, full destination and full fee recipient visible. Batch review also shows the estimated network fee when available and lists each destination with its version. At narrow widths, review rows stack labels above values and position fees move beneath their pair; neither addresses nor amounts are clipped. The shortened account chip is supplementary and exposes its full address on hover, while the review always shows the complete address without hover.
+
+Batch selection explains empty and unavailable states in place. Wallet connection, account and network changes, pending confirmations, cancellation, retry, sent results and partial success use the existing bridge events and a live status region. Partial success keeps links for transaction hashes the wallet returned. A failed batch rebuild tells the user to check whether Poolser is still running. The browser pages do not infer on-chain confirmation from a submitted transaction or introduce a new bridge state.
+
+### Native app details
+
 The native macOS hover help adds context without moving the position rows. The Details button opens the full position view on both platforms and supports keyboard access. Explanatory info controls open one popover on click, tap or keyboard activation; do not attach a native hover tooltip containing the same explanation. This applies to position metrics, Details statistics, summary metrics and the daily chart's context heading. Retain accessible labels and action hints. Ordinary hover help remains for controls without an explanatory popover. There is no expanding Fee context row. The Claimed explanation describes collected v3 fees at current prices without repeating the displayed amount. Pool level explains all-time fees divided by current eligible position value. Summary APR explains Σ all-time fees / Σ (current value × years open), annualized, excluding positions younger than one day or missing data; the chart heading opens period totals and daily average on tap or click.
 
 ### Position cards: Range + Return

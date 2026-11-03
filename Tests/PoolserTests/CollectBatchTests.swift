@@ -305,4 +305,23 @@ struct BatchCollectPageTests {
         #expect(BatchCollectPage.selection(fromBuildBody: Data("{\"ids\":[1]}".utf8)) == nil)
         #expect(BatchCollectPage.selection(fromBuildBody: Data("nope".utf8)) == nil)
     }
+
+    @Test func browserReviewShowsSelectionAndFullAccount() throws {
+        let selection = try batch()
+        var check = CollectBatchCheck()
+        check.transactions = selection.transactions(for: ["ethereum-v3-1"], now: now)
+        check.failing = ["ethereum-v4-2": "Position unavailable"]
+        let html = BatchCollectPage.html(for: selection, check: check, feeLabel: "≈ $0.90", nonce: "demo")
+        #expect(html.contains("<h2>Choose positions</h2>"))
+        #expect(html.contains("<h2>Transaction review</h2>"))
+        #expect(html.contains("<span>Wallet account</span><span><code>\(owner)</code></span>"))
+        #expect(html.contains("<span>Network fee</span><span id=\"gas\"></span>"))
+        if let directory = ProcessInfo.processInfo.environment["POOLSER_COLLECT_FIXTURES"] {
+            let logo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().appending(path: "Sources/Poolser/Resources/AppLogo.png")
+            try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+            try BatchCollectPage.html(for: selection, check: check, feeLabel: "≈ $0.90", nonce: "demo", logoPNG: Data(contentsOf: logo))
+                .write(toFile: directory + "/batch.html", atomically: true, encoding: .utf8)
+        }
+    }
 }
