@@ -32,47 +32,61 @@ enum BatchCollectPage {
         \(favicon)
         <style nonce="\(nonce)">
         \(CollectPage.styles)
-        .list { padding: 0 20px; margin-bottom: 12px; }
-        .item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--hair);
+        .section-note { color: var(--muted); font-size: 13px; margin: -4px 0 10px; }
+        .list { padding: 0 20px; }
+        .item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-top: 1px solid var(--hair);
                 cursor: pointer; }
         .item:first-child { border-top: 0; }
-        .item input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--strong); cursor: inherit; }
+        .item input { width: 18px; height: 18px; margin: 3px 0 0; flex: none; accent-color: var(--blue); cursor: inherit; }
         .what { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .what strong { overflow-wrap: anywhere; }
         .what span { color: var(--muted); font-size: 13px; }
         .what .why { color: var(--bad); }
         .what .why:empty { display: none; }
-        .fees { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .fees { font: 700 15px/1.4 "Avenir Next", -apple-system, BlinkMacSystemFont, sans-serif;
+                font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; max-width: 42%; }
         .item.failing { cursor: default; }
-        .item.failing strong, .item.failing .fees { opacity: .5; }
+        .item.failing strong, .item.failing .fees { color: var(--muted); }
         #to code { display: block; }
+        @media (max-width: 420px) {
+          .list { padding: 0 18px; }
+          .item { flex-wrap: wrap; }
+          .fees { max-width: none; width: 100%; text-align: left; padding-left: 30px; }
+        }
         </style>
         </head>
         <body>
         <main>
           <header>
             \(logoMark)
-            <div class="brand"><strong>Poolser</strong><span>Collect fees</span></div>
-            <span class="chip">\(escape(CollectPage.shortAddress(batch.owner)))</span>
+            <div class="brand"><strong>Poolser</strong><span>Wallet handoff</span></div>
+            <span class="chip" title="\(escape(batch.owner))">\(escape(CollectPage.shortAddress(batch.owner)))</span>
           </header>
+          <div class="intro"><div class="eyebrow">COLLECT FEES</div><h1>Review collection</h1><p>Choose positions, then check the transactions before confirming in your wallet.</p></div>
           <section class="card hero">
             <div class="label">Unclaimed fees</div>
             <div class="amount" id="total"></div>
-            <div class="pair" id="summary"></div>
+            <div class="pair" id="summary" aria-live="polite"></div>
           </section>
-          <section class="card list" id="items">
+          <h2>Choose positions</h2>
+          <p class="section-note" id="selection-note">Unavailable positions cannot be selected.</p>
+          <section class="card list" id="items" aria-label="Choose positions">
         \(rows)
           </section>
-          <section class="card rows">
+          <h2>Transaction review</h2>
+          <section class="card rows" aria-label="Transaction review">
             <div class="row"><span>Network</span><span>\(escape(batch.chain.displayName))</span></div>
             <div class="row"><span>Network fee</span><span id="gas"></span></div>
+            <div class="row"><span>Wallet account</span><span><code>\(escape(batch.owner))</code></span></div>
             <div class="row"><span>Sent to</span><span id="to"></span></div>
             <div class="row"><span>Fees go to</span><span><code>\(escape(batch.owner))</code></span></div>
           </section>
-          <button id="go" type="button">Connect wallet and collect</button>
+          <button id="go" type="button">Connect wallet and collect fees</button>
           <div id="status" role="status" aria-live="polite"></div>
           <footer>
             <p>Your wallet signs. Poolser never sees your keys.</p>
-            <p>Opened by Poolser on this Mac — close this tab when you are done.</p>
+            <p>This local session expires after 15 minutes. Reopen Collect in Poolser if it stops responding.</p>
+            <p>Close this tab when you are done.</p>
           </footer>
         </main>
         <script type="application/json" id="batch">\(stateJSON(batch, check: check, feeLabel: feeLabel))</script>
@@ -98,7 +112,8 @@ enum BatchCollectPage {
             }).catch(function () {});
           }
           function selected() {
-            return boxes.filter(function (box) { return box.checked && !box.disabled; }).map(function (box) { return box.value; });
+            return boxes.filter(function (box) { return box.checked && !box.closest('.item').classList.contains('failing'); })
+              .map(function (box) { return box.value; });
           }
 
           function render() {
@@ -106,8 +121,10 @@ enum BatchCollectPage {
             let total = 0, unpriced = 0;
             ids.forEach(function (id) { if (typeof usd[id] === 'number') total += usd[id]; else unpriced++; });
             document.getElementById('total').textContent = money.format(total) + (unpriced ? ' + ' + unpriced + ' unpriced' : '');
-            const usable = boxes.filter(function (box) { return !box.disabled; }).length;
+            const usable = boxes.filter(function (box) { return !box.closest('.item').classList.contains('failing'); }).length;
             document.getElementById('summary').textContent = ids.length + ' of ' + usable + ' position' + (usable === 1 ? '' : 's') + ' on ' + state.chainName;
+            document.getElementById('selection-note').textContent = !usable ? 'No positions are available to collect.'
+              : !ids.length ? 'Select at least one position to continue.' : 'Unavailable positions cannot be selected.';
             const building = latest !== settled;
             const count = plan.transactions.length;
             document.getElementById('gas').textContent = building ? 'Estimating…'
@@ -119,9 +136,9 @@ enum BatchCollectPage {
               return code;
             }));
             if (sent.length) {
-              button.textContent = 'Send the remaining transaction';
+              button.textContent = 'Send remaining ' + (count - sent.length) + ' transaction' + (count - sent.length === 1 ? '' : 's');
             } else {
-              button.textContent = count > 1 ? 'Connect wallet and collect · ' + count + ' transactions' : 'Connect wallet and collect';
+              button.textContent = count > 1 ? 'Connect wallet and collect · ' + count + ' transactions' : 'Connect wallet and collect fees';
             }
             button.disabled = building || count === 0 || sent.length === count;
           }
@@ -195,17 +212,21 @@ enum BatchCollectPage {
             return [];
           }
 
-          function finish(hashes) {
-            show(hashes.length > 1 ? 'Sent. The fees arrive once the transactions are confirmed. ' : 'Sent. The fees arrive once the transaction is confirmed. ', 'ok');
+          function explorerLinks(hashes) {
             hashes.forEach(function (hash, i) {
-              if (!state.explorer) return;
+              if (!state.explorer || !/^0x[0-9a-fA-F]{64}$/.test(hash)) return;
               const link = document.createElement('a');
               link.href = state.explorer + hash;
               link.textContent = hashes.length > 1 ? 'View transaction ' + (i + 1) : 'View transaction';
               link.rel = 'noreferrer';
-              if (i > 0) status.appendChild(document.createTextNode(' · '));
+              status.appendChild(document.createTextNode(' '));
               status.appendChild(link);
             });
+          }
+
+          function finish(hashes) {
+            show(hashes.length > 1 ? 'Sent. The fees arrive once the transactions are confirmed.' : 'Sent. The fees arrive once the transaction is confirmed.', 'ok');
+            explorerLinks(hashes);
             button.disabled = true;
             button.textContent = 'Sent';
             report({ hashes: hashes });
@@ -255,6 +276,8 @@ enum BatchCollectPage {
               if (!sent.length) boxes.forEach(function (box) { if (box.dataset.locked) box.disabled = false; });
               render();
               show(message, 'error');
+              explorerLinks(sent);
+              if (!sent.length) button.textContent = 'Try collecting again';
               if (!(error && error.shown)) report({ error: message });
             }
           }

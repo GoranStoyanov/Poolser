@@ -25,24 +25,28 @@ enum CollectPage {
         <main>
           <header>
             \(logoMark)
-            <div class="brand"><strong>Poolser</strong><span>Collect fees</span></div>
-            <span class="chip">\(escape(shortAddress(request.owner)))</span>
+            <div class="brand"><strong>Poolser</strong><span>Wallet handoff</span></div>
+            <span class="chip" title="\(escape(request.owner))">\(escape(shortAddress(request.owner)))</span>
           </header>
+          <div class="intro"><div class="eyebrow">COLLECT FEES</div><h1>Review collection</h1><p>Check the details before confirming in your wallet.</p></div>
           <section class="card hero">
             <div class="label">Unclaimed fees</div>
             <div class="amount">\(escape(request.feesLabel))</div>
             <div class="pair">\(escape(request.pairLabel)) <span>· \(escape(request.versionLabel)) #\(escape(request.tokenId)) on \(escape(request.chainName))</span></div>
           </section>
-          <section class="card rows">
+          <h2>Transaction review</h2>
+          <section class="card rows" aria-label="Transaction review">
             <div class="row"><span>Network</span><span>\(escape(request.chainName))</span></div>
+            <div class="row"><span>Wallet account</span><span><code>\(escape(request.owner))</code></span></div>
             <div class="row"><span>Sent to</span><span><code>\(escape(request.to))</code></span></div>
             <div class="row"><span>Fees go to</span><span><code>\(escape(request.owner))</code></span></div>
           </section>
-          <button id="go" type="button">Connect wallet and collect</button>
+          <button id="go" type="button">Connect wallet and collect fees</button>
           <div id="status" role="status" aria-live="polite"></div>
           <footer>
             <p>Your wallet signs. Poolser never sees your keys.</p>
-            <p>Opened by Poolser on this Mac — close this tab when you are done.</p>
+            <p>This local session expires after 15 minutes. Reopen Collect in Poolser if it stops responding.</p>
+            <p>Close this tab when you are done.</p>
           </footer>
         </main>
         <script type="application/json" id="tx">\(transactionJSON(request, explorer: explorer))</script>
@@ -72,6 +76,7 @@ enum CollectPage {
               const account = accounts && accounts[0];
               if (!account || account.toLowerCase() !== tx.owner.toLowerCase()) {
                 show('The connected account ' + (account || 'none') + ' does not own this position. Switch to ' + tx.owner + ' in your wallet and try again.', 'error');
+                button.textContent = 'Try again with the correct account';
                 button.disabled = false;
                 return;
               }
@@ -86,6 +91,7 @@ enum CollectPage {
                 params: [{ from: account, to: tx.to, data: tx.data, value: '0x0' }]
               });
               show('Sent. The fees arrive once the transaction is confirmed. ', 'ok');
+              button.textContent = 'Transaction sent';
               if (tx.explorer && /^0x[0-9a-fA-F]{64}$/.test(hash)) {
                 const link = document.createElement('a');
                 link.href = tx.explorer + hash;
@@ -98,6 +104,7 @@ enum CollectPage {
               const rejected = error && error.code === 4001;
               const message = rejected ? 'Cancelled in the wallet.' : 'Failed: ' + ((error && error.message) || error);
               show(message, 'error');
+              button.textContent = 'Try collecting again';
               button.disabled = false;
               report({ error: message });
             }
@@ -113,54 +120,77 @@ enum CollectPage {
 
     /// The page look, shared with `BatchCollectPage`.
     static let styles = """
-        :root { color-scheme: light dark; --bg: #f2f2f4; --card: #fff; --line: #e6e6ea; --hair: #f0f0f2;
-                --text: #111113; --muted: #62626c; --strong: #111113; --on-strong: #fff;
-                --ok: #0b7a55; --ok-bg: #e8f4ef; --bad: #c2410c; --bad-bg: #fdeee6; }
+        :root { color-scheme: light dark; --bg: #f5f7f3; --card: #fff; --line: #dce7e3; --hair: #e8efeb;
+                --text: #153d47; --muted: #536d76; --strong: #153d47; --on-strong: #fff;
+                --jade: #187c67; --blue: #3979b7; --ok: #187c67; --ok-bg: #e9f5f0;
+                --bad: #a64f53; --bad-bg: #faeeee; --focus: #3979b7;
+                --wave-start: #278d78; --wave-middle: #42b69c; --wave-end: #3979b7; }
         @media (prefers-color-scheme: dark) {
-          :root { --bg: #0f0f11; --card: #1f1f22; --line: #2e2e33; --hair: #29292d; --text: #f4f4f5;
-                  --muted: #a1a1aa; --strong: #f4f4f5; --on-strong: #111113; --ok: #4ade9a; --ok-bg: #16302a;
-                  --bad: #ff9b5c; --bad-bg: #3a2417; }
+          :root { --bg: #10262d; --card: #18343c; --line: #35525a; --hair: #2c4850; --text: #eaf4f2;
+                  --muted: #a4bec3; --strong: #eaf4f2; --on-strong: #10262d; --jade: #68d4b5;
+                  --blue: #629fe0; --ok: #68d4b5; --ok-bg: #1d493f;
+                  --bad: #eda6a6; --bad-bg: #3e2b2e; --focus: #629fe0;
+                  --wave-start: #42b69c; --wave-middle: #68d4b5; --wave-end: #629fe0; }
         }
         * { box-sizing: border-box; }
         body { margin: 0; background: var(--bg); color: var(--text);
                font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
                -webkit-font-smoothing: antialiased; }
-        main { max-width: 520px; margin: 0 auto; padding: 40px 16px 48px; }
-        header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+        main { max-width: 600px; margin: 0 auto; padding: 32px 20px 48px; }
+        header { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
         .logo { width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.18); flex: none; }
-        .logo-fallback { display: grid; place-items: center; background: var(--strong); color: var(--on-strong);
+        .logo-fallback { display: grid; place-items: center; background: linear-gradient(135deg, var(--wave-start), var(--wave-end)); color: #fff;
                          font-weight: 800; }
         .brand { display: flex; flex-direction: column; line-height: 1.2; }
-        .brand strong { font-size: 17px; letter-spacing: -0.2px; }
+        .brand strong { font: 700 17px/1.2 "Avenir Next", -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: -0.2px; }
         .brand span { color: var(--muted); font-size: 13px; }
         .chip { margin-left: auto; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
                 background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
-        .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
-        .hero { padding: 20px; margin-bottom: 12px; }
+        .intro { margin-bottom: 20px; }
+        .eyebrow { color: var(--jade); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+        h1 { font: 700 28px/1.2 "Avenir Next", -apple-system, BlinkMacSystemFont, sans-serif; margin: 4px 0 6px; }
+        .intro p { color: var(--muted); margin: 0; }
+        h2 { font-size: 15px; line-height: 1.3; margin: 24px 0 10px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+        .hero { position: relative; overflow: hidden; padding: 28px 24px 24px; }
+        .hero::before { content: ""; position: absolute; inset: 0 0 auto; height: 5px;
+                        background: linear-gradient(90deg, var(--wave-start), var(--wave-middle) 48%, var(--wave-end)); }
         .label { color: var(--muted); font-size: 13px; font-weight: 600; }
-        .amount { font-size: 36px; font-weight: 700; letter-spacing: -0.8px; font-variant-numeric: tabular-nums;
-                  margin: 2px 0 6px; }
+        .amount { font: 700 clamp(28px, 8vw, 36px)/1.2 "Avenir Next", -apple-system, BlinkMacSystemFont, sans-serif;
+                  letter-spacing: -0.8px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; margin: 4px 0 8px; }
         .pair { font-weight: 600; }
         .pair span { color: var(--muted); font-weight: 400; }
         .rows { padding: 0 20px; }
-        .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--hair); }
+        .row { display: grid; grid-template-columns: minmax(110px, 34%) minmax(0, 1fr); gap: 16px; padding: 14px 0;
+               border-top: 1px solid var(--hair); }
         .row:first-child { border-top: 0; }
-        .row span:first-child { color: var(--muted); white-space: nowrap; }
-        .row span:last-child { text-align: right; overflow-wrap: anywhere; }
-        code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+        .row span:first-child { color: var(--muted); }
+        .row span:last-child { min-width: 0; overflow-wrap: anywhere; }
+        code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; user-select: all; }
         button { margin-top: 20px; width: 100%; min-height: 48px; border: 0; border-radius: 12px;
                  background: var(--strong); color: var(--on-strong); font: inherit; font-weight: 600; cursor: pointer; }
         button:hover:not(:disabled) { opacity: .88; }
-        button:focus-visible { outline: 3px solid var(--muted); outline-offset: 2px; }
+        :is(button, input, a):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
         button:disabled { opacity: .45; cursor: default; }
         #status { margin-top: 16px; min-height: 1.5em; }
         #status:empty { display: none; }
-        #status.ok, #status.error { padding: 12px 14px; border-radius: 12px; }
+        #status.ok, #status.error { padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); overflow-wrap: anywhere; }
         #status.ok { color: var(--ok); background: var(--ok-bg); }
         #status.error { color: var(--bad); background: var(--bad-bg); }
-        a { color: inherit; font-weight: 600; }
+        a { color: inherit; font-weight: 600; text-underline-offset: 3px; }
         footer { margin-top: 28px; color: var(--muted); font-size: 13px; text-align: center; }
         footer p { margin: 4px 0; }
+        @media (max-width: 420px) {
+          main { padding: 20px 16px 40px; }
+          header { margin-bottom: 28px; }
+          .chip { max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .hero { padding: 26px 18px 20px; }
+          .rows { padding: 0 18px; }
+          .row { grid-template-columns: 1fr; gap: 4px; }
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          button { transition: opacity .15s ease; }
+        }
         """
 
     /// The header logo and the favicon, from the app logo when there is one.

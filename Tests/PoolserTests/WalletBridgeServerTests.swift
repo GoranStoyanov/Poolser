@@ -71,6 +71,22 @@ struct CollectPageTests {
         #expect(html.contains("<script nonce=\"abc123\">"))
         #expect(html.contains("<style nonce=\"abc123\">"))
     }
+
+    @Test func reviewShowsCompleteAccountAndDestination() throws {
+        let transaction = try request()
+        let html = CollectPage.html(for: transaction, nonce: "demo")
+        #expect(html.contains("<h1>Review collection</h1>"))
+        #expect(html.contains("<span>Wallet account</span><span><code>\(transaction.owner)</code></span>"))
+        #expect(html.contains("<span>Sent to</span><span><code>\(transaction.to)</code></span>"))
+        #expect(html.contains("role=\"status\" aria-live=\"polite\""))
+        if let directory = ProcessInfo.processInfo.environment["POOLSER_COLLECT_FIXTURES"] {
+            let logo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+                .deletingLastPathComponent().appending(path: "Sources/Poolser/Resources/AppLogo.png")
+            try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+            try CollectPage.html(for: transaction, nonce: "demo", logoPNG: Data(contentsOf: logo))
+                .write(toFile: directory + "/collect.html", atomically: true, encoding: .utf8)
+        }
+    }
 }
 
 @Suite("Wallet bridge server")
