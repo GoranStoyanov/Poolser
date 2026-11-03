@@ -47,6 +47,10 @@ Preserve the existing fee pool pouring and settling on opening. The Soft Crest w
 - Medium widget: fees and daily bars, portfolio value, attention and last update. If no history exists, show position context instead. Widgets read existing snapshots with up to 14 days of history; no network work or decorative animation.
 - All Wallets: preserve wallet allocation and grouped positions; use the same palette, type and brand accent.
 
+On macOS, the first wallet page is a compact All capsule with two overlapping oval pool outlines, rather than a stacked-layer symbol. Use the brand gradient for the unselected mark and a petrol/ice selected capsule with a matching high-contrast mark. Keep the short All label visible so its purpose is discoverable; the accessible name and hover help remain All Wallets. Individual wallets retain their page dots, with a 24-point-high click target. Preserve page order, wallet menu, swipes and keyboard navigation. iOS retains its native page indicator and wallet menu.
+
+Wallet navigation references, showing both an individual wallet and All selected: [light](screenshots/redesign/wallet-navigation-light.png), [dark](screenshots/redesign/wallet-navigation-dark.png). Regenerate with `POOLSER_SCREENSHOT_FILTER=wallet-navigation`.
+
 ## Maintenance
 
 Shared colours live in `Sources/PoolserKit/Presentation/GraphitePalette.swift`; reusable brand, summary and chart views live beside it. Widget layouts live in `Sources/PoolserKit/Widget/PortfolioWidgetViews.swift`. Preserve light and dark appearance and existing data semantics when changing this system. Update this reference in the same change as any new brand decision.

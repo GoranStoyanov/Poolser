@@ -180,33 +180,48 @@ struct GraphitePopover: View {
         HStack(spacing: 6) {
             ForEach(Array(snapshot.pages.enumerated()), id: \.element.id) { target, page in
                 let isActive = page.id == snapshot.shownPage?.id
-                Button {
+                let select: () -> Void = {
                     guard let index = activeIndex, target != index else { return }
                     showWallet(step: target - index)
-                } label: {
-                    Group {
-                        if page == .allWallets {
-                            // Like the location arrow on Weather's first page.
-                            Image(systemName: "square.stack.3d.up.fill")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(isActive ? AnyShapeStyle(palette.brand) : AnyShapeStyle(palette.secondaryText.opacity(0.35)))
-                        } else {
+                }
+                Group {
+                    if page == .allWallets {
+                        Button(action: select) {
+                            HStack(spacing: 4) {
+                                allWalletsMark
+                                    .foregroundStyle(isActive ? AnyShapeStyle(palette.onStrong) : AnyShapeStyle(palette.brand))
+                                Text("All")
+                            }
+                        }
+                        .buttonStyle(chipStyle(selected: isActive))
+                    } else {
+                        Button(action: select) {
                             Circle()
                                 .fill(isActive ? palette.primaryText : palette.secondaryText.opacity(0.35))
                                 .frame(width: 6, height: 6)
+                                .frame(width: 12, height: 24)
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
-                    .frame(width: 8, height: 8)
-                    .padding(2)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
                 .help(page.title)
                 .accessibilityLabel(page.title)
                 .accessibilityAddTraits(isActive ? .isSelected : [])
             }
         }
         .padding(.bottom, 8)
+    }
+
+    private var allWalletsMark: some View {
+        ZStack {
+            Ellipse().stroke(lineWidth: 1.5)
+                .frame(width: 10, height: 8).rotationEffect(.degrees(-25)).offset(x: -3)
+            Ellipse().stroke(lineWidth: 1.5)
+                .frame(width: 10, height: 8).rotationEffect(.degrees(25)).offset(x: 3)
+        }
+        .frame(width: 17, height: 13)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Header

@@ -62,6 +62,8 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/wallet-navigation-light.png", size: nil, opaque: false, view: AnyView(walletNavigation(scheme: .light))),
+            Shot(name: "redesign/wallet-navigation-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(walletNavigation(scheme: .dark))),
             Shot(name: "redesign/position-cards-light.png", size: nil, opaque: false, view: AnyView(positionCards(width: 420))),
             Shot(name: "redesign/position-cards-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(positionCards(width: 420))),
             Shot(name: "redesign/position-cards-accessibility.png", size: nil, opaque: false, view: AnyView(
@@ -145,6 +147,30 @@ enum StoreScreenshots {
                 PopoverCutout(snapshot: snapshot)
             )),
         ]
+    }
+
+    private static func walletNavigation(scheme: ColorScheme) -> some View {
+        let wallets = [
+            SavedWallet(address: DemoWallet.address, name: "Mine"),
+            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team")
+        ]
+        let single = PopoverSnapshot(
+            walletAddress: wallets[0].address,
+            pages: [.allWallets] + wallets.map(WalletPage.wallet),
+            shownPage: .wallet(wallets[0]), positions: [], dailyFeesUSD: nil
+        )
+        var all = single
+        all.shownPage = .allWallets
+        all.overview = WalletOverview(wallets: wallets.map { ($0, []) }, tracksClaimedFees: false)
+        return VStack(spacing: 16) {
+            GraphitePopover(snapshot: single, listOptions: .constant(PositionListOptions()),
+                            actions: GraphitePopoverActions(selectPage: { _ in }))
+                .fixedSize().frame(height: 94, alignment: .top).clipped()
+            GraphitePopover(snapshot: all, listOptions: .constant(PositionListOptions()),
+                            actions: GraphitePopoverActions(selectPage: { _ in }))
+                .fixedSize().frame(height: 94, alignment: .top).clipped()
+        }
+        .background(GraphitePalette.current(scheme).popover)
     }
 
     private static func poolLevels(scheme: ColorScheme) -> some View {
