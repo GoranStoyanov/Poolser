@@ -385,22 +385,25 @@ struct PositionMetric: View {
     let value: String
     let explanation: String
     var tint: Color? = nil
+    var prominent = false
     @State private var showingExplanation = false
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let palette = GraphitePalette.current(scheme)
         Button { showingExplanation.toggle() } label: {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: prominent ? 8 : 3) {
                 HStack(spacing: 3) {
                     Text(title)
                     Image(systemName: "info.circle").imageScale(.small)
                 }
-                .font(.caption2).foregroundStyle(palette.secondaryText)
-                Text(value).font(PoolTypography.amount(13, relativeTo: .callout))
+                .font(prominent ? .subheadline : .caption2).foregroundStyle(palette.secondaryText)
+                .fixedSize(horizontal: prominent, vertical: true)
+                Text(value).font(PoolTypography.amount(prominent ? 22 : 13, relativeTo: prominent ? .title2 : .callout))
                     .foregroundStyle(tint ?? palette.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .fixedSize(horizontal: prominent, vertical: true)
             }
+            .frame(maxWidth: prominent ? .infinity : nil, minHeight: prominent ? 44 : nil, alignment: .leading)
             .multilineTextAlignment(.leading)
             .contentShape(Rectangle())
         }
