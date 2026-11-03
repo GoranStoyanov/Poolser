@@ -46,11 +46,11 @@ struct PositionDetailsView: View {
                 Text("Assets").font(.headline)
                 if position.poolStateError == nil {
                     if typeSize.isAccessibilitySize {
-                        sheetHoldings(horizontal: false)
+                        holdings(horizontal: false)
                     } else {
                         ViewThatFits(in: .horizontal) {
-                            sheetHoldings(horizontal: true)
-                            sheetHoldings(horizontal: false)
+                            holdings(horizontal: true)
+                            holdings(horizontal: false)
                         }
                     }
                 } else {
@@ -82,25 +82,25 @@ struct PositionDetailsView: View {
         .padding(24)
     }
 
-    private func sheetHoldings(horizontal: Bool) -> some View {
+    private func holdings(horizontal: Bool, compact: Bool = false) -> some View {
         let inverted = PositionPresentation(position).isInverted
         let layout = horizontal ? AnyLayout(HStackLayout(alignment: .top, spacing: 12)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
         return layout {
-            sheetHolding(inverted ? position.sym1 : position.sym0, amount: inverted ? position.amount1Label : position.amount0Label, allowsWrapping: !horizontal)
-            sheetHolding(inverted ? position.sym0 : position.sym1, amount: inverted ? position.amount0Label : position.amount1Label, allowsWrapping: !horizontal)
+            holdingTile(inverted ? position.sym1 : position.sym0, amount: inverted ? position.amount1Label : position.amount0Label, allowsWrapping: !horizontal, compact: compact)
+            holdingTile(inverted ? position.sym0 : position.sym1, amount: inverted ? position.amount0Label : position.amount1Label, allowsWrapping: !horizontal, compact: compact)
         }
     }
 
-    private func sheetHolding(_ symbol: String, amount: String, allowsWrapping: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(symbol).font(.subheadline).foregroundStyle(palette.secondaryText)
-            Text(amount).font(PoolTypography.amount(24, relativeTo: .title2))
+    private func holdingTile(_ symbol: String, amount: String, allowsWrapping: Bool, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: compact ? 6 : 8) {
+            Text(symbol).font(compact ? .caption : .subheadline).foregroundStyle(palette.secondaryText)
+            Text(amount).font(PoolTypography.amount(compact ? 18 : 24, relativeTo: compact ? .callout : .title2))
                 .fixedSize(horizontal: !allowsWrapping, vertical: true)
                 .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(palette.control, in: RoundedRectangle(cornerRadius: 16))
+        .padding(compact ? 12 : 16)
+        .background(palette.control, in: RoundedRectangle(cornerRadius: compact ? 12 : 16))
     }
 
     private func sheetDetail(_ title: String, value: String) -> some View {
@@ -146,12 +146,17 @@ struct PositionDetailsView: View {
                     .buttonStyle(.plain).foregroundStyle(palette.fees)
             }
 #endif
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Assets").font(.caption).foregroundStyle(palette.secondaryText)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Assets").font(.caption.weight(.semibold)).foregroundStyle(palette.secondaryText)
                 if position.poolStateError == nil {
-                    let inverted = PositionPresentation(position).isInverted
-                    holding(inverted ? position.sym1 : position.sym0, amount: inverted ? position.amount1Label : position.amount0Label)
-                    holding(inverted ? position.sym0 : position.sym1, amount: inverted ? position.amount0Label : position.amount1Label)
+                    if typeSize.isAccessibilitySize {
+                        holdings(horizontal: false, compact: true)
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            holdings(horizontal: true, compact: true)
+                            holdings(horizontal: false, compact: true)
+                        }
+                    }
                 } else {
                     Text("Unavailable").font(.callout).foregroundStyle(palette.secondaryText)
                 }
@@ -168,18 +173,21 @@ struct PositionDetailsView: View {
                 HStack(spacing: 8) {
                     PoolGauge(level: level)
                     PositionMetric(title: "Pool level", value: formatPercent(level),
-                                   explanation: poolLevelHelp)
+                                   explanation: poolLevelHelp, valueFont: PoolTypography.amount(16, relativeTo: .callout))
                 }
             }
             if position.hasPoolStats {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Pool · last 24h").font(.caption).foregroundStyle(palette.secondaryText)
+                    Text("Pool · last 24h").font(.caption.weight(.semibold)).foregroundStyle(palette.secondaryText)
                     poolStats()
                 }
             }
             if let onOpen {
-                Button("Open in Uniswap", action: onOpen)
-                    .buttonStyle(GraphiteStrongButtonStyle())
+                Button(action: onOpen) {
+                    Label("Open in Uniswap", systemImage: "arrow.up.right")
+                        .frame(maxWidth: .infinity, minHeight: 24)
+                }
+                .buttonStyle(GraphiteStrongButtonStyle())
             }
         }
         .padding(16)
@@ -194,34 +202,26 @@ struct PositionDetailsView: View {
     }
 
     private func poolStatMetrics(prominent: Bool) -> some View {
-        Group {
+        let valueFont: Font? = prominent ? nil : PoolTypography.amount(16, relativeTo: .callout)
+        return Group {
             if let volume = position.volumeUSD24h {
                 PositionMetric(title: "Volume", value: PositionPresentation.compactUSD(volume),
-                               explanation: "The pool’s trading volume over the last 24 hours.", prominent: prominent)
+                               explanation: "The pool’s trading volume over the last 24 hours.", prominent: prominent, valueFont: valueFont)
             }
             if let tvl = position.tvlUSD {
                 PositionMetric(title: "TVL", value: PositionPresentation.compactUSD(tvl),
-                               explanation: "Total value of liquidity in the pool.", prominent: prominent)
+                               explanation: "Total value of liquidity in the pool.", prominent: prominent, valueFont: valueFont)
             }
             if let yield = position.feeAPR {
                 PositionMetric(title: "Pool yield", value: String(format: "%.1f%%", yield),
-                               explanation: "Estimated annual yield if the pool’s last 24 hours repeated for a year: trading volume × fee rate ÷ TVL. This is the pool’s estimate, distinct from your realized APR. An out-of-range position earns none of it.", prominent: prominent)
+                               explanation: "Estimated annual yield if the pool’s last 24 hours repeated for a year: trading volume × fee rate ÷ TVL. This is the pool’s estimate, distinct from your realized APR. An out-of-range position earns none of it.", prominent: prominent, valueFont: valueFont)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var poolLevelHelp: String {
         "All-time fees (claimed + unclaimed) divided by the position’s current value. Claimed fees use current token prices; changes in prices or liquidity also change this percentage."
-    }
-
-    private func holding(_ symbol: String, amount: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(symbol).font(.caption).foregroundStyle(palette.secondaryText)
-            Spacer(minLength: 0)
-            Text(amount).font(.callout.weight(.medium).monospacedDigit())
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-        }
     }
 
     private func detail(_ title: String, value: String) -> some View {

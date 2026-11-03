@@ -386,6 +386,7 @@ struct PositionMetric: View {
     let explanation: String
     var tint: Color? = nil
     var prominent = false
+    var valueFont: Font? = nil
     @State private var showingExplanation = false
     @Environment(\.colorScheme) private var scheme
 
@@ -399,7 +400,7 @@ struct PositionMetric: View {
                 }
                 .font(prominent ? .subheadline : .caption2).foregroundStyle(palette.secondaryText)
                 .fixedSize(horizontal: prominent, vertical: true)
-                Text(value).font(PoolTypography.amount(prominent ? 22 : 13, relativeTo: prominent ? .title2 : .callout))
+                Text(value).font(valueFont ?? PoolTypography.amount(prominent ? 22 : 13, relativeTo: prominent ? .title2 : .callout))
                     .foregroundStyle(tint ?? palette.primaryText)
                     .fixedSize(horizontal: prominent, vertical: true)
             }
