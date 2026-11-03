@@ -16,9 +16,10 @@ Poolser is a precise financial instrument with a curious, quietly playful person
 | Secondary ink | Slate `#536D76` | Mist `#A4BEC3` |
 | Fees and active ranges | Jade `#187C67` | Jade `#68D4B5` |
 | Brand wave | Jade `#278D78` → blue `#3979B7` | Jade `#42B69C` → blue `#629FE0` |
-| Attention | Amber `#A45417` | Apricot `#F2B174` |
+| Attention / out of range | Muted rose red `#A64F53` | Soft coral `#EDA6A6` |
+| Near range edge / stale data | Dusty rose `#8D6062` | Pale rose `#DBB2B2` |
 
-Green conveys earnings or an active range. Amber conveys attention; retain a text status and marker so colour is never the only signal. Blue identifies today, the current-price marker and selected controls. Token and network logos retain their own colours. Avoid unrelated gradients, rainbow bars, glossy oversized characters, and decorative scenery.
+Green conveys earnings or an active range. Soft, muted red conveys attention, with a quieter dusty rose for near-edge states and stale data. Keep these colours desaturated to match the soft jade-to-blue palette; do not use orange, amber or purple for attention. Purple already identifies saved wallets in All Wallets. Retain a text status and marker so colour is never the only signal. Blue identifies today, the current-price marker and selected controls. Token and network logos retain their own colours. Avoid unrelated gradients, rainbow bars, glossy oversized characters, and decorative scenery.
 
 ## Typography and geometry
 
@@ -56,7 +57,9 @@ The native macOS hover help adds context without moving the position rows. The D
 
 ### Position cards: Range + Return
 
-Use the existing opaque card surface, a neutral hairline border, 18-point corners and 16-point padding. Keep the Avenir Next amounts and wordmark; use native caption labels and tabular digits for prices and financial figures. Reserve jade and amber for the range band, its labelled status and the out-of-range distance; do not outline the whole healthy or out-of-range card in a status colour. Error cards retain their warning border.
+Use the existing opaque card surface, a neutral hairline border, 18-point corners and 16-point padding. Keep the Avenir Next amounts and wordmark; use native caption labels and tabular digits for prices and financial figures. Reserve jade, dusty rose and muted red for the range band, its labelled status and the out-of-range distance; do not outline the whole healthy or out-of-range card in a status colour. Error cards retain their warning border.
+
+Use the same attention tokens for Needs attention chips, out-of-range pills, range ticks, distance arrows, All Wallets and widget status. Light appearance uses pale blush surfaces (`#FAEEEE` pills, `#F2DDDD` bands); dark appearance uses deep rose surfaces (`#3E2B2E` pills, `#4D3438` bands). Keep attention text at least 4.5:1 against its surfaces and range ticks at least 3:1 against the band and track. The current-price badge and marker stay blue.
 
 The blue price badge follows the current marker, measuring its actual text width and clamping the label at the card edges. The marker retains its original position, including a clamped marker for a price beyond the displayed scale. Keep both range-bound ticks visible. Min/Max are explicitly labelled values below the track, not extra axis ticks; full range remains 0 to ∞. Retain the existing quote-token orientation, logarithmic tick geometry, exclusive upper bound and numeric formatting. Never shorten a tiny price or change the scale just to fit its label.
 

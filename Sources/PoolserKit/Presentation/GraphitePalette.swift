@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shared Poolser colours. Jade denotes earnings, amber attention, and blue today.
+/// Shared Poolser colours. Jade denotes earnings, muted red attention, and blue today.
 /// See docs/BRAND.md for the visual and interaction reference.
 public struct GraphitePalette {
     public struct StatusColors {
@@ -95,10 +95,10 @@ public struct GraphitePalette {
         walletColors: [0x4A6FA5, 0x7A6AA8, 0xA8657F, 0x4F8F98, 0x8A6F5A, 0x5C6B84, 0x93609A, 0x3F7E7A].map(Color.init(hex:)),
         inRange: StatusColors(tint: Color(hex: 0x187C67), background: Color(hex: 0xE5F3ED),
                               bandFill: Color(hex: 0xB8E1D4), bandEdge: Color(hex: 0x278D78)),
-        nearEdge: StatusColors(tint: Color(hex: 0x955800), background: Color(hex: 0xFBF2DC),
-                               bandFill: Color(hex: 0xF6F1E4), bandEdge: Color(hex: 0xD2B25E)),
-        outOfRange: StatusColors(tint: Color(hex: 0xA45417), background: Color(hex: 0xFCF0E4),
-                                 bandFill: Color(hex: 0xFCF0E4), bandEdge: Color(hex: 0xD9945D)),
+        nearEdge: StatusColors(tint: Color(hex: 0x8D6062), background: Color(hex: 0xF7F0F0),
+                               bandFill: Color(hex: 0xEBDDDD), bandEdge: Color(hex: 0x9F7175)),
+        outOfRange: StatusColors(tint: Color(hex: 0xA64F53), background: Color(hex: 0xFAEEEE),
+                                 bandFill: Color(hex: 0xF2DDDD), bandEdge: Color(hex: 0xB16B70)),
         fullRange: StatusColors(tint: Color(hex: 0x454B57), background: Color(hex: 0xEDEEF1),
                                 bandFill: Color(hex: 0xEDEEF1), bandEdge: Color(hex: 0xADB2BC)),
         unknown: StatusColors(tint: Color(hex: 0x536D76), background: Color(hex: 0xEAF1EF),
@@ -128,10 +128,10 @@ public struct GraphitePalette {
         walletColors: [0x7C9DD0, 0xA898D4, 0xD490AA, 0x7DBCC4, 0xB89C86, 0x8E9BB3, 0xBF8EC6, 0x6FAEA9].map(Color.init(hex:)),
         inRange: StatusColors(tint: Color(hex: 0x68D4B5), background: Color(hex: 0x16302A),
                               bandFill: Color(hex: 0x245C50), bandEdge: Color(hex: 0x42B69C)),
-        nearEdge: StatusColors(tint: Color(hex: 0xF5C451), background: Color(hex: 0x372E17),
-                               bandFill: Color(hex: 0x332B17), bandEdge: Color(hex: 0x8A6D2A)),
-        outOfRange: StatusColors(tint: Color(hex: 0xF2B174), background: Color(hex: 0x3A2417),
-                                 bandFill: Color(hex: 0x382317), bandEdge: Color(hex: 0x9A5530)),
+        nearEdge: StatusColors(tint: Color(hex: 0xDBB2B2), background: Color(hex: 0x393032),
+                               bandFill: Color(hex: 0x49383C), bandEdge: Color(hex: 0xB68E92)),
+        outOfRange: StatusColors(tint: Color(hex: 0xEDA6A6), background: Color(hex: 0x3E2B2E),
+                                 bandFill: Color(hex: 0x4D3438), bandEdge: Color(hex: 0xC28589)),
         fullRange: StatusColors(tint: Color(hex: 0xC4C8D0), background: Color(hex: 0x2A2D33),
                                 bandFill: Color(hex: 0x2A2D33), bandEdge: Color(hex: 0x5A5F69)),
         unknown: StatusColors(tint: Color(hex: 0xA4BEC3), background: Color(hex: 0x24444A),

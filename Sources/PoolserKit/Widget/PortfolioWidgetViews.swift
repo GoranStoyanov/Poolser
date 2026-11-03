@@ -6,8 +6,8 @@ import SwiftUI
 public struct PortfolioWidgetView: View {
     public enum Size { case small, medium }
 
-    /// After this long without a new snapshot the timestamp turns amber: the app is probably
-    /// not running.
+    /// After this long without a new snapshot the timestamp takes the near-edge tint:
+    /// the app is probably not running.
     public static let staleAfter: TimeInterval = 60 * 60
 
     let snapshot: PortfolioSnapshot?
