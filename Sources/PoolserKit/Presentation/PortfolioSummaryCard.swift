@@ -139,7 +139,6 @@ private struct SummaryMetric: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(title), \(value)")
         .accessibilityHint("Show explanation")
-        .help(explanation)
         .popover(isPresented: $showingExplanation) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(title).font(PoolTypography.heading(16))

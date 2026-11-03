@@ -41,7 +41,6 @@ public struct FeeHistoryChart: View {
                             .foregroundStyle(palette.primaryText)
                     }
                     .buttonStyle(.plain)
-                    .help("Average \(formatUSD(total / Double(shown.count)))/day over \(shown.count) days")
                     .accessibilityHint("Show average daily fees")
                     .popover(isPresented: $showingContext) {
                         Text("\(shown.count) days · \(formatUSD(total)) total\nAverage \(formatUSD(total / Double(shown.count)))/day")
