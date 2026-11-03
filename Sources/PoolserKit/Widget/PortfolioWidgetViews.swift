@@ -6,8 +6,8 @@ import SwiftUI
 public struct PortfolioWidgetView: View {
     public enum Size { case small, medium }
 
-    /// After this long without a new snapshot the timestamp turns amber: the app is probably
-    /// not running.
+    /// After this long without a new snapshot the timestamp takes the near-edge tint:
+    /// the app is probably not running.
     public static let staleAfter: TimeInterval = 60 * 60
 
     let snapshot: PortfolioSnapshot?
@@ -25,19 +25,42 @@ public struct PortfolioWidgetView: View {
 
     public var body: some View {
         let palette = GraphitePalette.current(colorScheme)
-        if let snapshot, snapshot.positionCount > 0 {
-            switch size {
-            case .small:
-                Summary(snapshot: snapshot, date: date, palette: palette)
-            case .medium:
-                HStack(alignment: .top, spacing: 14) {
+        ZStack(alignment: .topTrailing) {
+            PoolBrandRibbon(animated: false, compact: true)
+                .padding(.top, -16)
+                .padding(.horizontal, -16)
+            if let snapshot, snapshot.positionCount > 0 {
+                switch size {
+                case .small:
                     Summary(snapshot: snapshot, date: date, palette: palette)
-                        .frame(maxWidth: 128, alignment: .leading)
-                    PositionList(snapshot: snapshot, palette: palette)
+                case .medium:
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .top, spacing: 14) {
+                            Summary(snapshot: snapshot, date: date, palette: palette, compact: true)
+                                .frame(maxWidth: 132, alignment: .leading)
+                            if let daily = snapshot.dailyFeesUSD, !daily.isEmpty {
+                                WeekFees(values: Array(daily.suffix(14)), palette: palette)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                                    .padding(.top, 24)
+                            } else {
+                                PositionList(snapshot: snapshot, palette: palette)
+                                    .padding(.top, 24)
+                            }
+                        }
+                        Rectangle().fill(palette.cardLine).frame(height: 0.5)
+                        HStack(spacing: 8) {
+                            Text("Portfolio \(PositionPresentation.compactUSD(snapshot.totalValueUSD))")
+                                .font(.caption2.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(palette.primaryText)
+                            Spacer(minLength: 0)
+                            RangeLine(snapshot: snapshot, palette: palette)
+                        }
+                    }
                 }
+            } else {
+                EmptyState(hasSnapshot: snapshot != nil, walletName: snapshot?.walletName, palette: palette)
+                    .padding(.top, 18)
             }
-        } else {
-            EmptyState(hasSnapshot: snapshot != nil, walletName: snapshot?.walletName, palette: palette)
         }
     }
 }
@@ -47,24 +70,34 @@ private struct Summary: View {
     let date: Date
     let palette: GraphitePalette
 
+    var compact = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Header(walletName: snapshot.walletName, palette: palette)
-            Spacer(minLength: 6)
-            Text(PositionPresentation.compactUSD(snapshot.totalValueUSD))
-                .font(.system(size: 26, weight: .semibold, design: .rounded).monospacedDigit())
+                .padding(.leading, 52)
+                .padding(.top, 18)
+            Spacer(minLength: 5)
+            Text("Unclaimed fees")
+                .font(.caption2).foregroundStyle(palette.secondaryText)
+            Text(formatUSD(snapshot.unclaimedFeesUSD))
+                .font(PoolTypography.amount(compact ? 25 : 30))
                 .foregroundStyle(palette.primaryText)
-                .minimumScaleFactor(0.6)
+                .minimumScaleFactor(0.5)
                 .lineLimit(1)
-            Text("+\(formatUSD(snapshot.unclaimedFeesUSD)) fees")
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(palette.fees)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: 6)
-            RangeLine(snapshot: snapshot, palette: palette)
+            if let today = snapshot.dailyFeesUSD?.last {
+                Text("+\(formatUSD(today)) today")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(palette.fees)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 5)
+            if !compact {
+                RangeLine(snapshot: snapshot, palette: palette)
+            }
             Updated(updatedAt: snapshot.updatedAt, date: date, palette: palette)
-                .padding(.top, 2)
+                .padding(.top, 3)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -77,10 +110,9 @@ private struct Header: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Circle().fill(palette.brand).frame(width: 8, height: 8)
             Text(walletName ?? "Poolser")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(palette.secondaryText)
+                .font(PoolTypography.heading(12, relativeTo: .caption))
+                .foregroundStyle(palette.primaryText)
                 .lineLimit(1)
         }
     }
@@ -121,7 +153,9 @@ private struct Updated: View {
     var body: some View {
         let stale = date.timeIntervalSince(updatedAt) > PortfolioWidgetView.staleAfter
         // Fixed per timeline entry: a live relative date counts seconds, which is noise here.
-        Text("Updated \(Self.formatter.localizedString(for: min(updatedAt, date), relativeTo: date))")
+        Text(date.timeIntervalSince(updatedAt) < 60
+             ? "Updated just now"
+             : "Updated \(Self.formatter.localizedString(for: updatedAt, relativeTo: date))")
             .font(.caption2.monospacedDigit())
             .foregroundStyle(stale ? palette.nearEdge.tint : palette.secondaryText)
             .lineLimit(1)
@@ -206,7 +240,7 @@ private struct WeekFees: View {
             HStack {
                 Text("Fees, \(values.count) days")
                 Spacer(minLength: 4)
-                Text("today \(formatUSD(values.last ?? 0))")
+                Text(formatUSD(values.reduce(0, +)))
                     .monospacedDigit()
             }
             .font(.caption2)
@@ -214,12 +248,12 @@ private struct WeekFees: View {
             HStack(alignment: .bottom, spacing: 3) {
                 ForEach(Array(values.enumerated()), id: \.offset) { index, value in
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(index == values.count - 1 ? palette.fees : palette.bar)
+                        .fill(index == values.count - 1 ? palette.barToday : palette.bar)
                         .frame(maxWidth: .infinity)
-                        .frame(height: max(3, peak > 0 ? 28 * value / peak : 3))
+                        .frame(height: max(3, peak > 0 ? 42 * value / peak : 3))
                 }
             }
-            .frame(height: 28, alignment: .bottom)
+            .frame(height: 42, alignment: .bottom)
         }
     }
 }

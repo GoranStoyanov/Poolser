@@ -10,7 +10,8 @@ let package = Package(
     targets: [
         .target(
             name: "PoolserKit",
-            path: "Sources/PoolserKit"
+            path: "Sources/PoolserKit",
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "Poolser",

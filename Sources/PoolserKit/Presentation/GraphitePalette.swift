@@ -1,11 +1,7 @@
 import SwiftUI
 
-/// Colours for the Graphite popover. Near-monochrome on purpose: green is reserved for fees and
-/// in-range, amber and orange for ranges that need attention, so colour always carries meaning.
-/// The one exception is the logo's green-to-blue gradient, kept for the fee pool and today's bar.
-///
-/// Plain SwiftUI colours picked by `ColorScheme` rather than dynamic `NSColor`s, so the palette
-/// follows `.preferredColorScheme` in previews and image renders and has no AppKit dependency.
+/// Shared Poolser colours. Jade denotes earnings, muted red attention, and blue today.
+/// See docs/BRAND.md for the visual and interaction reference.
 public struct GraphitePalette {
     public struct StatusColors {
         /// Text, marker and dot colour.
@@ -67,74 +63,79 @@ public struct GraphitePalette {
         LinearGradient(colors: [brandStart, brandEnd], startPoint: .leading, endPoint: .trailing)
     }
 
+    public var water: LinearGradient {
+        LinearGradient(colors: [Color(hex: 0x18D6B0), Color(hex: 0x23C5CF)],
+                       startPoint: .leading, endPoint: .trailing)
+    }
+
     public static func current(_ scheme: ColorScheme) -> GraphitePalette {
         scheme == .dark ? .dark : .light
     }
 
     public static let light = GraphitePalette(
-        popover: Color(hex: 0xFAFAFA),
+        popover: Color(hex: 0xF5F7F3),
         card: Color(hex: 0xFFFFFF),
-        cardLine: Color(hex: 0xE6E6EA),
-        hairline: Color(hex: 0xF0F0F2),
-        primaryText: Color(hex: 0x111113),
-        secondaryText: Color(hex: 0x62626C),
-        fees: Color(hex: 0x0B7A55),
-        bar: Color(hex: 0xDADBE0),
-        barToday: Color(hex: 0x111113),
+        cardLine: Color(hex: 0xDCE7E5),
+        hairline: Color(hex: 0xEAF1EF),
+        primaryText: Color(hex: 0x153D47),
+        secondaryText: Color(hex: 0x536D76),
+        fees: Color(hex: 0x187C67),
+        bar: Color(hex: 0x80C5B5),
+        barToday: Color(hex: 0x3979B7),
         onBarToday: Color(hex: 0xFFFFFF),
-        track: Color(hex: 0xEDEDF0),
-        control: Color(hex: 0xF0F0F2),
-        strong: Color(hex: 0x111113),
+        track: Color(hex: 0xE1ECE9),
+        control: Color(hex: 0xEAF1EF),
+        strong: Color(hex: 0x153D47),
         onStrong: Color(hex: 0xFFFFFF),
         onStatus: Color(hex: 0xFFFFFF),
-        brandStart: Color(hex: 0x4DBF6A),
-        brandEnd: Color(hex: 0x3B86EC),
-        waterFront: 0.24,
-        waterBack: 0.13,
+        brandStart: Color(hex: 0x278D78),
+        brandEnd: Color(hex: 0x3979B7),
+        waterFront: 0.14,
+        waterBack: 0.08,
         walletColors: [0x4A6FA5, 0x7A6AA8, 0xA8657F, 0x4F8F98, 0x8A6F5A, 0x5C6B84, 0x93609A, 0x3F7E7A].map(Color.init(hex:)),
-        inRange: StatusColors(tint: Color(hex: 0x0B7A55), background: Color(hex: 0xE8F4EF),
-                              bandFill: Color(hex: 0xF0F1F3), bandEdge: Color(hex: 0xA9ADB5)),
-        nearEdge: StatusColors(tint: Color(hex: 0x955800), background: Color(hex: 0xFBF2DC),
-                               bandFill: Color(hex: 0xF6F1E4), bandEdge: Color(hex: 0xD2B25E)),
-        outOfRange: StatusColors(tint: Color(hex: 0xC2410C), background: Color(hex: 0xFDEEE6),
-                                 bandFill: Color(hex: 0xFDEEE6), bandEdge: Color(hex: 0xEFA27C)),
+        inRange: StatusColors(tint: Color(hex: 0x187C67), background: Color(hex: 0xE5F3ED),
+                              bandFill: Color(hex: 0xB8E1D4), bandEdge: Color(hex: 0x278D78)),
+        nearEdge: StatusColors(tint: Color(hex: 0x8D6062), background: Color(hex: 0xF7F0F0),
+                               bandFill: Color(hex: 0xEBDDDD), bandEdge: Color(hex: 0x9F7175)),
+        outOfRange: StatusColors(tint: Color(hex: 0xA64F53), background: Color(hex: 0xFAEEEE),
+                                 bandFill: Color(hex: 0xF2DDDD), bandEdge: Color(hex: 0xB16B70)),
         fullRange: StatusColors(tint: Color(hex: 0x454B57), background: Color(hex: 0xEDEEF1),
                                 bandFill: Color(hex: 0xEDEEF1), bandEdge: Color(hex: 0xADB2BC)),
-        unknown: StatusColors(tint: Color(hex: 0x62626C), background: Color(hex: 0xF0F0F2),
-                              bandFill: Color(hex: 0xF0F0F2), bandEdge: Color(hex: 0xC8C8CE))
+        unknown: StatusColors(tint: Color(hex: 0x536D76), background: Color(hex: 0xEAF1EF),
+                              bandFill: Color(hex: 0xEAF1EF), bandEdge: Color(hex: 0xC8C8CE))
     )
 
     public static let dark = GraphitePalette(
-        popover: Color(hex: 0x161618),
-        card: Color(hex: 0x1F1F22),
-        cardLine: Color(hex: 0x2E2E33),
-        hairline: Color(hex: 0x29292D),
-        primaryText: Color(hex: 0xF4F4F5),
-        secondaryText: Color(hex: 0xA1A1AA),
-        fees: Color(hex: 0x4ADE9A),
-        bar: Color(hex: 0x3A3A40),
-        barToday: Color(hex: 0xF4F4F5),
-        onBarToday: Color(hex: 0x111113),
-        track: Color(hex: 0x2A2A2F),
-        control: Color(hex: 0x2A2A2F),
-        strong: Color(hex: 0xF4F4F5),
-        onStrong: Color(hex: 0x111113),
-        onStatus: Color(hex: 0x111113),
-        brandStart: Color(hex: 0x5FD27C),
-        brandEnd: Color(hex: 0x5A9EF5),
-        waterFront: 0.30,
-        waterBack: 0.16,
+        popover: Color(hex: 0x10262D),
+        card: Color(hex: 0x18343C),
+        cardLine: Color(hex: 0x2E4D53),
+        hairline: Color(hex: 0x27454B),
+        primaryText: Color(hex: 0xEAF4F2),
+        secondaryText: Color(hex: 0xA4BEC3),
+        fees: Color(hex: 0x68D4B5),
+        bar: Color(hex: 0x347A6D),
+        barToday: Color(hex: 0x629FE0),
+        onBarToday: Color(hex: 0x153D47),
+        track: Color(hex: 0x24444A),
+        control: Color(hex: 0x24444A),
+        strong: Color(hex: 0xEAF4F2),
+        onStrong: Color(hex: 0x153D47),
+        onStatus: Color(hex: 0x153D47),
+        brandStart: Color(hex: 0x42B69C),
+        brandEnd: Color(hex: 0x629FE0),
+        waterFront: 0.14,
+        waterBack: 0.05,
         walletColors: [0x7C9DD0, 0xA898D4, 0xD490AA, 0x7DBCC4, 0xB89C86, 0x8E9BB3, 0xBF8EC6, 0x6FAEA9].map(Color.init(hex:)),
-        inRange: StatusColors(tint: Color(hex: 0x4ADE9A), background: Color(hex: 0x16302A),
-                              bandFill: Color(hex: 0x26272B), bandEdge: Color(hex: 0x5A5C63)),
-        nearEdge: StatusColors(tint: Color(hex: 0xF5C451), background: Color(hex: 0x372E17),
-                               bandFill: Color(hex: 0x332B17), bandEdge: Color(hex: 0x8A6D2A)),
-        outOfRange: StatusColors(tint: Color(hex: 0xFF9B5C), background: Color(hex: 0x3A2417),
-                                 bandFill: Color(hex: 0x382317), bandEdge: Color(hex: 0x9A5530)),
+        inRange: StatusColors(tint: Color(hex: 0x68D4B5), background: Color(hex: 0x16302A),
+                              bandFill: Color(hex: 0x245C50), bandEdge: Color(hex: 0x42B69C)),
+        nearEdge: StatusColors(tint: Color(hex: 0xDBB2B2), background: Color(hex: 0x393032),
+                               bandFill: Color(hex: 0x49383C), bandEdge: Color(hex: 0xB68E92)),
+        outOfRange: StatusColors(tint: Color(hex: 0xEDA6A6), background: Color(hex: 0x3E2B2E),
+                                 bandFill: Color(hex: 0x4D3438), bandEdge: Color(hex: 0xC28589)),
         fullRange: StatusColors(tint: Color(hex: 0xC4C8D0), background: Color(hex: 0x2A2D33),
                                 bandFill: Color(hex: 0x2A2D33), bandEdge: Color(hex: 0x5A5F69)),
-        unknown: StatusColors(tint: Color(hex: 0xA1A1AA), background: Color(hex: 0x2A2A2F),
-                              bandFill: Color(hex: 0x2A2A2F), bandEdge: Color(hex: 0x45454B))
+        unknown: StatusColors(tint: Color(hex: 0xA4BEC3), background: Color(hex: 0x24444A),
+                              bandFill: Color(hex: 0x24444A), bandEdge: Color(hex: 0x45454B))
     )
 }
 

@@ -43,8 +43,10 @@ enum StoreScreenshots {
 
     private static func render(into folder: URL) async throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        await DemoWallet.prefetchIcons()
+        let selection = ProcessInfo.processInfo.environment["POOLSER_SCREENSHOT_FILTER"]
+        if selection == nil { await DemoWallet.prefetchIcons() }
         for shot in shots {
+            guard selection.map({ shot.name.contains($0) }) ?? true else { continue }
             let image = try await capture(shot)
             let url = folder.appendingPathComponent(shot.name)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -60,6 +62,49 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/all-wallets-light.png", size: nil, opaque: false, view: AnyView(allWallets(scheme: .light))),
+            Shot(name: "redesign/all-wallets-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(allWallets(scheme: .dark))),
+            Shot(name: "redesign/all-wallets-accessibility.png", size: nil, opaque: false, view: AnyView(allWallets(scheme: .light, width: 340).dynamicTypeSize(.accessibility2))),
+            Shot(name: "redesign/wallet-navigation-light.png", size: nil, opaque: false, view: AnyView(walletNavigation(scheme: .light))),
+            Shot(name: "redesign/wallet-navigation-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(walletNavigation(scheme: .dark))),
+            Shot(name: "redesign/position-cards-light.png", size: nil, opaque: false, view: AnyView(positionCards(width: 420))),
+            Shot(name: "redesign/position-cards-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(positionCards(width: 420))),
+            Shot(name: "redesign/position-cards-accessibility.png", size: nil, opaque: false, view: AnyView(
+                positionCards(width: 320).dynamicTypeSize(.accessibility2)
+            )),
+            Shot(name: "redesign/pool-levels-light.png", size: nil, opaque: false, view: AnyView(poolLevels(scheme: .light))),
+            Shot(name: "redesign/pool-levels-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(poolLevels(scheme: .dark))),
+            Shot(name: "redesign/soft-crest.png", size: CGSize(width: 420, height: 120), view: AnyView(
+                VStack(spacing: 16) {
+                    PoolBrandRibbon(animated: false)
+                    HStack(spacing: 20) {
+                        PoolBrandMark()
+                        PoolEyes(width: 70)
+                        Text("Poolser").font(PoolTypography.heading(20))
+                    }
+                }
+                .padding(.bottom, 12)
+                .background(GraphitePalette.light.card)
+            )),
+            Shot(name: "redesign/widget-small-light.png", size: CGSize(width: 170, height: 170), view: AnyView(
+                PortfolioWidgetView(snapshot: .preview, size: .small, date: .now)
+                    .padding(16).background(GraphitePalette.light.popover)
+            )),
+            Shot(name: "redesign/widget-medium-light.png", size: CGSize(width: 360, height: 170), view: AnyView(
+                PortfolioWidgetView(snapshot: .preview, size: .medium, date: .now)
+                    .padding(16).background(GraphitePalette.light.popover)
+            )),
+            Shot(name: "redesign/widget-medium-dark.png", size: CGSize(width: 360, height: 170), scheme: .dark, view: AnyView(
+                PortfolioWidgetView(snapshot: .preview, size: .medium, date: .now)
+                    .padding(16).background(GraphitePalette.dark.popover)
+            )),
+            Shot(name: "redesign/summary-accessibility.png", size: nil, view: AnyView(
+                PortfolioSummaryCard(positions: snapshot.positions, dailyFees: snapshot.dailyFeesUSD, feeSummary: snapshot.feeSummary) {
+                    EmptyView()
+                }
+                .frame(width: 340)
+                .dynamicTypeSize(.accessibility2)
+            )),
             Shot(name: "appstore/1-menu-bar.jpg", view: AnyView(
                 StoreCanvas(title: "Uniswap fees, always in view",
                             subtitle: "Every position on every chain, one click away in the menu bar.") {
@@ -69,7 +114,7 @@ enum StoreScreenshots {
             Shot(name: "appstore/2-daily-fees.jpg", view: AnyView(
                 StoreCanvas(title: "See what you earn each day",
                             subtitle: "Daily fees, all-time return and APR since you opened each position.") {
-                    PopoverArt(snapshot: snapshot, scale: 1.5, visibleHeight: 306)
+                    PopoverArt(snapshot: snapshot, scale: 1.5, visibleHeight: 408)
                 }
             )),
             Shot(name: "appstore/3-ranges.jpg", view: AnyView(
@@ -105,6 +150,87 @@ enum StoreScreenshots {
                 PopoverCutout(snapshot: snapshot)
             )),
         ]
+    }
+
+    private static func allWallets(scheme: ColorScheme, width: CGFloat = 420) -> some View {
+        let wallets = [
+            SavedWallet(address: DemoWallet.address, name: "Mine"),
+            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team")
+        ]
+        let positions = DemoWallet.positions
+        let overview = WalletOverview(wallets: [(wallets[0], Array(positions.prefix(2))), (wallets[1], Array(positions.suffix(1)))], tracksClaimedFees: true)
+        return VStack(spacing: 16) {
+            AllWalletsSummaryCard(overview: overview, highlighted: .constant(nil))
+            WalletGroupList(overview: overview, highlighted: .constant(nil), actions: WalletOverviewActions(openWallet: { _ in }))
+        }
+        .padding(12).frame(width: width)
+        .background(GraphitePalette.current(scheme).popover)
+    }
+
+    private static func walletNavigation(scheme: ColorScheme) -> some View {
+        let wallets = [
+            SavedWallet(address: DemoWallet.address, name: "Mine"),
+            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team")
+        ]
+        let single = PopoverSnapshot(
+            walletAddress: wallets[0].address,
+            pages: [.allWallets] + wallets.map(WalletPage.wallet),
+            shownPage: .wallet(wallets[0]), positions: [], dailyFeesUSD: nil
+        )
+        var all = single
+        all.shownPage = .allWallets
+        all.overview = WalletOverview(wallets: wallets.map { ($0, []) }, tracksClaimedFees: false)
+        return VStack(spacing: 16) {
+            GraphitePopover(snapshot: single, listOptions: .constant(PositionListOptions()),
+                            actions: GraphitePopoverActions(selectPage: { _ in }))
+                .fixedSize().frame(height: 94, alignment: .top).clipped()
+            GraphitePopover(snapshot: all, listOptions: .constant(PositionListOptions()),
+                            actions: GraphitePopoverActions(selectPage: { _ in }))
+                .fixedSize().frame(height: 94, alignment: .top).clipped()
+        }
+        .background(GraphitePalette.current(scheme).popover)
+    }
+
+    private static func poolLevels(scheme: ColorScheme) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            ForEach([0.0, 0.25, 0.5, 1.0, 1.5], id: \.self) { level in
+                VStack(spacing: 10) {
+                    Text(formatPercent(level)).font(PoolTypography.heading(18))
+                    poolLevelFixture(level).frame(width: 340)
+                }
+            }
+        }
+        .padding(16)
+        .foregroundStyle(GraphitePalette.current(scheme).primaryText)
+        .background(GraphitePalette.current(scheme).popover)
+    }
+
+    private static func positionCards(width: CGFloat) -> some View {
+        let smallPrice = GraphitePreviewData.position(
+            chain: "ethereum", chainName: "Ethereum", chainNumericID: 1, tokenId: "1213952",
+            sym0: "WALLET", sym1: "WETH", dec0: 18, dec1: 18, feeRaw: 10_000,
+            lower: 0.000004204, upper: 0.000006026, current: 0.00001025,
+            valueUSD: 15_572.50, feesUSD: 0, fees0: 0, fees1: 0, apr: 14.3,
+            amounts: (0, 6.869919), volume: 82_400, tvl: 2_100_000,
+            claimedUSD: 3_410, openedDaysAgo: 251
+        )
+        return VStack(spacing: 12) {
+            GraphitePositionCard(position: DemoWallet.positions[0],
+                                 recentDailyFees: DemoWallet.snapshot.positionDailyFeesUSD[DemoWallet.positions[0].id],
+                                 onCollect: {})
+            GraphitePositionCard(position: smallPrice)
+        }
+        .padding(12)
+        .frame(width: width)
+    }
+
+    private static func poolLevelFixture(_ level: Double) -> some View {
+        let snapshot = DemoWallet.snapshot
+        var summary = WalletFeeSummary(positions: snapshot.positions)
+        summary.returnOnAssets = level
+        return PortfolioSummaryCard(positions: snapshot.positions, dailyFees: snapshot.dailyFeesUSD, feeSummary: summary) {
+            EmptyView()
+        }
     }
 
     private static func capture(_ shot: Shot) async throws -> CGImage {

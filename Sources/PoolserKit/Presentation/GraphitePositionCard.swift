@@ -26,6 +26,8 @@ public struct GraphitePositionCard: View {
         self.onShowOnlyChain = onShowOnlyChain
     }
 
+    @State private var showingDetails = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
 
@@ -38,18 +40,25 @@ public struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
-                assetsRow(info)
-                earningsRow
-                footer(info, colors: colors)
+                footer
             }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(palette.card))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(info.status == .outOfRange ? colors.bandEdge : palette.cardLine, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(palette.cardLine, lineWidth: 1)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .onTapGesture { onOpen?() }
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .onTapGesture { showingDetails = true }
+#if os(iOS)
+            .sheet(isPresented: $showingDetails) {
+                PositionDetailsView(position: position, onOpen: onOpen) { showingDetails = false }
+            }
+#else
+            .popover(isPresented: $showingDetails) {
+                PositionDetailsView(position: position, onOpen: onOpen) { showingDetails = false }
+            }
+#endif
             .contextMenu { cardMenu }
             .accessibilityElement(children: .contain)
             .accessibilityAction(named: "Open in Uniswap") { onOpen?() }
@@ -79,7 +88,25 @@ public struct GraphitePositionCard: View {
     // MARK: - Sections
 
     private func header(_ info: PositionPresentation) -> some View {
-        HStack(spacing: 10) {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) { identity(info); value }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        identity(info).fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 8)
+                        value.fixedSize(horizontal: true, vertical: false)
+                    }
+                    VStack(alignment: .leading, spacing: 10) { identity(info); value }
+                }
+            }
+        }
+    }
+
+    private func identity(_ info: PositionPresentation) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
             TokenPairAvatar(
                 base: TokenPairAvatar.Token(
                     symbol: info.baseSymbol,
@@ -94,161 +121,208 @@ public struct GraphitePositionCard: View {
             )
             VStack(alignment: .leading, spacing: 1) {
                 Text(info.pairLabel)
-                    .font(.body.weight(.semibold))
+                    .font(PoolTypography.heading(15, relativeTo: .body))
                     .foregroundStyle(palette.primaryText)
                 Text(metaLabel)
                     .font(.caption)
                     .foregroundStyle(palette.secondaryText)
             }
-            Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 1) {
-                // Without pool state the amounts, and so the value, are unknown.
-                Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
-                    .font(.body.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(palette.primaryText)
-                feesLabel
-            }
+        }
+    }
+
+    private var value: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            // Without pool state the amounts, and so the value, are unknown.
+            Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
+                .font(PoolTypography.amount(15, relativeTo: .body))
+                .foregroundStyle(palette.primaryText)
+            feesLabel
         }
     }
 
     @ViewBuilder
     private var feesLabel: some View {
-        if let usd = position.feesUSDLabel {
-            Text("+\(usd) fees")
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(palette.fees)
+        if let label = position.unclaimedCardLabel {
+            let hasPricedFees = (position.usd ?? 0) > 0
+            Text(label)
+                .font(.caption.weight(hasPricedFees ? .semibold : .regular).monospacedDigit())
+                .foregroundStyle(hasPricedFees ? palette.fees : palette.secondaryText)
         } else if let error = position.feesError {
             Text("fees –")
                 .font(.caption)
                 .foregroundStyle(palette.secondaryText)
                 .help(error)
-        } else {
-            Text(position.feesLabel)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(palette.secondaryText)
         }
     }
 
-    @ViewBuilder
     private func rangeSection(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        if let gauge = info.gauge, let price = info.currentPrice {
-            VStack(spacing: 3) {
-                PriceRangeGauge(
-                    layout: gauge,
-                    colors: colors,
-                    bubble: [price, info.distanceLabel].compactMap { $0 }.joined(separator: " · ")
-                )
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
                 HStack {
-                    Text("Min \(info.minPrice)")
-                    Spacer()
-                    Text("Max \(info.maxPrice)")
+                    Text("Price range · \(info.quoteSymbol)")
+                        .font(.caption2).foregroundStyle(palette.secondaryText)
+                    Spacer(minLength: 8)
+                    StatusPill(status: info.status, colors: colors)
                 }
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(palette.secondaryText)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Price range · \(info.quoteSymbol)")
+                        .font(.caption2).foregroundStyle(palette.secondaryText)
+                    StatusPill(status: info.status, colors: colors)
+                }
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Range \(info.minPrice) to \(info.maxPrice) \(info.quoteSymbol), current price \(price)")
-        } else if let reason = position.poolStateError {
-            Label("Pool data unavailable", systemImage: "exclamationmark.triangle.fill")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(palette.outOfRange.tint)
-                .help("\(reason)\nRetried on the next refresh.")
-        }
-    }
-
-    /// Tokens the position holds now, base token first, and its NFT ID.
-    private func assetsRow(_ info: PositionPresentation) -> some View {
-        HStack(spacing: 8) {
-            Text(assetsLabel(info))
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 8)
-            Text("#\(position.tokenId)")
-                .textSelection(.enabled)
-        }
-        .font(.caption.monospacedDigit())
-        .foregroundStyle(palette.secondaryText)
-    }
-
-    /// Claimed fees and the realized return, once the claimed-fee history is known: the
-    /// position's fee pool with its level beside it, the claimed total and its APR since open.
-    @ViewBuilder
-    private var earningsRow: some View {
-        let claimed = position.claimedUSDLabel ?? position.claimedFeesLabel
-        let feeReturn = position.feeReturnOnAssets
-        let apr = position.realizedAPR()
-        if claimed != nil || position.feeHistoryBootstrapping || feeReturn != nil || apr != nil {
-            HStack(alignment: .center, spacing: 16) {
-                if let feeReturn {
-                    HStack(spacing: 7) {
-                        PoolGauge(level: feeReturn)
-                        earningsStat(formatPercent(feeReturn), "of value earned")
+            if let gauge = info.gauge, let price = info.currentPrice {
+                VStack(spacing: 4) {
+                    RangePriceLabelLayout(gauge: gauge) {
+                        Text("\(price) \(info.quoteSymbol)")
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(palette.onBarToday)
+                            .padding(.horizontal, 7).padding(.vertical, 4)
+                            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(palette.barToday))
                     }
+                    PositionRangeTrack(gauge: gauge, colors: colors, palette: palette)
                 }
-                if let claimed {
-                    earningsStat(claimed, "claimed")
-                } else if position.feeHistoryBootstrapping {
-                    earningsStat("–", "claimed, syncing…")
-                }
-                Spacer(minLength: 4)
-                if let apr {
-                    earningsStat(formatPercent(apr), "APR since open", tint: palette.fees, alignment: .trailing)
-                }
-            }
-            .help(realizedReturnHelp)
-            .accessibilityElement(children: .combine)
-        }
-    }
-
-    private func earningsStat(
-        _ value: String,
-        _ label: String,
-        tint: Color? = nil,
-        alignment: HorizontalAlignment = .leading
-    ) -> some View {
-        VStack(alignment: alignment, spacing: 0) {
-            Text(value)
-                .font(.callout.weight(.semibold).monospacedDigit())
-                .fontDesign(.rounded)
-                .foregroundStyle(tint ?? palette.primaryText)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(palette.secondaryText)
-        }
-        .lineLimit(1)
-    }
-
-    private func footer(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        HStack(spacing: 8) {
-            StatusPill(status: info.status, colors: colors)
-            if let stats = poolStatsLabel {
-                Text(stats)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(palette.secondaryText)
-                    .lineLimit(1)
-                    .help(poolStatsHelp)
-            }
-            Spacer(minLength: 4)
-            if let recentDailyFees, !recentDailyFees.isEmpty {
-                HStack(spacing: 4) {
-                    MiniFeeBars(values: recentDailyFees, today: colors.tint, earlier: colors.bandEdge)
-                    Text("\(recentDailyFees.count)d")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(palette.secondaryText)
-                }
-                .help(feeHistoryHelp(recentDailyFees))
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Fees per day, last \(recentDailyFees.count) days")
-                .accessibilityValue("Today \(formatUSD(recentDailyFees.last ?? 0))")
+                .accessibilityLabel("Current price \(price) \(info.quoteSymbol), range \(info.minPrice) to \(info.maxPrice)")
+                .accessibilityHint(gauge.isMarkerClamped ? "Price is beyond the displayed scale" : "")
+                .help("Price in \(info.quoteSymbol) per \(info.baseSymbol). The coloured band is this position’s active price range.")
+            } else if let reason = position.poolStateError {
+                Label("Pool data unavailable", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(palette.outOfRange.tint)
+                    .help("\(reason)\nRetried on the next refresh.")
+            } else {
+                Text("Current price unavailable")
+                    .font(.caption).foregroundStyle(palette.secondaryText)
             }
-            if let onCollect {
-                Button("Collect", action: onCollect)
-                    .buttonStyle(GraphiteStrongButtonStyle())
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    priceBound("Min", info.minPrice).fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 12)
+                    priceBound("Max", info.maxPrice).fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    priceBound("Min", info.minPrice)
+                    priceBound("Max", info.maxPrice)
+                }
+            }
+            if let distance = info.distanceLabel, let gauge = info.gauge {
+                Label("\(distance) range", systemImage: gauge.marker < gauge.bandStart ? "arrow.down.left" : "arrow.up.right")
+                    .font(.caption2.weight(.semibold)).foregroundStyle(colors.tint)
             }
         }
-        .padding(.top, 9)
+        .padding(.top, 6)
+    }
+
+    private func priceBound(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(title).foregroundStyle(palette.secondaryText)
+            Text(value).foregroundStyle(palette.primaryText)
+        }
+        .font(.caption2.monospacedDigit())
+    }
+
+    private var earnings: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) { earningsMetrics }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) { earningsMetrics }
+                        .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 10) { earningsMetrics }
+                }
+            }
+        }
+    }
+
+    private var earningsMetrics: some View {
+        let claimed = position.claimedCardLabel
+        let syncing = position.feeHistoryBootstrapping
+        let apr = syncing ? nil : position.realizedAPR()
+        return Group {
+            PositionMetric(title: syncing ? "Claimed · syncing" : "Claimed", value: claimed ?? (syncing ? "Syncing…" : "–"),
+                           explanation: claimedHelp)
+            PositionMetric(title: "APR since open", value: apr.map { formatPercent($0) } ?? "–",
+                           explanation: realizedReturnHelp, tint: apr == nil ? palette.secondaryText : palette.fees)
+            dailyFees
+        }
+    }
+
+    @ViewBuilder
+    private var dailyFees: some View {
+        if let values = recentDailyFees, !values.isEmpty {
+            HStack(alignment: .bottom, spacing: 6) {
+                PositionMetric(title: "Daily fees", value: "\(values.count) days",
+                               explanation: "Fees earned per day, oldest first; the rightmost bar is today. Today \(formatUSD(values.last ?? 0)) · best day \(formatUSD(values.max() ?? 0)).")
+                MiniFeeBars(values: values, today: palette.barToday, earlier: palette.bar)
+            }
+        }
+    }
+
+    private var footer: some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                stackedFooter
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 12) {
+                        earnings.fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 0)
+                        cardActions.fixedSize(horizontal: true, vertical: false)
+                    }
+                    if onCollect != nil {
+                        VStack(alignment: .trailing, spacing: 12) {
+                            HStack(spacing: 12) {
+                                earnings.fixedSize(horizontal: true, vertical: false)
+                                Spacer(minLength: 0)
+                                detailsButton
+                            }
+                            collectButton
+                        }
+                    }
+                    stackedFooter
+                }
+            }
+        }
+        .padding(.top, 11)
         .overlay(alignment: .top) {
             Rectangle().fill(palette.hairline).frame(height: 1)
+        }
+    }
+
+    private var stackedFooter: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            earnings
+            HStack { Spacer(minLength: 0); cardActions }
+        }
+    }
+
+    private var cardActions: some View {
+        HStack(spacing: 10) {
+            detailsButton
+            collectButton
+        }
+    }
+
+    private var detailsButton: some View {
+        Button { showingDetails = true } label: {
+            Label("Details", systemImage: "info.circle")
+                .labelStyle(.iconOnly)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .font(.caption)
+        .foregroundStyle(palette.secondaryText)
+        .help("Position details: holdings, opening date and pool statistics")
+    }
+
+    @ViewBuilder
+    private var collectButton: some View {
+        if let onCollect {
+            Button("Collect", action: onCollect)
+                .buttonStyle(GraphiteStrongButtonStyle())
         }
     }
 
@@ -263,9 +337,9 @@ public struct GraphitePositionCard: View {
         }
         .font(.caption)
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(palette.card))
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(palette.card))
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(palette.outOfRange.bandEdge, lineWidth: 1)
         )
         .contextMenu {
@@ -286,119 +360,86 @@ public struct GraphitePositionCard: View {
         return "\(chainName) · \(position.versionLabel) · \(fee)"
     }
 
-    private func assetsLabel(_ info: PositionPresentation) -> String {
-        // Without pool state the amounts are unknown, not zero.
-        guard position.poolStateError == nil else { return "Assets –" }
-        let tokens = [
-            (amount: position.amount0, label: position.amount0Label, symbol: position.sym0),
-            (amount: position.amount1, label: position.amount1Label, symbol: position.sym1),
-        ]
-        let parts = (info.isInverted ? tokens.reversed() : tokens)
-            .filter { $0.amount > 0 }
-            .map { "\($0.label) \($0.symbol)" }
-        return "Assets " + (parts.isEmpty ? "0" : parts.joined(separator: " + "))
-    }
-
-    /// The pool's last 24 hours, from GeckoTerminal.
-    private var poolStatsLabel: String? {
-        var parts: [String] = []
-        if let volume = position.volumeUSD24h { parts.append("Vol \(PositionPresentation.compactUSD(volume))") }
-        if let apr = position.feeAPR { parts.append(String(format: "Yield %.1f%%", apr)) }
-        if let tvl = position.tvlUSD { parts.append("TVL \(PositionPresentation.compactUSD(tvl))") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
     private var realizedReturnHelp: String {
         let opened = position.openedAt.map { " on \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""
         return """
         All-time fees (claimed + unclaimed) as a share of the position's current value, and that \
-        return per year since the position was opened\(opened). Compare with Yield below, the \
+        return per year since the position was opened\(opened). Compare with Yield in Details, the \
         pool's estimate from the last 24 hours, also per year.
         Claimed fees are valued at today's prices. If liquidity was added or removed, the current \
         value is not the capital the fees were earned on.
+        APR is unavailable while history is syncing, before one full day, or when required data \
+        is missing. It is not a forecast.
         """
     }
 
-    private var poolStatsHelp: String {
-        """
-        The pool over the last 24 hours: trading volume, yield and total liquidity (TVL).
-        Yield: if the last 24h repeated for a year, this is the estimated return. Calculated from \
-        24h trading volume × fee rate, divided by TVL. It is the pool's figure; an out-of-range \
-        position earns none of it.
-        """
+    private var claimedHelp: String {
+        if position.isV4 { return "Claimed v4 fees are not tracked. A dash means unavailable, not zero." }
+        return "Fees already collected from this position, valued at current token prices. When USD prices are unavailable, token amounts are shown. While history is syncing, the amount may be partial. A dash means the amount is unavailable, not zero."
     }
 
-    private func feeHistoryHelp(_ values: [Double]) -> String {
-        let today = formatUSD(values.last ?? 0)
-        let best = formatUSD(values.max() ?? 0)
-        return "Fees this position earned per day, last \(values.count) days.\nToday \(today) · best day \(best). The rightmost bar is today."
-    }
 }
 
-// MARK: - Range gauge
-
-struct PriceRangeGauge: View {
-    let layout: RangeGaugeLayout
-    let colors: GraphitePalette.StatusColors
-    let bubble: String
-
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var bubbleWidth: CGFloat = 0
+struct PositionMetric: View {
+    let title: String
+    let value: String
+    let explanation: String
+    var tint: Color? = nil
+    var prominent = false
+    var valueFont: Font? = nil
+    @State private var showingExplanation = false
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let palette = GraphitePalette.current(colorScheme)
-        GeometryReader { geo in
-            let width = geo.size.width
-            let markerX = layout.marker * width
-            ZStack(alignment: .topLeading) {
-                Capsule()
-                    .fill(palette.track)
-                    .frame(width: width, height: 4)
-                    .offset(y: 24)
-                Capsule()
-                    .fill(colors.bandFill)
-                    .overlay(Capsule().strokeBorder(colors.bandEdge, lineWidth: 1.5))
-                    .frame(width: max((layout.bandEnd - layout.bandStart) * width, 8), height: 12)
-                    .offset(x: layout.bandStart * width, y: 20)
-                Capsule()
-                    .fill(colors.tint)
-                    .frame(width: 4, height: 18)
-                    .padding(2)
-                    .background(Capsule().fill(palette.card))
-                    .offset(x: markerX - 4, y: 15)
-                Text(bubble)
-                    .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(palette.onStatus)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(colors.tint))
-                    .fixedSize()
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { bubbleWidth = $0 }
-                    // Centred on the marker, but kept inside the card near either end.
-                    .offset(x: min(max(markerX - bubbleWidth / 2, 0), max(width - bubbleWidth, 0)))
+        let palette = GraphitePalette.current(scheme)
+        Button { showingExplanation.toggle() } label: {
+            VStack(alignment: .leading, spacing: prominent ? 8 : 3) {
+                HStack(spacing: 3) {
+                    Text(title)
+                    Image(systemName: "info.circle").imageScale(.small)
+                }
+                .font(prominent ? .subheadline : .caption2).foregroundStyle(palette.secondaryText)
+                .fixedSize(horizontal: prominent, vertical: true)
+                Text(value).font(valueFont ?? PoolTypography.amount(prominent ? 22 : 13, relativeTo: prominent ? .title2 : .callout))
+                    .foregroundStyle(tint ?? palette.primaryText)
+                    .fixedSize(horizontal: prominent, vertical: true)
             }
-            .animation(.easeInOut(duration: 0.35), value: layout)
+            .frame(maxWidth: prominent ? .infinity : nil, minHeight: prominent ? 44 : nil, alignment: .leading)
+            .multilineTextAlignment(.leading)
+            .contentShape(Rectangle())
         }
-        .frame(height: 36)
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(value)")
+        .accessibilityHint("Show explanation")
+        .popover(isPresented: $showingExplanation) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).font(PoolTypography.heading(16))
+                Text(explanation).font(.callout).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(idealWidth: 280, maxWidth: 320, alignment: .leading)
+            .foregroundStyle(palette.primaryText)
+            .background(palette.card)
+            .presentationCompactAdaptation(.popover)
+        }
     }
 }
 
 // MARK: - Fee pool
 
-/// The fee pool: water in the logo's colours filling its container from the bottom to `level`,
+/// The fee pool: turquoise water filling its container from the bottom to `level`,
 /// the share of the value already earned back in fees. Pours in and sloshes from side to side
 /// when shown or when the level changes, then settles; it stays still otherwise, so an open
 /// popover costs nothing.
 public struct PoolWater: View {
-    /// All-time fees over value, clamped to 0…1. Drawn above a fixed `base` so the bottom of the
-    /// container always sits in water; 1 fills it.
+    /// All-time fees over value: 0 is empty, 1 fills the container, and higher returns stay full.
     let level: Double
-    var base = 0.14
+    var base = 0.0
     var amplitude: CGFloat = 3.5
-    /// Water colour for a pool drawn over a coloured card; nil uses the logo's gradient.
+    /// Water colour for a pool drawn over a coloured card; nil uses the turquoise fee-pool gradient.
     var color: Color? = nil
 
-    public init(level: Double, base: Double = 0.14, amplitude: CGFloat = 3.5, color: Color? = nil) {
+    public init(level: Double, base: Double = 0, amplitude: CGFloat = 3.5, color: Color? = nil) {
         self.level = level
         self.base = base
         self.amplitude = amplitude
@@ -419,18 +460,15 @@ public struct PoolWater: View {
             // The back layer trails the front a little, which reads as depth.
             let back = Slosh(elapsed: elapsed.map { max($0 - 0.12, 0) })
             GeometryReader { geo in
-                let height = geo.size.height * shownLevel
                 ZStack(alignment: .bottom) {
-                    Wave(phase: restPhase + back.travel + .pi * 0.8,
+                    Wave(level: shownLevel, phase: restPhase + back.travel + .pi * 0.8,
                          amplitude: amplitude * back.swell, tilt: back.tilt)
-                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.brand))
+                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.water))
                         .opacity(palette.waterBack)
-                        .frame(height: height > 0 ? height + amplitude * 1.6 : 0)
-                    Wave(phase: restPhase + front.travel,
+                    Wave(level: shownLevel, phase: restPhase + front.travel,
                          amplitude: amplitude * front.swell, tilt: front.tilt)
-                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.brand))
+                        .fill(color.map(AnyShapeStyle.init) ?? AnyShapeStyle(palette.water))
                         .opacity(palette.waterFront)
-                        .frame(height: height)
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
             }
@@ -452,7 +490,8 @@ public struct PoolWater: View {
 
     /// The share of the container a pool at `level` fills, starting from `base`.
     static func fill(level: Double, base: Double) -> Double {
-        base + (1 - base) * min(max(level, 0), 1)
+        guard !level.isNaN else { return 0 }
+        return base + (1 - base) * min(max(level, 0), 1)
     }
 
     private func pour() {
@@ -493,21 +532,32 @@ struct Slosh {
 /// A filled shape whose top edge is a sine wave, one and a half periods across, tilted by `tilt`
 /// points from the middle to each side.
 struct Wave: Shape {
+    var level: Double
     var phase: Double
     var amplitude: CGFloat
     var tilt: CGFloat = 0
 
+    var animatableData: Double {
+        get { level }
+        set { level = newValue }
+    }
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        guard rect.height > 0 else { return path }
+        guard rect.height > 0, rect.width > 0, level > 0 else { return path }
+        if level >= 1 { return Path(rect) }
         let wavelength = rect.width / 1.5
-        let crest = min(amplitude, rect.height / 2)
+        let surface = rect.maxY - rect.height * min(level, 1)
+        // Taper both motions near empty/full so neither layer crosses the container limits.
+        let room = max(0, min(surface - rect.minY, rect.maxY - surface))
+        let crest = min(amplitude, room / 2)
+        let lean = min(max(tilt, -room / 2), room / 2)
         let halfWidth = max(rect.width / 2, 1)
         path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
         for x in stride(from: rect.minX, through: rect.maxX, by: 2) {
             let angle = Double((x - rect.minX) / wavelength) * 2 * .pi + phase
-            let lean = tilt * (x - rect.midX) / halfWidth
-            path.addLine(to: CGPoint(x: x, y: rect.minY + crest + crest * CGFloat(sin(angle)) + lean))
+            let y = surface + crest * CGFloat(sin(angle)) + lean * (x - rect.midX) / halfWidth
+            path.addLine(to: CGPoint(x: x, y: y))
         }
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.closeSubpath()
@@ -536,33 +586,6 @@ struct PoolGauge: View {
             .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(palette.cardLine, lineWidth: 1))
             .frame(width: 10, height: 26)
             .accessibilityHidden(true)
-    }
-}
-
-/// The logo's eyes, small enough to sit beside a caption.
-public struct PoolEyes: View {
-    public init() {}
-
-    public var body: some View {
-        HStack(spacing: 1.5) {
-            eye
-            eye
-        }
-        .accessibilityHidden(true)
-    }
-
-    private var eye: some View {
-        Ellipse()
-            .fill(.white)
-            .overlay(Ellipse().strokeBorder(Color(white: 0.2), lineWidth: 1.2))
-            .overlay(alignment: .bottomTrailing) {
-                Ellipse()
-                    .fill(Color(white: 0.07))
-                    .frame(width: 4, height: 5)
-                    .padding(.trailing, 1.5)
-                    .padding(.bottom, 1.5)
-            }
-            .frame(width: 8, height: 10)
     }
 }
 
