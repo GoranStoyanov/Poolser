@@ -265,6 +265,16 @@ public struct GraphitePositionCard: View {
                         Spacer(minLength: 0)
                         cardActions.fixedSize(horizontal: true, vertical: false)
                     }
+                    if onCollect != nil {
+                        VStack(alignment: .trailing, spacing: 12) {
+                            HStack(spacing: 12) {
+                                earnings.fixedSize(horizontal: true, vertical: false)
+                                Spacer(minLength: 0)
+                                detailsButton
+                            }
+                            collectButton
+                        }
+                    }
                     stackedFooter
                 }
             }
@@ -284,16 +294,29 @@ public struct GraphitePositionCard: View {
 
     private var cardActions: some View {
         HStack(spacing: 10) {
-            Button("Details", systemImage: "info.circle") { showingDetails = true }
-                .labelStyle(.titleAndIcon)
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundStyle(palette.secondaryText)
-                .help("Holdings, opening date and pool statistics")
-            if let onCollect {
-                Button("Collect", action: onCollect)
-                    .buttonStyle(GraphiteStrongButtonStyle())
-            }
+            detailsButton
+            collectButton
+        }
+    }
+
+    private var detailsButton: some View {
+        Button { showingDetails = true } label: {
+            Label("Details", systemImage: "info.circle")
+                .labelStyle(.iconOnly)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .font(.caption)
+        .foregroundStyle(palette.secondaryText)
+        .help("Position details: holdings, opening date and pool statistics")
+    }
+
+    @ViewBuilder
+    private var collectButton: some View {
+        if let onCollect {
+            Button("Collect", action: onCollect)
+                .buttonStyle(GraphiteStrongButtonStyle())
         }
     }
 
