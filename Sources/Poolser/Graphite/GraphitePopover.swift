@@ -627,7 +627,7 @@ struct GraphitePopover: View {
 
     /// Every wallet's positions, grouped by wallet, on the All Wallets page.
     private func overviewList(_ overview: WalletOverview) -> some View {
-        scrollingList(estimate: CGFloat(overview.positionCount) * 50 + CGFloat(overview.entries.count) * 80) {
+        scrollingList(estimate: CGFloat(overview.entries.count) * 160 + 30) {
             WalletGroupList(
                 overview: overview,
                 highlighted: $highlightedWallet,

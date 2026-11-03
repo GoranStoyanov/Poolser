@@ -62,6 +62,9 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/all-wallets-light.png", size: nil, opaque: false, view: AnyView(allWallets(scheme: .light))),
+            Shot(name: "redesign/all-wallets-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(allWallets(scheme: .dark))),
+            Shot(name: "redesign/all-wallets-accessibility.png", size: nil, opaque: false, view: AnyView(allWallets(scheme: .light, width: 340).dynamicTypeSize(.accessibility2))),
             Shot(name: "redesign/wallet-navigation-light.png", size: nil, opaque: false, view: AnyView(walletNavigation(scheme: .light))),
             Shot(name: "redesign/wallet-navigation-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(walletNavigation(scheme: .dark))),
             Shot(name: "redesign/position-cards-light.png", size: nil, opaque: false, view: AnyView(positionCards(width: 420))),
@@ -147,6 +150,21 @@ enum StoreScreenshots {
                 PopoverCutout(snapshot: snapshot)
             )),
         ]
+    }
+
+    private static func allWallets(scheme: ColorScheme, width: CGFloat = 420) -> some View {
+        let wallets = [
+            SavedWallet(address: DemoWallet.address, name: "Mine"),
+            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team")
+        ]
+        let positions = DemoWallet.positions
+        let overview = WalletOverview(wallets: [(wallets[0], Array(positions.prefix(2))), (wallets[1], Array(positions.suffix(1)))], tracksClaimedFees: true)
+        return VStack(spacing: 16) {
+            AllWalletsSummaryCard(overview: overview, highlighted: .constant(nil))
+            WalletGroupList(overview: overview, highlighted: .constant(nil), actions: WalletOverviewActions(openWallet: { _ in }))
+        }
+        .padding(12).frame(width: width)
+        .background(GraphitePalette.current(scheme).popover)
     }
 
     private static func walletNavigation(scheme: ColorScheme) -> some View {

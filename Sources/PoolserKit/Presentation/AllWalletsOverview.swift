@@ -19,12 +19,9 @@ public struct WalletOverviewActions {
 
 // MARK: - Summary
 
-/// The All Wallets summary: the total across wallets, each wallet's share of it, and the fees.
-/// The card fills with water to the pool level, as a single wallet's summary does, on a gradient
-/// that sets the page apart from a single wallet's white card.
+/// A solid jade-to-petrol overview, distinct from a single wallet's crest and fee pool.
 public struct AllWalletsSummaryCard: View {
     let overview: WalletOverview
-    /// The wallet under the pointer here or in the list, by `SavedWallet.id`.
     @Binding var highlighted: String?
 
     public init(overview: WalletOverview, highlighted: Binding<String?>) {
@@ -33,54 +30,82 @@ public struct AllWalletsSummaryCard: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Total value · all wallets")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.82))
+        let palette = GraphitePalette.current(colorScheme)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("All wallets").font(PoolTypography.heading(18))
                 Spacer(minLength: 8)
-                Text(countsLabel)
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.78))
+                Text("\(overview.entries.count) wallets")
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(.white.opacity(0.12), in: Capsule())
             }
-            Text(formatUSD(overview.totalValueUSD))
-                .font(PoolTypography.amount(32, relativeTo: .largeTitle))
-                .fontDesign(.rounded)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Total value").font(.caption).foregroundStyle(.white.opacity(0.85))
+                Text(formatUSD(overview.totalValueUSD))
+                    .font(PoolTypography.amount(34, relativeTo: .largeTitle))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
             if !overview.barEntries.isEmpty {
-                WalletShareBar(entries: overview.barEntries, highlighted: $highlighted)
-                    .padding(.top, 12)
-            }
-            HStack(alignment: .bottom, spacing: 18) {
-                stat("Current fees", formatUSD(overview.unclaimedFeesUSD), eyes: true)
-                if let summary = overview.feeSummary {
-                    stat("Claimed", summary.isSyncing ? "Syncing…" : formatUSD(summary.claimedUSD))
-                    Spacer(minLength: 0)
-                    // Until the history scan catches up the claimed part is incomplete, so no total yet.
-                    stat("All-time fees", summary.isSyncing ? "–" : formatUSD(summary.allTimeUSD), alignment: .trailing)
-                } else {
-                    Spacer(minLength: 0)
+                VStack(spacing: 8) {
+                    WalletShareBar(entries: overview.barEntries, highlighted: $highlighted)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)], alignment: .leading, spacing: 4) {
+                        ForEach(overview.barEntries) { entry in
+                            Button { highlighted = highlighted == entry.id ? nil : entry.id } label: {
+                                HStack(spacing: 5) {
+                                    Circle().fill(palette.walletColor(entry.colorIndex))
+                                        .frame(width: 7, height: 7)
+                                        .overlay(Circle().strokeBorder(.white.opacity(0.5), lineWidth: 0.5))
+                                    Text(entry.wallet.displayName).lineLimit(1)
+                                    Text(entry.share < 0.01 ? "<1%" : "\(Int((entry.share * 100).rounded()))%")
+                                        .monospacedDigit().foregroundStyle(.white.opacity(0.85))
+                                }
+                                .font(.caption)
+                                .padding(.vertical, 5)
+                                #if os(iOS)
+                                .frame(minHeight: 44)
+                                #endif
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(entry.wallet.displayName), \(formatPercent(entry.share)) of value")
+                            .accessibilityHint("Highlight wallet")
+                            .accessibilityAddTraits(highlighted == entry.id ? .isSelected : [])
+                        }
+                    }
                 }
             }
-            .padding(.top, 22)
-            .help(feesHelp)
+            Rectangle().fill(.white.opacity(0.18)).frame(height: 0.5)
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) { feeMetrics }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) { feeMetrics }
+                    VStack(alignment: .leading, spacing: 12) { feeMetrics }
+                }
+            }
         }
         .foregroundStyle(.white)
-        .padding(14)
-        .background {
-            ZStack {
-                Self.gradient(colorScheme)
-                if let level = poolLevel {
-                    PoolWater(level: level, color: .white)
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(18)
+        .background(Self.gradient(colorScheme), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: palette.brandEnd.opacity(colorScheme == .dark ? 0 : 0.16), radius: 9, y: 4)
+    }
+
+    @ViewBuilder
+    private var feeMetrics: some View {
+        AllWalletsMetric(title: "Unclaimed fees", value: formatUSD(overview.unclaimedFeesUSD),
+                         explanation: "Fees waiting to be collected across the loaded wallets.")
+        if let summary = overview.feeSummary {
+            AllWalletsMetric(title: "Claimed", value: summary.isSyncing ? "Syncing…" : formatUSD(summary.claimedUSD),
+                             explanation: "Fees already collected from v3 positions across the loaded wallets, valued at current token prices. Claimed v4 fees are not tracked.")
+            AllWalletsMetric(title: "APR", value: summary.isSyncing ? "–" : summary.realizedAPR.map(formatPercent) ?? "–",
+                             explanation: "Annualized fee return across the loaded wallets: Σ all-time fees ÷ Σ (current position value × years open) × 100. Only positions with known fees, value and an opening date at least one day ago are included. Claimed fees use current token prices. Liquidity changes affect the estimate; this is not a forecast.")
         }
-        .shadow(color: Color(red: 0.12, green: 0.27, blue: 0.47).opacity(colorScheme == .dark ? 0 : 0.18), radius: 9, y: 4)
     }
 
     /// The logo's green and blue, deepened so white text reads on every part of it.
@@ -90,42 +115,42 @@ public struct AllWalletsSummaryCard: View {
             : [Color(red: 0.12, green: 0.43, blue: 0.36), Color(red: 0.16, green: 0.35, blue: 0.52)]
         return LinearGradient(colors: stops, startPoint: .topLeading, endPoint: .bottomTrailing)
     }
+}
 
-    /// All-time fees over the current value, as on a single wallet's summary. Nil while the
-    /// claimed history is incomplete, since a partial total would show the pool too low.
-    private var poolLevel: Double? {
-        guard let summary = overview.feeSummary, !summary.isSyncing else { return nil }
-        return summary.returnOnAssets
-    }
+private struct AllWalletsMetric: View {
+    let title: String
+    let value: String
+    let explanation: String
+    @Environment(\.colorScheme) private var scheme
+    @State private var showingExplanation = false
 
-    private var countsLabel: String {
-        let positions = overview.positionCount
-        let chains = overview.chainCount
-        return "\(positions) position\(positions == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")"
-    }
-
-    private var feesHelp: String {
-        """
-        Current fees are waiting to be collected. Claimed fees come from the v3 Collect history, \
-        valued at current prices; v4 claimed fees are not tracked. The card fills to the share of \
-        the total value already earned back in fees.
-        """
-    }
-
-    private func stat(_ label: String, _ value: String, eyes: Bool = false, alignment: HorizontalAlignment = .leading) -> some View {
-        VStack(alignment: alignment, spacing: 2) {
-            HStack(spacing: 5) {
-                if eyes { PoolEyes() }
-                Text(label)
+    var body: some View {
+        Button { showingExplanation.toggle() } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 3) {
+                    Text(title)
+                    Image(systemName: "info.circle").imageScale(.small)
+                }
+                .font(.caption2).foregroundStyle(.white.opacity(0.85))
+                Text(value).font(PoolTypography.amount(17, relativeTo: .callout))
             }
-            .font(.caption)
-            .foregroundStyle(.white.opacity(0.85))
-            Text(value)
-                .font(.callout.weight(.semibold).monospacedDigit())
-                .fontDesign(.rounded)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .lineLimit(1)
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(value)")
+        .accessibilityHint("Show explanation")
+        .popover(isPresented: $showingExplanation) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title).font(PoolTypography.heading(16))
+                Text(explanation).font(.callout)
+            }
+            .padding(16).frame(idealWidth: 280, maxWidth: 320, alignment: .leading)
+            .foregroundStyle(GraphitePalette.current(scheme).primaryText)
+            .background(GraphitePalette.current(scheme).card)
+            .presentationCompactAdaptation(.popover)
+        }
     }
 }
 
@@ -137,6 +162,7 @@ struct WalletShareBar: View {
     @Binding var highlighted: String?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var tipSize: CGSize = .zero
 
     private static let gap: CGFloat = 2
@@ -180,7 +206,7 @@ struct WalletShareBar: View {
                         .allowsHitTesting(false)
                 }
             }
-            .animation(.easeOut(duration: 0.15), value: highlighted)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: highlighted)
         }
         .frame(height: 14)
         .zIndex(1)
@@ -247,6 +273,7 @@ public struct WalletGroupList: View {
         self.actions = actions
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
     public var body: some View {
@@ -266,7 +293,6 @@ public struct WalletGroupList: View {
                 WalletGroup(
                     entry: entry,
                     isHighlighted: highlighted == entry.id,
-                    isDimmed: highlighted != nil && highlighted != entry.id,
                     actions: actions
                 )
                 .onHover { inside in
@@ -278,134 +304,166 @@ public struct WalletGroupList: View {
                 }
             }
         }
-        .animation(.easeOut(duration: 0.15), value: highlighted)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: highlighted)
     }
 }
 
-/// One wallet: a header with its totals above a block of its positions.
+/// Wallet totals stay visible; positions disclose in place without changing the selected wallet.
 struct WalletGroup: View {
     let entry: WalletOverview.Entry
     let isHighlighted: Bool
-    let isDimmed: Bool
     let actions: WalletOverviewActions
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @State private var positionsExpanded = false
 
     var body: some View {
         let palette = GraphitePalette.current(colorScheme)
         let color = palette.walletColor(entry.colorIndex)
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
             header(palette, color: color)
-            VStack(spacing: 0) {
-                rows(palette)
-                footer(palette)
+            if let positions = entry.positions {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) { walletFees(palette); Spacer(minLength: 0); walletStatus(positions, palette: palette) }
+                    VStack(alignment: .leading, spacing: 8) { walletFees(palette); walletStatus(positions, palette: palette) }
+                }
+                if positions.contains(where: { $0.error != nil }) {
+                    Label("Position read errors", systemImage: "exclamationmark.circle")
+                        .font(.caption).foregroundStyle(palette.outOfRange.tint)
+                }
+                Rectangle().fill(palette.hairline).frame(height: 1)
+                if !positions.isEmpty {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { positionsExpanded.toggle() }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text("\(positionsExpanded ? "Hide" : "View") \(positions.count) position\(positions.count == 1 ? "" : "s")")
+                            Spacer()
+                            Image(systemName: positionsExpanded ? "chevron.up" : "chevron.down").imageScale(.small)
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.primaryText)
+                        #if os(iOS)
+                        .frame(minHeight: 44)
+                        #else
+                        .frame(minHeight: 32)
+                        #endif
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(positionsExpanded ? "Expanded" : "Collapsed")
+                    if positionsExpanded {
+                        VStack(spacing: 0) {
+                            ForEach(positions) { position in
+                                CompactPositionRow(
+                                    position: position,
+                                    onOpen: actions.open.map { open in { open(position) } },
+                                    onHide: actions.hide.map { hide in { hide(position) } }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text("No active positions").font(.caption).foregroundStyle(palette.secondaryText)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.mini)
+                    Text("Loading positions…").font(.caption).foregroundStyle(palette.secondaryText)
+                }
             }
-            .padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(palette.card))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(isHighlighted ? color : palette.cardLine, lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(isHighlighted && colorScheme == .light ? 0.08 : 0), radius: 8, y: 3)
         }
-        .opacity(isDimmed ? 0.55 : 1)
+        .padding(16)
+        .background(palette.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(isHighlighted ? color : palette.cardLine, lineWidth: 1))
+        .shadow(color: color.opacity(isHighlighted && colorScheme == .light ? 0.1 : 0), radius: 8, y: 3)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(entry.wallet.displayName)
     }
 
-    private func header(_ palette: GraphitePalette, color: Color) -> some View {
-        Button { actions.openWallet(entry.wallet) } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Capsule()
-                    .fill(color)
-                    .frame(width: 3, height: 13)
-                    .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
-                Text(entry.wallet.displayName)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(palette.primaryText)
-                if entry.wallet.name != nil {
-                    Text(WalletAddress.short(entry.wallet.address))
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(palette.secondaryText)
-                }
-                Spacer(minLength: 8)
-                if entry.positions != nil {
-                    Text("+\(formatUSD(entry.unclaimedFeesUSD))")
-                        .font(.caption.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(palette.fees)
-                    Text(formatUSD(entry.valueUSD))
-                        .font(.callout.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(palette.primaryText)
-                }
-            }
-            .lineLimit(1)
-            .padding(.horizontal, 4)
-            .contentShape(Rectangle())
+    private func walletFees(_ palette: GraphitePalette) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Unclaimed fees").font(.caption2).foregroundStyle(palette.secondaryText)
+            Text(formatUSD(entry.unclaimedFeesUSD))
+                .font(PoolTypography.amount(17, relativeTo: .callout)).foregroundStyle(palette.fees)
         }
-        .buttonStyle(.plain)
-        .help("Open \(entry.wallet.displayName)")
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     @ViewBuilder
-    private func rows(_ palette: GraphitePalette) -> some View {
-        if let positions = entry.positions {
-            if positions.isEmpty {
-                Text("No active positions")
-                    .font(.caption)
-                    .foregroundStyle(palette.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 10)
+    private func walletStatus(_ positions: [Position], palette: GraphitePalette) -> some View {
+        if entry.attentionCount > 0 {
+            Label("\(entry.attentionCount) need\(entry.attentionCount == 1 ? "s" : "") attention", systemImage: "circle.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.outOfRange.tint)
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .background(palette.outOfRange.background, in: Capsule())
+                .fixedSize(horizontal: true, vertical: false)
+        } else if !positions.isEmpty && !positions.contains(where: { $0.error != nil }) {
+            Text("All in range").font(.caption2).foregroundStyle(palette.secondaryText)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private func header(_ palette: GraphitePalette, color: Color) -> some View {
+        Button { actions.openWallet(entry.wallet) } label: {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
+                    identity(palette, color: color)
+                    walletValue(palette)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                ForEach(positions) { position in
-                    CompactPositionRow(
-                        position: position,
-                        onOpen: actions.open.map { open in { open(position) } },
-                        onHide: actions.hide.map { hide in { hide(position) } }
-                    )
-                    .overlay(alignment: .bottom) {
-                        Rectangle().fill(palette.hairline).frame(height: 1)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 10) {
+                        identity(palette, color: color)
+                        Spacer(minLength: 4)
+                        walletValue(palette)
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        identity(palette, color: color)
+                        walletValue(palette)
                     }
                 }
             }
-        } else {
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.mini)
-                Text("Loading positions…")
-            }
-            .font(.caption)
-            .foregroundStyle(palette.secondaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
         }
+        .buttonStyle(.plain)
+        .accessibilityHint("Open wallet")
+        .help("Open \(entry.wallet.displayName) · \(WalletAddress.short(entry.wallet.address))")
     }
 
-    private func footer(_ palette: GraphitePalette) -> some View {
-        HStack(spacing: 8) {
-            Text(statusLabel)
-                .font(.caption.weight(entry.attentionCount > 0 ? .semibold : .regular))
-                .foregroundStyle(entry.attentionCount > 0 ? palette.outOfRange.tint : palette.secondaryText)
-            Spacer(minLength: 8)
-            Button { actions.openWallet(entry.wallet) } label: {
-                HStack(spacing: 3) {
-                    Text("Open wallet")
-                    Image(systemName: "chevron.right").imageScale(.small)
+    private func identity(_ palette: GraphitePalette, color: Color) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            RoundedRectangle(cornerRadius: 5).fill(color.opacity(0.12))
+                .frame(width: 28, height: 28)
+                .overlay(Capsule().fill(color).frame(width: 5, height: 14))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(entry.wallet.displayName).font(PoolTypography.heading(16)).foregroundStyle(palette.primaryText)
+                if let positions = entry.positions {
+                    let chains = Set(positions.map(\.chainID)).count
+                    Text("\(positions.count) position\(positions.count == 1 ? "" : "s") · \(chains) chain\(chains == 1 ? "" : "s")")
+                        .font(.caption2).foregroundStyle(palette.secondaryText)
                 }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(palette.primaryText)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var statusLabel: String {
-        guard let positions = entry.positions, !positions.isEmpty else { return "" }
-        if entry.attentionCount > 0 {
-            return entry.attentionCount == 1 ? "1 needs attention" : "\(entry.attentionCount) need attention"
+    private func walletValue(_ palette: GraphitePalette) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if entry.positions != nil {
+                Text(formatUSD(entry.valueUSD)).font(PoolTypography.amount(20, relativeTo: .title3))
+                    .foregroundStyle(palette.primaryText).lineLimit(1).minimumScaleFactor(0.7)
+            }
+            Image(systemName: "arrow.up.right").font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.secondaryText).accessibilityHidden(true)
         }
-        let count = positions.count
-        return "\(count) position\(count == 1 ? "" : "s") · all in range"
+        .fixedSize(horizontal: false, vertical: true)
+        .contentShape(Rectangle())
     }
 }
 
