@@ -85,6 +85,16 @@ public enum MenuBarTitle {
 }
 
 extension Position {
+    var unclaimedCardLabel: String? {
+        guard feesError == nil else { return nil }
+        if fees0 == 0, fees1 == 0, usd == nil || usd == 0 { return "No unclaimed fees" }
+        if let usd {
+            if usd >= 0, usd < 0.01 { return "<$0.01 fees" }
+            return "+\(formatUSD(usd)) fees"
+        }
+        return feesLabel
+    }
+
     /// Completed v3 history with no Collect events is a known zero, even without token prices.
     var claimedCardLabel: String? {
         if let claimedUSD { return formatUSD(claimedUSD) }

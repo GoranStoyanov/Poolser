@@ -137,19 +137,16 @@ public struct GraphitePositionCard: View {
 
     @ViewBuilder
     private var feesLabel: some View {
-        if let usd = position.feesUSDLabel {
-            Text("+\(usd) fees")
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(palette.fees)
+        if let label = position.unclaimedCardLabel {
+            let hasPricedFees = (position.usd ?? 0) > 0
+            Text(label)
+                .font(.caption.weight(hasPricedFees ? .semibold : .regular).monospacedDigit())
+                .foregroundStyle(hasPricedFees ? palette.fees : palette.secondaryText)
         } else if let error = position.feesError {
             Text("fees –")
                 .font(.caption)
                 .foregroundStyle(palette.secondaryText)
                 .help(error)
-        } else {
-            Text(position.feesLabel)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(palette.secondaryText)
         }
     }
 

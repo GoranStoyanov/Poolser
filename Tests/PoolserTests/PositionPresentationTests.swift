@@ -140,6 +140,42 @@ struct MenuBarTitleTests {
     }
 }
 
+@Suite("Unclaimed fees on cards")
+struct UnclaimedCardLabelTests {
+    @Test func zeroBalanceUsesAnExplicitMessageWithOrWithoutPrices() {
+        var position = makePosition()
+        #expect(position.unclaimedCardLabel == "No unclaimed fees")
+        position.usd = 0
+        #expect(position.unclaimedCardLabel == "No unclaimed fees")
+    }
+
+    @Test(arguments: [0.0, 0.0001, 0.004, 0.009])
+    func dustIsNotPresentedAsAnEmptyBalance(usd: Double) {
+        var position = makePosition()
+        position.fees0 = 0.000001
+        position.usd = usd
+        #expect(position.unclaimedCardLabel == "<$0.01 fees")
+    }
+
+    @Test func pricedAndUnpricedAmountsArePreserved() {
+        var position = makePosition()
+        position.fees0 = 1.25
+        #expect(position.unclaimedCardLabel == "1.25 WBTC")
+        position.usd = 0.01
+        #expect(position.unclaimedCardLabel == "+$0.01 fees")
+        position.usd = 12.34
+        #expect(position.unclaimedCardLabel == "+$12.34 fees")
+    }
+
+    @Test func failedReadsAreNotTreatedAsZeroEvenWithAnOldUSDValue() {
+        var position = makePosition()
+        position.feesError = "timeout"
+        #expect(position.unclaimedCardLabel == nil)
+        position.usd = 12.34
+        #expect(position.unclaimedCardLabel == nil)
+    }
+}
+
 @Suite("Claimed fees on cards")
 struct ClaimedCardLabelTests {
     @Test func completedZeroIsDistinctFromUnknownAndSyncing() {
