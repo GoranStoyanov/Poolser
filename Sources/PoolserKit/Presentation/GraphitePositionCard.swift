@@ -40,7 +40,6 @@ public struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
-                dailyFees
                 footer
             }
             .padding(16)
@@ -218,25 +217,38 @@ public struct GraphitePositionCard: View {
     }
 
     private var earnings: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) { earningsMetrics }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) { earningsMetrics }
+                        .fixedSize(horizontal: true, vertical: false)
+                    VStack(alignment: .leading, spacing: 10) { earningsMetrics }
+                }
+            }
+        }
+    }
+
+    private var earningsMetrics: some View {
         let claimed = position.claimedCardLabel
         let syncing = position.feeHistoryBootstrapping
         let apr = syncing ? nil : position.realizedAPR()
-        return layout {
+        return Group {
             PositionMetric(title: syncing ? "Claimed · syncing" : "Claimed", value: claimed ?? (syncing ? "Syncing…" : "–"),
                            explanation: claimedHelp)
             PositionMetric(title: "APR since open", value: apr.map { formatPercent($0) } ?? "–",
                            explanation: realizedReturnHelp, tint: apr == nil ? palette.secondaryText : palette.fees)
+            dailyFees
         }
     }
 
     @ViewBuilder
     private var dailyFees: some View {
         if let values = recentDailyFees, !values.isEmpty {
-            HStack(spacing: 16) {
+            HStack(alignment: .bottom, spacing: 6) {
                 PositionMetric(title: "Daily fees", value: "\(values.count) days",
                                explanation: "Fees earned per day, oldest first; the rightmost bar is today. Today \(formatUSD(values.last ?? 0)) · best day \(formatUSD(values.max() ?? 0)).")
-                Spacer(minLength: 0)
                 MiniFeeBars(values: values, today: palette.barToday, earlier: palette.bar)
             }
         }
