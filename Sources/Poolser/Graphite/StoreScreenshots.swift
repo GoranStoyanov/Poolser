@@ -171,7 +171,9 @@ enum StoreScreenshots {
             claimedUSD: 3_410, openedDaysAgo: 251
         )
         return VStack(spacing: 12) {
-            GraphitePositionCard(position: DemoWallet.positions[0], onCollect: {})
+            GraphitePositionCard(position: DemoWallet.positions[0],
+                                 recentDailyFees: DemoWallet.snapshot.positionDailyFeesUSD[DemoWallet.positions[0].id],
+                                 onCollect: {})
             GraphitePositionCard(position: smallPrice)
         }
         .padding(12)

@@ -40,6 +40,7 @@ public struct GraphitePositionCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 header(info)
                 rangeSection(info, colors: colors)
+                dailyFees
                 footer
             }
             .padding(16)
@@ -51,7 +52,7 @@ public struct GraphitePositionCard: View {
             .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .onTapGesture { showingDetails = true }
             .popover(isPresented: $showingDetails) {
-                PositionDetailsView(position: position, recentDailyFees: recentDailyFees, onOpen: onOpen) { showingDetails = false }
+                PositionDetailsView(position: position, onOpen: onOpen) { showingDetails = false }
             }
             .contextMenu { cardMenu }
             .accessibilityElement(children: .contain)
@@ -232,6 +233,18 @@ public struct GraphitePositionCard: View {
         }
     }
 
+    @ViewBuilder
+    private var dailyFees: some View {
+        if let values = recentDailyFees, !values.isEmpty {
+            HStack(spacing: 16) {
+                PositionMetric(title: "Daily fees", value: "\(values.count) days",
+                               explanation: "Fees earned per day, oldest first; the rightmost bar is today. Today \(formatUSD(values.last ?? 0)) · best day \(formatUSD(values.max() ?? 0)).")
+                Spacer(minLength: 0)
+                MiniFeeBars(values: values, today: palette.barToday, earlier: palette.bar)
+            }
+        }
+    }
+
     private var footer: some View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
@@ -267,7 +280,7 @@ public struct GraphitePositionCard: View {
                 .buttonStyle(.plain)
                 .font(.caption)
                 .foregroundStyle(palette.secondaryText)
-                .help("Holdings, opening date, fee history and pool statistics")
+                .help("Holdings, opening date and pool statistics")
             if let onCollect {
                 Button("Collect", action: onCollect)
                     .buttonStyle(GraphiteStrongButtonStyle())

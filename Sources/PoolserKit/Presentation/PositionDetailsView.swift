@@ -3,7 +3,6 @@ import SwiftUI
 /// Supplementary position data; prices, status and fee returns stay on the main card.
 struct PositionDetailsView: View {
     let position: Position
-    let recentDailyFees: [Double]?
     let onOpen: (() -> Void)?
     let onDone: () -> Void
     @Environment(\.colorScheme) private var scheme
@@ -58,14 +57,6 @@ struct PositionDetailsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Pool · last 24h").font(.caption).foregroundStyle(palette.secondaryText)
                     poolStats
-                }
-            }
-            if let values = recentDailyFees, !values.isEmpty {
-                HStack(spacing: 16) {
-                    PositionMetric(title: "Daily fees", value: "\(values.count) days",
-                                   explanation: "Fees earned per day, oldest first; the rightmost bar is today. Today \(formatUSD(values.last ?? 0)) · best day \(formatUSD(values.max() ?? 0)).")
-                    Spacer(minLength: 0)
-                    MiniFeeBars(values: values, today: palette.barToday, earlier: palette.bar)
                 }
             }
             if let onOpen {
