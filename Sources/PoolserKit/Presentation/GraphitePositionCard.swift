@@ -50,9 +50,15 @@ public struct GraphitePositionCard: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .onTapGesture { showingDetails = true }
+#if os(iOS)
+            .sheet(isPresented: $showingDetails) {
+                PositionDetailsView(position: position, onOpen: onOpen) { showingDetails = false }
+            }
+#else
             .popover(isPresented: $showingDetails) {
                 PositionDetailsView(position: position, onOpen: onOpen) { showingDetails = false }
             }
+#endif
             .contextMenu { cardMenu }
             .accessibilityElement(children: .contain)
             .accessibilityAction(named: "Open in Uniswap") { onOpen?() }

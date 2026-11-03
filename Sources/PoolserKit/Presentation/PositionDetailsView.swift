@@ -10,24 +10,50 @@ struct PositionDetailsView: View {
     private var palette: GraphitePalette { .current(scheme) }
 
     var body: some View {
+#if os(iOS)
+        NavigationStack {
+            fittedContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(palette.card)
+                .foregroundStyle(palette.primaryText)
+                .navigationTitle("Position details")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done", action: onDone)
+                    }
+                }
+        }
+        .tint(palette.fees)
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.medium, .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(palette.card)
+#else
+        fittedContent
+            .frame(idealWidth: 320, maxWidth: 360, maxHeight: 520)
+            .background(palette.card)
+            .foregroundStyle(palette.primaryText)
+#endif
+    }
+
+    private var fittedContent: some View {
         ViewThatFits(in: .vertical) {
             content.fixedSize(horizontal: false, vertical: true)
             // Keep every detail reachable when large text or a short screen cannot fit it.
             ScrollView { content }
         }
-        .frame(idealWidth: 320, maxWidth: 360, maxHeight: 520)
-        .background(palette.card)
-        .foregroundStyle(palette.primaryText)
     }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
+#if !os(iOS)
             HStack {
                 Text("Position details").font(PoolTypography.heading(16))
                 Spacer(minLength: 8)
                 Button("Done", action: onDone)
                     .buttonStyle(.plain).foregroundStyle(palette.fees)
             }
+#endif
             VStack(alignment: .leading, spacing: 6) {
                 Text("Assets").font(.caption).foregroundStyle(palette.secondaryText)
                 if position.poolStateError == nil {

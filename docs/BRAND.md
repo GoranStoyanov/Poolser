@@ -31,7 +31,7 @@ Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline s
 
 Always show unclaimed fees, portfolio value, today's fees once in the blue chart badge labelled Today when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Do not repeat position and chain counts beneath Total value; the position list provides that context. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
 
-Position cards use Range + Return (Диапазон + доходност): pair, chain/version/fee tier, value and unclaimed fees in the header; a labelled price range with a blue current-price badge and marker; Min/Max prices; a quiet footer with claimed fees, realized APR since opening and Daily fees with period and mini bars on the same row. Range status sits beside the range heading, and out-of-range distance stays visible with a directional arrow. Holdings, opening date, position ID, the position's pool level and pool statistics stay in the keyboard-accessible Details popup on macOS and iOS. Opening Uniswap remains a separate explicit action. Do not hide error or collection status inside hover content.
+Position cards use Range + Return (Диапазон + доходност): pair, chain/version/fee tier, value and unclaimed fees in the header; a labelled price range with a blue current-price badge and marker; Min/Max prices; a quiet footer with claimed fees, realized APR since opening and Daily fees with period and mini bars on the same row. Range status sits beside the range heading, and out-of-range distance stays visible with a directional arrow. Holdings, opening date, position ID, the position's pool level and pool statistics stay in Details: a keyboard-accessible popover on macOS and a native sheet on iOS. Opening Uniswap remains a separate explicit action. Do not hide error or collection status inside hover content.
 
 Daily bars reveal their date and amount on hover or tap; keyboard and screen-reader users can activate each bar for the same information. Show average daily earnings in the chart context rather than repeating it across the summary. Explain pool return and APR alongside those metrics; do not imply projected yield is realized return.
 
@@ -42,7 +42,7 @@ Preserve the existing fee pool pouring and settling on opening. The Soft Crest w
 ## Platforms
 
 - macOS: compact 420-point popover, bar chart above positions, hover detail with an explicit keyboard alternative.
-- iOS: same hierarchy and shared cards, scrollable at accessibility sizes; tap for details instead of hover. Preserve wallet swiping and pull to refresh. Do not add empty Activity or Wallets tabs just to match a concept image.
+- iOS: same hierarchy and shared cards, scrollable at accessibility sizes. Tapping a card or its Details control opens a native bottom sheet with a system navigation title, Done button and drag indicator. Start at medium height, allow expansion to large and swipe down to dismiss; use only large at accessibility text sizes. Details uses the available sheet width and height, without the Mac popover's 360-point width or 520-point height cap. Preserve wallet swiping and pull to refresh. Do not add empty Activity or Wallets tabs just to match a concept image.
 - Small widget: unclaimed fees, today when known, range attention and last update. Keep critical text clear of the ribbon.
 - Medium widget: fees and daily bars, portfolio value, attention and last update. If no history exists, show position context instead. Widgets read existing snapshots with up to 14 days of history; no network work or decorative animation.
 - All Wallets: preserve wallet allocation and grouped positions; use the same palette, type and brand accent.
@@ -79,9 +79,9 @@ Reference captures from the implemented shared cards: [light](screenshots/redesi
 
 Details is a compact supplementary panel: holdings, position ID, opening date, position pool level and pool statistics. Do not repeat the pair heading, chain/version/fee tier, range status, prices, position value, unclaimed fees, claimed amount, realized APR or daily fee history from the main card. Use a generic Position details heading; token symbols remain as units beside holdings. Show detailed read errors when present.
 
-Let the popup fit its content instead of reserving a fixed 400-point height. Ordinary text and data fit without a scroll container. Keep explanations for pool yield and pool level behind accessible info controls rather than permanent paragraphs. Retain a scrolling fallback only when large accessibility text, long error messages or a short screen cannot fit the content within 520 points; never crop data or actions to remove scrolling. Keep Open in Uniswap as a separate action.
+On macOS, let the popover fit its content instead of reserving a fixed 400-point height. On iOS, align the content to the top of the native sheet below its navigation bar. Ordinary text and data fit without a scroll container. Keep explanations for pool yield and pool level behind accessible info controls rather than permanent paragraphs. Retain a scrolling fallback when large accessibility text, long error messages or a short screen cannot fit the content in the available space (up to 520 points on Mac); never crop data or actions to remove scrolling. Keep Open in Uniswap as a separate action.
 
-Compact Details references: [light](screenshots/redesign/position-details-light.png), [dark](screenshots/redesign/position-details-dark.png).
+Compact macOS Details references: [light](screenshots/redesign/position-details-light.png), [dark](screenshots/redesign/position-details-dark.png).
 
 The all-wallets summary uses a deeper jade-to-petrol gradient for white-text contrast and retains its allocation bar and grouped positions. The mobile app keeps its existing wallet navigation; the concept's extra bottom tabs are not part of this implementation.
 
