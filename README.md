@@ -2,13 +2,17 @@
 
 Visual identity and interface guidance: [brand reference](docs/BRAND.md).
 
-Your Uniswap v3 and v4 positions in the macOS menu bar.
+Your Uniswap v3 and v4 positions in the macOS menu bar and on iPhone and iPad.
 
-Poolser shows your total value and unclaimed fees at a glance, flags the ranges that need attention, and lets you collect fees with your browser wallet. It reads everything straight from the chain through your own Infura key: no account, no indexer, no tracking.
+Poolser shows your total value and unclaimed fees at a glance and flags ranges that need attention. On Mac, it also lets you collect fees with your browser wallet. It reads everything straight from the chain through your own Infura key: no account, no indexer, no tracking.
 
 [Download on the Mac App Store](https://apps.apple.com/app/poolser/id6762252798)
 
+The iPhone and iPad app is being prepared for its first App Store release. It shows your portfolio and widgets; fee collection is available on Mac.
+
 <img src="docs/screenshots/appstore/1-menu-bar.jpg" width="720" alt="Poolser in the macOS menu bar with its positions open">
+
+<img src="docs/screenshots/ios/iphone/1-all-wallets.png" width="260" alt="Poolser showing combined wallet value and fees on iPhone">
 
 > **Disclaimer:** This is an independent hobby project with no affiliation, association, or connection to Uniswap Labs or the Uniswap Protocol. "Uniswap" is a trademark of Uniswap Labs.
 
@@ -18,9 +22,10 @@ Poolser shows your total value and unclaimed fees at a glance, flags the ranges 
 
 ### At a glance
 
-- Total value and unclaimed fees in the menu bar (`$8.64k │ $63.93`), refreshed every 10 minutes by default and on demand
+- Total value and unclaimed fees in the Mac menu bar (`$8.64k │ $63.93`), refreshed every 10 minutes by default and on demand
 - The last successful portfolio remains visible during an outage, including after restarting offline; Poolser refreshes when the connection returns
 - A summary card with unclaimed fees, total value, today's fees and all-time fees
+- Save multiple named wallets, swipe between them, or see their combined value and fees on the All Wallets page; hide positions you do not want counted
 - A daily fee chart for the last 7, 14 or 30 days. For v3 positions it is read from on-chain history, so it is full from the first launch; v4 positions are recorded from each refresh
 - Claimed fees, the share of value earned back in fees ("pool level") and APR since you opened each position
 
@@ -28,14 +33,15 @@ Poolser shows your total value and unclaimed fees at a glance, flags the ranges 
 
 - A range gauge with the current price and Min and Max shown as prices, not ticks
 - Status: in range, near the edge (within 3% of a bound), out of range (with how far the price has moved) or full range
-- Current token amounts, position ID, pool volume, TVL and 24h yield
 - Token logos (DefiLlama) and chain badges (CoinGecko), cached locally
 - A 7-day fee bar chart per position
+- Open Details for token amounts, position ID, opening date, pool volume, TVL and 24h yield
 - Filter by chain, by version or by positions that need attention; sort by value, unclaimed fees, 24h yield or pair
-- Right-click to open the position on app.uniswap.org or copy its position ID or pool
+- On Mac, right-click to open the position on app.uniswap.org or copy its position ID or pool
 
 ### Collect fees
 
+- Available in the macOS app; the iPhone and iPad app is for monitoring
 - Collect one position, or every position on a chain at once (one transaction per Uniswap version, batched when the wallet supports EIP-5792)
 - Poolser dry-runs the transaction, then opens a local page in your default browser that hands it to your wallet extension (MetaMask, Rabby and others) to confirm and sign
 - Poolser never sees your keys and never signs anything; see [PRIVACY.md](PRIVACY.md)
@@ -51,6 +57,7 @@ All networks go through Infura endpoints derived from one API key. Networks your
 
 ### Optional
 
+- **Widgets:** small and medium portfolio widgets on Mac, iPhone and iPad; choose all wallets or one wallet for each widget
 - **Range change notifications:** a macOS notification when a position moves in or out of range (*Settings → Range Change Notifications*, off by default)
 - **Claimed fee history:** scans on-chain `Collect` events for each v3 position (*Settings → Track Claimed Fees*, off by default). It makes many `eth_getLogs` requests and can be request-heavy on fast-block chains like Base or Arbitrum; results are cached and only new blocks are scanned afterwards
 - **Flash on value change:** the menu bar title blinks with 🔼 or 🔽 when unclaimed fees change after a refresh
@@ -66,17 +73,23 @@ All networks go through Infura endpoints derived from one API key. Networks your
 
 ## Screenshots
 
+### iPhone and iPad
+
+<img src="docs/screenshots/ios/iphone/1-all-wallets.png" width="250" alt="All Wallets overview on iPhone"> <img src="docs/screenshots/ios/iphone/2-position-cards.png" width="250" alt="Position cards on iPhone"> <img src="docs/screenshots/ios/iphone/3-range-attention-dark.png" width="250" alt="Out-of-range position on iPhone in dark mode">
+
+The [App Store preparation](docs/app-store.md) also includes native 13-inch iPad captures. These are simulator screenshots with fictional wallet data.
+
+### Mac
+
 <img src="docs/screenshots/popover-light.png" width="380" alt="Poolser popover in light mode"> <img src="docs/screenshots/popover-dark.png" width="380" alt="Poolser popover in dark mode">
+
+<img src="docs/screenshots/redesign/all-wallets-light.png" width="380" alt="Combined wallet portfolio on Mac"> <img src="docs/screenshots/redesign/widget-medium-light.png" width="360" alt="Medium portfolio widget preview">
 
 <img src="docs/screenshots/appstore/3-ranges.jpg" width="720" alt="Position cards near the edge and out of range">
 
 <img src="docs/screenshots/appstore/4-collect.jpg" width="720" alt="Collecting fees with a browser wallet">
 
-Settings and logs:
-
-<img src="docs/screenshots/settings.png" width="380" alt="Poolser settings"> <img src="docs/screenshots/logs.png" width="380" alt="Poolser logs">
-
-The App Store screenshots and the popover images are rendered from the app's own views with a demo wallet. To make them again after a UI change:
+The Mac App Store screenshots, popover images and widget previews are rendered from the app's own views with a demo wallet. To make them again after a UI change:
 
 ```bash
 POOLSER_SCREENSHOTS=docs/screenshots swift run
@@ -86,13 +99,13 @@ The debug build writes the images and quits. Captions live in `Sources/Poolser/G
 
 ## Requirements
 
-- macOS 14 (Sonoma) or later
+- macOS 14 (Sonoma) or later for Mac; iOS or iPadOS 17 or later for mobile
 - An [Infura](https://infura.io) API key
 - One or more wallet addresses that hold Uniswap v3 or v4 positions
 
 ## Building
 
-The project uses Swift Package Manager with no external dependencies.
+The shared code uses Swift Package Manager with no external dependencies. These commands build and run the Mac app:
 
 ```bash
 git clone https://github.com/GoranStoyanov/Poolser.git
@@ -112,10 +125,10 @@ To run the unit tests:
 swift test
 ```
 
-To open in Xcode:
+To build the signed Mac and iPhone/iPad apps with their widgets, open the Xcode project and choose the `Poolser` or `PoolserIOS` scheme:
 
 ```bash
-open Package.swift
+open Poolser/Poolser.xcodeproj
 ```
 
 ## Pre-Commit Secret Scan (gitleaks)

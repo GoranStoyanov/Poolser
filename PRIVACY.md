@@ -1,12 +1,12 @@
 # Privacy Policy
 
-**Poolser** is a macOS menu bar app for monitoring Uniswap v3 and v4 liquidity positions.
+**Poolser** monitors Uniswap v3 and v4 liquidity positions on Mac, iPhone and iPad. Fee collection is available on Mac only.
 
-_Last updated: October 26, 2026_
+_Last updated: November 3, 2026_
 
 ## Data Collection
 
-Poolser does not collect, store, or transmit any personal data. No analytics, no tracking, no user accounts.
+Poolser's developer does not receive your wallet addresses, API key or portfolio data. There are no user accounts, analytics or tracking. To display positions, the app sends public wallet addresses and chain queries to Infura and requests price, icon and pool information from the services below.
 
 ## What Leaves Your Device
 
@@ -17,11 +17,11 @@ Poolser communicates only with the following external services to function:
 - **DefiLlama** (`coins.llama.fi`, `token-icons.llamao.fi`) — token USD prices as a fallback, and token logo images (looked up by chain and token contract address).
 - **GeckoTerminal** (`api.geckoterminal.com`) — pool volume, TVL, and yield data.
 
-All requests are read-only. No data is submitted to or stored by Poolser's developers.
+The iPhone and iPad app only reads portfolio data. No data is submitted to or stored by Poolser's developers.
 
 ## Collecting Fees
 
-When you click **Collect** on a position, Poolser:
+When you click **Collect** on a position in the Mac app, Poolser:
 
 1. Runs the collect as a dry run (`eth_call`) through Infura, to check it would succeed.
 2. Starts a temporary web server on `127.0.0.1`, reachable only from your Mac, and opens its page in your default browser.
@@ -33,7 +33,7 @@ Poolser never sees or stores your private keys and does not sign anything. The t
 
 ## Local Storage
 
-Your saved wallet addresses and the names you give them, the active address, app settings, the daily fee history behind the fee charts and cached chain data are stored locally in macOS `UserDefaults`. Your Infura API key is stored in the macOS Keychain. The widgets read a summary of your positions and the names of your saved wallets from a container the app shares with them on the same device. Token logos and chain icons are cached in the app's Application Support folder. This data never leaves your device except as part of the RPC and pricing requests described above.
+Your saved wallet addresses and names, active address, app settings, daily fee history and cached chain data are stored locally in `UserDefaults` on the device. Your Infura API key is stored in that device's Keychain. Widgets read a summary of your positions and saved wallet names from a container shared with the app on the same device. Token logos and chain icons are cached locally. This data leaves your device only as needed for the RPC and pricing requests described above.
 
 ## Contact
 

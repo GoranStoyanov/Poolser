@@ -1,6 +1,6 @@
 # Poolser brand reference
 
-Status: redesign branch, 3 November 2026. Update this document whenever a visual or interaction decision changes. It describes the product implementation, not just concept images.
+Status: current implementation, 3 November 2026. Update this document whenever a visual or interaction decision changes. It describes the product implementation, not just concept images.
 
 ## Character
 
@@ -42,7 +42,7 @@ Preserve the existing fee pool pouring and settling on opening. The Soft Crest w
 ## Platforms
 
 - macOS: compact 420-point popover, bar chart above positions, hover detail with an explicit keyboard alternative.
-- iOS: same hierarchy and shared cards, scrollable at accessibility sizes. Tapping a card or its Details control opens a native bottom sheet with a system navigation title, Done button and drag indicator. Start at 70% height to fit the larger mobile content, allow expansion to large and swipe down to dismiss; use only large at accessibility text sizes. Details uses the available sheet width and height, without the Mac popover's 360-point width or 520-point height cap. Preserve wallet swiping and pull to refresh. Do not add empty Activity or Wallets tabs just to match a concept image.
+- iOS: same hierarchy and shared cards, scrollable at accessibility sizes. Tapping a card or its Details control opens a native bottom sheet with a system navigation title, Done button and drag indicator. Start at 70% height to fit the larger mobile content, allow expansion to large and swipe down to dismiss; use only large at accessibility text sizes. Details uses the available sheet width and height, without the Mac popover's 360-point width or 520-point height cap. Preserve wallet swiping and pull to refresh. iPhone stays portrait; iPad supports every orientation and resizable windows. Do not add empty Activity or Wallets tabs just to match a concept image.
 - Small widget: unclaimed fees, today when known, range attention and last update. Keep critical text clear of the ribbon.
 - Medium widget: fees and daily bars, portfolio value, attention and last update. If no history exists, show position context instead. Widgets read existing snapshots with up to 14 days of history; no network work or decorative animation.
 - All Wallets: use a full jade-to-petrol summary surface and visible All wallets heading so the aggregate page is recognizable at a glance. Keep the shared typography, wallet colours and navigation effects; omit Pool level, fee-pool water and the single-wallet Soft Crest from this summary.

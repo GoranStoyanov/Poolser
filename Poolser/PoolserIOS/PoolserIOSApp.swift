@@ -13,8 +13,17 @@ struct PoolserIOSApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["POOLSER_SCREENSHOT_DEMO"] == "1" {
+                IOSReleasePreview()
+            } else {
+                IOSPortfolioView()
+                    .environmentObject(service)
+            }
+            #else
             IOSPortfolioView()
                 .environmentObject(service)
+            #endif
         }
     }
 }

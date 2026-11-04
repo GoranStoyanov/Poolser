@@ -143,6 +143,12 @@ enum StoreScreenshots {
                     PopoverArt(snapshot: snapshot, scale: 0.84)
                 }
             )),
+            Shot(name: "appstore/7-all-wallets.jpg", view: AnyView(
+                StoreCanvas(title: "Every wallet, one view",
+                            subtitle: "See combined value and fees, then open any wallet's positions.") {
+                    allWallets(scheme: .light)
+                }
+            )),
             Shot(name: "popover-light.png", size: nil, opaque: false, view: AnyView(
                 PopoverCutout(snapshot: snapshot)
             )),
