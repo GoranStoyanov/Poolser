@@ -160,8 +160,8 @@ enum StoreScreenshots {
 
     private static func allWallets(scheme: ColorScheme, width: CGFloat = 420) -> some View {
         let wallets = [
-            SavedWallet(address: DemoWallet.address, name: "Mine"),
-            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team")
+            SavedWallet(address: DemoWallet.address, name: "Anchor"),
+            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Tide")
         ]
         let positions = DemoWallet.positions
         let overview = WalletOverview(wallets: [(wallets[0], Array(positions.prefix(2))), (wallets[1], Array(positions.suffix(1)))], tracksClaimedFees: true)
@@ -175,8 +175,8 @@ enum StoreScreenshots {
 
     private static func walletNavigation(scheme: ColorScheme) -> some View {
         let wallets = [
-            SavedWallet(address: DemoWallet.address, name: "Mine"),
-            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team")
+            SavedWallet(address: DemoWallet.address, name: "Anchor"),
+            SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Tide")
         ]
         let single = PopoverSnapshot(
             walletAddress: wallets[0].address,

@@ -156,26 +156,26 @@ struct IOSReleasePreview: View {
     }
 
     private let wallets = [
-        SavedWallet(address: "0x7a3f9c2e81b54d06a1f3e8b2c97d40e5f1a6c41e", name: "Mine"),
-        SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Team"),
+        SavedWallet(address: "0x7a3f9c2e81b54d06a1f3e8b2c97d40e5f1a6c41e", name: "Anchor"),
+        SavedWallet(address: "0x1111111111111111111111111111111111111111", name: "Tide"),
     ]
 
     private var palette: GraphitePalette { .current(colorScheme) }
     private var positions: [Position] {
         ReleaseDemoData.positions.sorted { ($0.positionUSD ?? 0) > ($1.positionUSD ?? 0) }
     }
-    private var mine: [Position] { positions.filter { $0.chainID != "arbitrum" } }
-    private var team: [Position] { positions.filter { $0.chainID == "arbitrum" } }
+    private var anchor: [Position] { positions.filter { $0.chainID != "arbitrum" } }
+    private var tide: [Position] { positions.filter { $0.chainID == "arbitrum" } }
     private var title: String { page == 0 ? "All wallets" : wallets[page - 1].displayName }
 
     var body: some View {
         NavigationStack {
             TabView(selection: $page) {
                 ForEach(0..<3, id: \.self) { index in
-                    let shown = index == 0 ? positions : (index == 1 ? mine : team)
+                    let shown = index == 0 ? positions : (index == 1 ? anchor : tide)
                     WalletPageContent(
                         overview: index == 0 ? WalletOverview(wallets: [
-                            (wallets[0], mine), (wallets[1], team)
+                            (wallets[0], anchor), (wallets[1], tide)
                         ], tracksClaimedFees: true) : nil,
                         positions: shown, lastError: nil, lastUpdated: .now.addingTimeInterval(-90),
                         dailyFees: ReleaseDemoData.dailyFees, tracksClaimedFees: true,
