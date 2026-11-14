@@ -30,6 +30,13 @@ public struct GraphitePositionCard: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorScheme) private var colorScheme
     private var palette: GraphitePalette { .current(colorScheme) }
+    private var compact: Bool {
+        #if os(macOS)
+        !dynamicTypeSize.isAccessibilitySize
+        #else
+        false
+        #endif
+    }
 
     public var body: some View {
         if let error = position.error {
@@ -37,12 +44,12 @@ public struct GraphitePositionCard: View {
         } else {
             let info = PositionPresentation(position)
             let colors = palette.status(info.status)
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: compact ? 8 : 10) {
                 header(info)
                 rangeSection(info, colors: colors)
                 footer
             }
-            .padding(16)
+            .padding(compact ? 12 : 16)
             .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(palette.card))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -136,7 +143,14 @@ public struct GraphitePositionCard: View {
             Text(position.poolStateError == nil ? (position.positionUSDLabel ?? "–") : "–")
                 .font(PoolTypography.amount(15, relativeTo: .body))
                 .foregroundStyle(palette.primaryText)
-            feesLabel
+            if compact {
+                HStack(spacing: 6) {
+                    feesLabel
+                    collectButton
+                }
+            } else {
+                feesLabel
+            }
         }
     }
 
@@ -156,7 +170,7 @@ public struct GraphitePositionCard: View {
     }
 
     private func rangeSection(_ info: PositionPresentation, colors: GraphitePalette.StatusColors) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: compact ? 6 : 8) {
             ViewThatFits(in: .horizontal) {
                 HStack {
                     Text("Price range · \(info.quoteSymbol)")
@@ -211,7 +225,7 @@ public struct GraphitePositionCard: View {
                     .font(.caption2.weight(.semibold)).foregroundStyle(colors.tint)
             }
         }
-        .padding(.top, 6)
+        .padding(.top, compact ? 0 : 6)
     }
 
     private func priceBound(_ title: String, _ value: String) -> some View {
@@ -271,7 +285,7 @@ public struct GraphitePositionCard: View {
                         Spacer(minLength: 0)
                         cardActions.fixedSize(horizontal: true, vertical: false)
                     }
-                    if onCollect != nil {
+                    if onCollect != nil && !compact {
                         VStack(alignment: .trailing, spacing: 12) {
                             HStack(spacing: 12) {
                                 earnings.fixedSize(horizontal: true, vertical: false)
@@ -285,7 +299,7 @@ public struct GraphitePositionCard: View {
                 }
             }
         }
-        .padding(.top, 11)
+        .padding(.top, compact ? 8 : 11)
         .overlay(alignment: .top) {
             Rectangle().fill(palette.hairline).frame(height: 1)
         }
@@ -301,7 +315,9 @@ public struct GraphitePositionCard: View {
     private var cardActions: some View {
         HStack(spacing: 10) {
             detailsButton
-            collectButton
+            if !compact {
+                collectButton
+            }
         }
     }
 

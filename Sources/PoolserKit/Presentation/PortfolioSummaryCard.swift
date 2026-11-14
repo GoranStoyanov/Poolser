@@ -8,7 +8,16 @@ public struct PortfolioSummaryCard<Actions: View>: View {
     let actions: Actions
     @State private var days = 14
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var typeSize
     private var palette: GraphitePalette { .current(scheme) }
+    private var compact: Bool {
+        #if os(macOS)
+        !typeSize.isAccessibilitySize
+        #else
+        false
+        #endif
+    }
+    private var inset: CGFloat { compact ? 12 : 16 }
 
     public init(positions: [Position], dailyFees: [Double]?, feeSummary: WalletFeeSummary?,
                 @ViewBuilder actions: () -> Actions) {
@@ -19,10 +28,10 @@ public struct PortfolioSummaryCard<Actions: View>: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            PoolBrandRibbon()
-                .padding(.horizontal, -16)
-                .padding(.top, -16)
+        VStack(alignment: .leading, spacing: compact ? 8 : 12) {
+            PoolBrandRibbon(compact: compact)
+                .padding(.horizontal, -inset)
+                .padding(.top, -inset)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 16) {
                     fees
@@ -44,7 +53,7 @@ public struct PortfolioSummaryCard<Actions: View>: View {
                 }
             }
         }
-        .padding(16)
+        .padding(inset)
         .compositingGroup()
         .background {
             ZStack {
@@ -82,7 +91,7 @@ public struct PortfolioSummaryCard<Actions: View>: View {
     }
 
     private func stats(_ summary: WalletFeeSummary) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: compact ? 8 : 10) {
             Rectangle().fill(palette.cardLine).frame(height: 0.5)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 16) {
