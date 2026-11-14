@@ -88,15 +88,15 @@ enum StoreScreenshots {
             )),
             Shot(name: "redesign/widget-small-light.png", size: CGSize(width: 170, height: 170), view: AnyView(
                 PortfolioWidgetView(snapshot: .preview, size: .small, date: .now)
-                    .padding(16).background(GraphitePalette.light.popover)
+                    .background(GraphitePalette.light.popover)
             )),
             Shot(name: "redesign/widget-medium-light.png", size: CGSize(width: 360, height: 170), view: AnyView(
                 PortfolioWidgetView(snapshot: .preview, size: .medium, date: .now)
-                    .padding(16).background(GraphitePalette.light.popover)
+                    .background(GraphitePalette.light.popover)
             )),
             Shot(name: "redesign/widget-medium-dark.png", size: CGSize(width: 360, height: 170), scheme: .dark, view: AnyView(
                 PortfolioWidgetView(snapshot: .preview, size: .medium, date: .now)
-                    .padding(16).background(GraphitePalette.dark.popover)
+                    .background(GraphitePalette.dark.popover)
             )),
             Shot(name: "redesign/summary-accessibility.png", size: nil, view: AnyView(
                 PortfolioSummaryCard(positions: snapshot.positions, dailyFees: snapshot.dailyFeesUSD, feeSummary: snapshot.feeSummary) {

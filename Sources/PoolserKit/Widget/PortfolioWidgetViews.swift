@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Widget layouts for a `PortfolioSnapshot`. Plain SwiftUI so the macOS and iOS widget
-/// extensions share them and they render outside WidgetKit; each extension adds its own
-/// container background.
+/// extensions share them and they render outside WidgetKit. Disable automatic widget content
+/// margins and pass them here so only the financial content is inset, not the crest.
 public struct PortfolioWidgetView: View {
     public enum Size { case small, medium }
 
@@ -14,21 +14,29 @@ public struct PortfolioWidgetView: View {
     let size: Size
     /// When the view is shown, for the stale check.
     let date: Date
+    let contentMargins: EdgeInsets
 
     @Environment(\.colorScheme) private var colorScheme
 
-    public init(snapshot: PortfolioSnapshot?, size: Size, date: Date) {
+    public init(snapshot: PortfolioSnapshot?, size: Size, date: Date,
+                contentMargins: EdgeInsets = EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)) {
         self.snapshot = snapshot
         self.size = size
         self.date = date
+        self.contentMargins = contentMargins
     }
 
     public var body: some View {
-        let palette = GraphitePalette.current(colorScheme)
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: .top) {
             PoolBrandRibbon(animated: false, compact: true)
-                .padding(.top, -16)
-                .padding(.horizontal, -16)
+            content.padding(contentMargins)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder private var content: some View {
+        let palette = GraphitePalette.current(colorScheme)
+        Group {
             if let snapshot, snapshot.positionCount > 0 {
                 switch size {
                 case .small:
