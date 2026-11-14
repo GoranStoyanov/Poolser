@@ -62,6 +62,13 @@ enum StoreScreenshots {
         let flashTitle = MenuBarTitle.text(valueUSD: snapshot.totalValueUSD, feesUSD: snapshot.unclaimedFeesUSD, trend: "🔼")
 
         return [
+            Shot(name: "redesign/compact-popover-light.png", size: nil, opaque: false, view: AnyView(compactPopover())),
+            Shot(name: "redesign/compact-popover-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(compactPopover())),
+            Shot(name: "redesign/compact-popover-short-screen.png", size: nil, opaque: false, view: AnyView(compactPopover(maxHeight: 620))),
+            Shot(name: "redesign/compact-popover-accessibility.png", size: nil, opaque: false, view: AnyView(
+                compactPopover(maxHeight: 620).dynamicTypeSize(.accessibility2)
+            )),
+            Shot(name: "redesign/compact-popover-syncing.png", size: nil, opaque: false, view: AnyView(compactPopover(syncing: true))),
             Shot(name: "redesign/all-wallets-light.png", size: nil, opaque: false, view: AnyView(allWallets(scheme: .light))),
             Shot(name: "redesign/all-wallets-dark.png", size: nil, scheme: .dark, opaque: false, view: AnyView(allWallets(scheme: .dark))),
             Shot(name: "redesign/all-wallets-accessibility.png", size: nil, opaque: false, view: AnyView(allWallets(scheme: .light, width: 340).dynamicTypeSize(.accessibility2))),
@@ -156,6 +163,18 @@ enum StoreScreenshots {
                 PopoverCutout(snapshot: snapshot)
             )),
         ]
+    }
+
+    private static func compactPopover(maxHeight: CGFloat? = nil, syncing: Bool = false) -> some View {
+        var snapshot = DemoWallet.snapshot
+        if syncing {
+            snapshot.positions[0].claimedUSD = nil
+            snapshot.positions[0].feeHistoryBootstrapping = true
+            snapshot.feeSummary = WalletFeeSummary(positions: snapshot.positions)
+            snapshot.dailyFeesUSD = nil
+            snapshot.lastError = "Ethereum is unavailable. Showing the last successful update."
+        }
+        return PopoverCutout(snapshot: snapshot, maxHeight: maxHeight)
     }
 
     private static func allWallets(scheme: ColorScheme, width: CGFloat = 420) -> some View {
@@ -543,10 +562,11 @@ private struct CardsArt: View {
 /// The popover alone with transparent corners, for the README.
 private struct PopoverCutout: View {
     let snapshot: PopoverSnapshot
+    var maxHeight: CGFloat?
     @State private var options = PositionListOptions()
 
     var body: some View {
-        GraphitePopover(snapshot: snapshot, listOptions: $options, actions: DemoActions.all)
+        GraphitePopover(snapshot: snapshot, listOptions: $options, actions: DemoActions.all, maxHeight: maxHeight)
             .fixedSize()
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.black.opacity(0.1)))

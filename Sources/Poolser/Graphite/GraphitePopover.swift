@@ -66,8 +66,10 @@ struct GraphitePopover: View {
     /// Narrows the list to positions that need attention, on top of the saved filters.
     @State private var attentionOnly = false
     @State private var listContentHeight: CGFloat?
-    /// The popover's height and the position list's share of it, to keep within `maxHeight`.
-    @State private var popoverHeight: CGFloat = 0
+    /// Natural page height stays measurable even when the whole page needs to scroll.
+    @State private var walletPageHeight: CGFloat = 0
+    @State private var headerHeight: CGFloat = 0
+    @State private var footerHeight: CGFloat = 0
     @State private var listHeight: CGFloat = 0
     /// Horizontal offset of the wallet page while it is swiped or slides to the next wallet.
     @State private var pageOffset: CGFloat = 0
@@ -78,17 +80,28 @@ struct GraphitePopover: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            if snapshot.pages.count > 1 {
-                pageDots
+            VStack(spacing: 0) {
+                header
+                if snapshot.pages.count > 1 {
+                    pageDots
+                }
             }
-            walletPage
-                .offset(x: pageOffset)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
+            if let maxHeight {
+                // Normally only positions scroll. Long errors or large text can also scroll
+                // the summary and controls, keeping the header and footer on screen.
+                ScrollView {
+                    measuredWalletPage
+                }
+                .frame(height: min(walletPageHeight, max(0, maxHeight - headerHeight - footerHeight)))
+            } else {
+                measuredWalletPage
+            }
             footer
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { footerHeight = $0 }
         }
         .frame(width: Self.width)
         .clipped()
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { popoverHeight = $0 }
         .background(palette.popover)
         .background {
             if snapshot.pages.count > 1 {
@@ -98,6 +111,13 @@ struct GraphitePopover: View {
     }
 
     private static let width: CGFloat = 420
+
+    private var measuredWalletPage: some View {
+        walletPage
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { walletPageHeight = $0 }
+            .offset(x: pageOffset)
+    }
 
     /// What belongs to the active wallet, which slides when the wallet changes.
     private var walletPage: some View {
@@ -238,8 +258,7 @@ struct GraphitePopover: View {
             iconButton("slider.horizontal.3", label: "Settings", action: actions.settings)
         }
         .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
+        .padding(.vertical, 8)
     }
 
     private var walletLabel: String {
@@ -488,7 +507,7 @@ struct GraphitePopover: View {
             sortMenu
         }
         .padding(.horizontal, 12)
-        .padding(.top, 12)
+        .padding(.top, 8)
         .padding(.bottom, 8)
     }
 
@@ -658,7 +677,7 @@ struct GraphitePopover: View {
     /// 560 points, or less when the rest of the popover leaves less room on screen.
     private var maxListHeight: CGFloat {
         guard let maxHeight else { return 560 }
-        let rest = popoverHeight - listHeight
+        let rest = headerHeight + walletPageHeight - listHeight + footerHeight
         return min(560, max(160, maxHeight - rest))
     }
 

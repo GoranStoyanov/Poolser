@@ -12,6 +12,14 @@ public struct FeeHistoryChart: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var barAreaHeight: CGFloat {
+        #if os(macOS)
+        typeSize.isAccessibilitySize ? 62 : 48
+        #else
+        62
+        #endif
+    }
 
     /// A short history still gets a week of slots, empty before its first day, so the chart
     /// shows from the first day of recording instead of appearing a day later.
@@ -69,7 +77,7 @@ public struct FeeHistoryChart: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 62, alignment: .bottom)
+                        .frame(height: barAreaHeight, alignment: .bottom)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -84,7 +92,7 @@ public struct FeeHistoryChart: View {
                     }
                 }
             }
-            .frame(height: 62, alignment: .bottom)
+            .frame(height: barAreaHeight, alignment: .bottom)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Fees per day, last \(shown.count) days")
             .accessibilityValue("Today \(formatUSD(shown.last ?? 0)), total \(formatUSD(total))")
