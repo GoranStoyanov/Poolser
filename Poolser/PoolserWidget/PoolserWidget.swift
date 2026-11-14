@@ -38,13 +38,15 @@ struct PortfolioEntryView: View {
     let entry: PortfolioEntry
 
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetContentMargins) private var contentMargins
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         PortfolioWidgetView(
             snapshot: entry.snapshot,
             size: family == .systemSmall ? .small : .medium,
-            date: entry.date
+            date: entry.date,
+            contentMargins: contentMargins
         )
         .containerBackground(GraphitePalette.current(colorScheme).popover, for: .widget)
         // Without a URL a click only activates the app, and a menu bar app has no window to show.
@@ -61,6 +63,7 @@ struct PoolserWidget: Widget {
         .configurationDisplayName("Portfolio")
         .description("Value, unclaimed fees and range status of your Uniswap positions, for all wallets or one.")
         .supportedFamilies([.systemSmall, .systemMedium])
+        .contentMarginsDisabled()
     }
 }
 

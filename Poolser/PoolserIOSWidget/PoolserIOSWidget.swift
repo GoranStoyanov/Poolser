@@ -31,6 +31,7 @@ private struct PortfolioProvider: AppIntentTimelineProvider {
 private struct PortfolioEntryView: View {
     let entry: PortfolioEntry
     @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetContentMargins) private var contentMargins
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -42,12 +43,14 @@ private struct PortfolioEntryView: View {
                     Text("in range")
                         .font(.system(size: 9, weight: .medium))
                 }
+                .padding(contentMargins)
                 .containerBackground(.clear, for: .widget)
             } else {
                 PortfolioWidgetView(
                     snapshot: entry.snapshot,
                     size: family == .systemSmall ? .small : .medium,
-                    date: entry.date
+                    date: entry.date,
+                    contentMargins: contentMargins
                 )
                 .containerBackground(GraphitePalette.current(colorScheme).popover, for: .widget)
             }
@@ -64,5 +67,6 @@ struct PoolserIOSWidget: Widget {
         .configurationDisplayName("Portfolio")
         .description("Value, fees and range status of your Uniswap positions, for all wallets or one.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular])
+        .contentMarginsDisabled()
     }
 }
