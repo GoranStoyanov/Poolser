@@ -51,7 +51,7 @@ struct MenuBarContentView: View {
                     },
                     dismissNotice: { collector.dismiss() }
                 ),
-                maxHeight: NSScreen.main.map { $0.visibleFrame.height - 8 }
+                maxHeight: GraphitePopover.heightLimit(for: NSScreen.main?.visibleFrame.height)
             )
         }
     }
