@@ -505,7 +505,7 @@ public final class UniswapService: ObservableObject {
         var snapshots: [String: PortfolioSnapshot] = [:]
         if let all = allWalletsPortfolio {
             let single = settings.wallets.count == 1 ? settings.wallets.first : nil
-            snapshots[PortfolioSnapshotStore.allWalletsID] = snapshot(all, name: single.map { $0.name } ?? WalletPage.allWallets.title)
+            snapshots[PortfolioSnapshotStore.allWalletsID] = snapshot(all, name: single?.displayName ?? WalletPage.allWallets.title)
         }
         for wallet in settings.wallets {
             if let portfolio = portfolio(for: wallet.address) {

@@ -111,7 +111,7 @@ private struct Summary: View {
     }
 }
 
-/// The app's name, or the wallet's once there is more than one.
+/// The wallet's name or short address; the app's name when no wallet title is available.
 private struct Header: View {
     let walletName: String?
     let palette: GraphitePalette
@@ -119,9 +119,13 @@ private struct Header: View {
     var body: some View {
         HStack(spacing: 5) {
             Text(walletName ?? "Poolser")
-                .font(PoolTypography.heading(12, relativeTo: .caption))
+                .font(walletName?.hasPrefix("0x") == true
+                      ? .system(.caption, design: .monospaced).weight(.semibold)
+                      : PoolTypography.heading(12, relativeTo: .caption))
                 .foregroundStyle(palette.primaryText)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .truncationMode(.middle)
         }
     }
 }

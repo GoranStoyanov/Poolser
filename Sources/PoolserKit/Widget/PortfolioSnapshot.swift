@@ -58,8 +58,8 @@ public struct PortfolioSnapshot: Codable, Equatable, Sendable {
     }
 
     public let updatedAt: Date
-    /// The wallet's name, or its short address, when the app has more than one wallet or the
-    /// wallet is named; nil otherwise.
+    /// The wallet's name or short address, or All Wallets for the combined portfolio.
+    /// Older snapshots and previews may omit it.
     public let walletName: String?
     public let totalValueUSD: Double
     public let unclaimedFeesUSD: Double

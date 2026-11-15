@@ -80,7 +80,13 @@ struct IOSPortfolioView: View {
     private var navigationBrand: some View {
         HStack(spacing: 7) {
             PoolBrandMark()
-            Text(title).font(PoolTypography.heading(18)).lineLimit(1)
+            Text(title)
+                .font(settings.shownPage?.hasName == false
+                      ? .system(.headline, design: .monospaced)
+                      : PoolTypography.heading(18))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .truncationMode(.middle)
             if isConfigured && settings.wallets.count > 1 {
                 Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
             }
@@ -90,7 +96,7 @@ struct IOSPortfolioView: View {
     }
 
     private var title: String {
-        settings.wallets.count > 1 ? settings.shownPage?.title ?? "Poolser" : "Poolser"
+        settings.shownPage?.title ?? "Poolser"
     }
 
     /// The page on screen, by `WalletPage.id`.
