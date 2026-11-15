@@ -358,7 +358,7 @@ public final class AppSettings: ObservableObject {
 }
 
 public enum WalletAddress {
-    /// "0x8f3c…a21c".
+    /// Middle truncation: `0x` + four leading hex digits + ellipsis + four trailing digits.
     public static func short(_ address: String) -> String {
         guard address.count > 12 else { return address }
         return "\(address.prefix(6))…\(address.suffix(4))"

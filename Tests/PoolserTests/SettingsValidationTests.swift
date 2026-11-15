@@ -7,6 +7,11 @@ private let address = "0x7A406E87B49e8a62C7F579E51AE94ed6Ee2d354f"
 private let bareHex = String(address.dropFirst(2))
 
 @Suite struct WalletAddressTests {
+    @Test func shortenedAddressKeepsBothEndsAndCase() {
+        #expect(WalletAddress.short(address) == "0x7A40…354f")
+        #expect(WalletAddress.short("0x1234") == "0x1234")
+    }
+
     @Test(arguments: [
         address,
         address.lowercased(),
@@ -64,6 +69,17 @@ private let bareHex = String(address.dropFirst(2))
 
 @Suite struct SavedWalletTests {
     private let second = "0x1111111111111111111111111111111111111111"
+
+    @Test func walletPageIdentifiesUnnamedAndNamedWallets() {
+        let unnamed = WalletPage.wallet(SavedWallet(address: address))
+        #expect(unnamed.title == "0x7A40…354f")
+        #expect(!unnamed.hasName)
+        let named = WalletPage.wallet(SavedWallet(address: address, name: "Cold"))
+        #expect(named.title == "Cold")
+        #expect(named.hasName)
+        #expect(WalletPage.allWallets.title == "All Wallets")
+        #expect(WalletPage.allWallets.hasName)
+    }
 
     @Test func savedWalletsAreNormalizedAndDeduplicated() {
         let wallets = SavedWallet.unique([
