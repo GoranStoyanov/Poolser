@@ -112,6 +112,11 @@ struct GraphitePopover: View {
 
     private static let width: CGFloat = 420
 
+    /// Keep the menu compact even when a wallet has enough positions to fill the screen.
+    static func heightLimit(for screenHeight: CGFloat?) -> CGFloat {
+        min(720, (screenHeight ?? .infinity) * 0.8)
+    }
+
     private var measuredWalletPage: some View {
         walletPage
             .fixedSize(horizontal: false, vertical: true)

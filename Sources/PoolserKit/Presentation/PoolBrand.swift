@@ -45,26 +45,72 @@ public struct PoolBrandRibbon: View {
                     .fill(LinearGradient(colors: [.white.opacity(0.3), .clear, .clear],
                                          startPoint: .top, endPoint: .bottom))
                     .allowsHitTesting(false)
-                PoolEyes(width: eyesWidth, blinks: animated)
+                Group {
+                    if animated && !reduceMotion {
+                        PoolEyes(width: eyesWidth, blinks: true)
+                            .keyframeAnimator(initialValue: PoolEyeEntrance(), trigger: appeared) { eyes, pose in
+                                eyes
+                                    .scaleEffect(x: 1, y: pose.stretch, anchor: .bottom)
+                                    .rotationEffect(.degrees(pose.roll), anchor: .bottom)
+                                    .offset(y: eyesWidth * pose.depth)
+                            } keyframes: { _ in
+                                PoolEyeEntrance.keyframes
+                            }
+                    } else {
+                        PoolEyes(width: eyesWidth, blinks: animated)
+                            .opacity(appeared || !animated ? 1 : 0)
+                            .animation(.easeOut(duration: 0.15), value: appeared)
+                    }
+                }
                     .padding(.top, compact ? 5 : 7.5)
                     .padding(.leading, compact ? 16 : 22)
-                    .opacity(appeared || !animated ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2).delay(0.22), value: appeared)
                 CrestEdge()
                     .stroke(surface.opacity(0.4), lineWidth: 0.6)
                     .allowsHitTesting(false)
             }
             .frame(width: geometry.size.width, height: height)
             .mask(CrestShape())
-            .scaleEffect(x: 1, y: reduceMotion || appeared || !animated ? 1 : 0.2, anchor: .topLeading)
         }
         .frame(height: height)
-        .opacity(appeared || !animated ? 1 : 0)
-        .animation(.easeOut(duration: reduceMotion ? 0.15 : 0.55), value: appeared)
         .onAppear { appeared = true }
         .onDisappear { appeared = false }
         .allowsHitTesting(animated)
         .accessibilityHidden(true)
+    }
+}
+
+struct PoolEyeEntrance {
+    var depth: CGFloat = 1.1
+    var roll: Double = -8
+    var stretch: CGFloat = 1
+
+    // Peek, retreat, then pop up with a little follow-through; all travel stays inside the crest.
+    @KeyframesBuilder<PoolEyeEntrance>
+    static var keyframes: some Keyframes<PoolEyeEntrance> {
+        KeyframeTrack(\.depth) {
+            LinearKeyframe(1.1, duration: 0.12)
+            CubicKeyframe(0.42, duration: 0.24, endVelocity: 0)
+            LinearKeyframe(0.42, duration: 0.16)
+            CubicKeyframe(1.1, duration: 0.14, endVelocity: 0)
+            LinearKeyframe(1.1, duration: 0.08)
+            CubicKeyframe(-0.04, duration: 0.24, endVelocity: 0)
+            CubicKeyframe(0.07, duration: 0.20)
+            CubicKeyframe(0, duration: 0.32, endVelocity: 0)
+        }
+        KeyframeTrack(\.roll) {
+            LinearKeyframe(-8, duration: 0.52)
+            CubicKeyframe(-12, duration: 0.22)
+            CubicKeyframe(6, duration: 0.24)
+            CubicKeyframe(-4, duration: 0.20)
+            CubicKeyframe(0, duration: 0.32, endVelocity: 0)
+        }
+        KeyframeTrack(\.stretch) {
+            LinearKeyframe(1, duration: 0.52)
+            CubicKeyframe(0.86, duration: 0.22)
+            CubicKeyframe(1.07, duration: 0.24)
+            CubicKeyframe(0.96, duration: 0.20)
+            CubicKeyframe(1, duration: 0.32, endVelocity: 0)
+        }
     }
 }
 
