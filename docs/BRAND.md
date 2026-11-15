@@ -2,32 +2,13 @@
 
 Status: current implementation, 15 November 2026. Update this document whenever a visual or interaction decision changes. It describes the product implementation, not just concept images.
 
-## Character
+## Shared brand source
 
-Poolser is a precise financial instrument with a curious, quietly playful personality. Liquidity is its visual material: a flowing pool, a settling wave, and two small eyes looking toward the data. Keep the character at the edge of the composition; numbers and risk always lead.
+Read the [pinned shared brand guide](brand/BRAND.md) before these native implementation notes. The shared identity, original artwork and colour tokens are maintained in [poolser-app/brand](https://github.com/poolser-app/brand). The [manifest](brand/manifest.json) records the exact imported commit and SHA-256 hashes; [adoption instructions](brand/README.md) explain verification and updates.
 
-## Palette
+This file owns the Mac, iPhone/iPad, widget and local wallet-handoff layouts and interactions. The shared guide owns character, palette, typography, artwork and cross-platform accessibility/motion principles. Bundled resources remain local, preserving standalone SwiftPM and Xcode builds.
 
-| Role | Light | Dark |
-| --- | --- | --- |
-| Canvas | Porcelain `#F5F7F3` | Deep pool `#10262D` |
-| Surface | White `#FFFFFF` | Petrol `#18343C` |
-| Primary ink | Petrol `#153D47` | Ice `#EAF4F2` |
-| Secondary ink | Slate `#536D76` | Mist `#A4BEC3` |
-| Fees and active ranges | Jade `#187C67` | Jade `#68D4B5` |
-| Brand wave | Jade `#278D78` → blue `#3979B7` | Jade `#42B69C` → blue `#629FE0` |
-| Attention / out of range | Muted rose red `#A64F53` | Soft coral `#EDA6A6` |
-| Near range edge / stale data | Dusty rose `#8D6062` | Pale rose `#DBB2B2` |
-
-Green conveys earnings or an active range. Soft, muted red conveys attention, with a quieter dusty rose for near-edge states and stale data. Keep these colours desaturated to match the soft jade-to-blue palette; do not use orange, amber or purple for attention. Purple already identifies saved wallets in All Wallets. Retain a text status and marker so colour is never the only signal. Blue identifies today, the current-price marker and selected controls. Token and network logos retain their own colours. Avoid unrelated gradients, rainbow bars, glossy oversized characters, and decorative scenery.
-
-## Typography and geometry
-
-Use Avenir Next Demi Bold for the wordmark and prominent financial figures, with tabular digits. Use the native text face for labels and controls so accessibility sizes remain familiar. Keep addresses and technical identifiers monospaced. Reserve bold for the amount and section hierarchy.
-
-Use an 8-point spacing rhythm, 16–20-point continuous card corners, hairline separators and capsule range tracks. The signature is Soft Crest: a broad, softly layered green-to-turquoise-to-blue wave at the upper left, with the original character peeking from behind its front edge. The crest uses the brighter icon colours; data, text and controls retain the semantic palette above. It is decorative, hidden from accessibility, and does not intercept interaction. Do not substitute decoration for the existing fee-pool level visualization.
-
-## Information and interaction
+## Native information and interaction
 
 Always show unclaimed fees, portfolio value, today's fees once in the blue chart badge labelled Today when available, daily bar chart, selected period, claimed fees, pool level and realized APR when known. Do not repeat position and chain counts beneath Total value; the position list provides that context. Keep syncing and unavailable states truthful. Retain wallet navigation, filters, sorting, collect actions, errors and refresh status.
 
@@ -35,7 +16,7 @@ Position cards use Range + Return (Диапазон + доходност): pair,
 
 Daily bars reveal their date and amount on hover or tap; keyboard and screen-reader users can activate each bar for the same information. Show average daily earnings in the chart context rather than repeating it across the summary. Explain pool return and APR alongside those metrics; do not imply projected yield is realized return.
 
-## Motion
+## Native motion
 
 Preserve the existing fee pool pouring and settling on opening. Show the summary, financial data and Soft Crest wave immediately. Only the eyes perform a playful 1.5-second entrance: a tilted peek above the lower crest edge, a quick retreat, then an energetic pop with a small squash/stretch and a side-to-side settling wobble. Start fully concealed behind the edge and retain the original eye artwork, gaze, resting position and size. Clip the whole performance to the existing crest silhouette; never move the card, crest or financial content. Use SwiftUI keyframes triggered by appearance, without a continuously running timeline or a repeating entrance. The eyes blink briefly on hover and at random 12–24-second intervals while the app view is visible. Use sleeping, cancellable tasks for blinks. Widgets never schedule blinks; inline eye marks remain still. Ordinary refreshes do not restart the entrance animation. Respect Reduce Motion: skip the entire performance and fee-pool slosh, using only a 0.15-second eye dissolve and no blinking. Widgets are static and do not create an entrance animator.
 
@@ -55,7 +36,7 @@ Wallet navigation references, showing both an individual wallet and All selected
 
 ## Maintenance
 
-Shared colours live in `Sources/PoolserKit/Presentation/GraphitePalette.swift`; reusable brand, summary and chart views live beside it. Widget layouts live in `Sources/PoolserKit/Widget/PortfolioWidgetViews.swift`. Preserve light and dark appearance and existing data semantics when changing this system. Update this reference in the same change as any new brand decision.
+Shared identity and colour changes originate in `poolser-app/brand` and are adopted through the pinned local snapshot. Native colour implementations live in `Sources/PoolserKit/Presentation/GraphitePalette.swift`; reusable brand, summary and chart views live beside it. Widget layouts live in `Sources/PoolserKit/Widget/PortfolioWidgetViews.swift`. Preserve light and dark appearance and existing data semantics when changing this system. Update these native notes in the same change as a native visual or interaction decision; update shared decisions in brand first, then adopt that commit here. Builds never fetch brand assets.
 
 ## Implementation details
 
@@ -113,7 +94,7 @@ With the same three-position demo wallet, daily history, claimed fees and collec
 
 ### Soft Crest character
 
-Use the original icon artwork for the character. `Sources/PoolserKit/Resources/PoolserCharacter.png` is an unmodified copy of the 1024-pixel app icon, shared by macOS, iOS and widgets through the package resource bundle. `PoolCharacterArtwork` loads the PNG explicitly from its bundle URL on each platform. `PoolEyes` samples the eye region and masks each eyeball at display time, preserving the original glossy pupils, pale rims and reflected highlights. Do not redraw the eyes with ellipses and dots or substitute emoji. Place the character at the upper left, preserving its original gaze down and to the right toward the financial data. Mirror the wave geometry, never the eye artwork. Use the original eyes without mirroring them. Keep nearly the whole eyeball visible; only the lowest edge may sit behind the white card. The coloured wave must continue directly behind the eyes, meeting a single white foreground edge. Background and foreground share the same curve, with no white gap, doubled ridge or inset pocket around the eyes. `PoolBrandMark` uses the same original icon.
+Use the original icon artwork from the pinned brand snapshot for the character. `Sources/PoolserKit/Resources/PoolserCharacter.png` is the local, unmodified copy of brand’s `assets/PoolserCharacter.png`, shared by macOS, iOS and widgets through the package resource bundle. `PoolCharacterArtwork` loads the PNG explicitly from its bundle URL on each platform. `PoolEyes` samples the eye region and masks each eyeball at display time, preserving the original glossy pupils, pale rims and reflected highlights. Do not redraw the eyes with ellipses and dots or substitute emoji. Place the character at the upper left, preserving its original gaze down and to the right toward the financial data. Mirror the wave geometry, never the eye artwork. Use the original eyes without mirroring them. Keep nearly the whole eyeball visible; only the lowest edge may sit behind the white card. The coloured wave must continue directly behind the eyes, meeting a single white foreground edge. Background and foreground share the same curve, with no white gap, doubled ridge or inset pocket around the eyes. `PoolBrandMark` uses the same original icon.
 
 Use a satin crest with a soft rim and restrained depth. Leave a small blue-green cushion below the eyes by lowering the shared curve locally under the character; keep the eye position fixed. The crest is 40 points tall on macOS and in widgets, and 62 on iOS and in the roomier Mac accessibility summary. Use the existing smaller eyes with the compact crest. Keep the eyes near the top so added depth goes below them. Avoid multiple shiny glass folds: the selected direction is Soft Crest. Widgets use a shorter crest and smaller character to keep titles and data readable. Their title sits to the right of the character, below the coloured edge, with space reserved for the eyes rather than a duplicate eye mark. The existing fee-pool filling animation remains separate and unchanged.
 

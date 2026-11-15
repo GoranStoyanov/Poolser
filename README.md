@@ -1,6 +1,6 @@
 # 👀 Poolser
 
-Visual identity and interface guidance: [brand reference](docs/BRAND.md).
+Shared identity and artwork: [Poolser brand](https://github.com/poolser-app/brand). Native interface guidance: [brand reference](docs/BRAND.md), with a [pinned local snapshot](docs/brand/README.md).
 
 Your Uniswap v3 and v4 positions in the macOS menu bar and on iPhone and iPad.
 
@@ -108,7 +108,7 @@ The debug build writes the images and quits. Captions live in `Sources/Poolser/G
 The shared code uses Swift Package Manager with no external dependencies. These commands build and run the Mac app:
 
 ```bash
-git clone https://github.com/GoranStoyanov/Poolser.git
+git clone https://github.com/poolser-app/native.git Poolser
 cd Poolser
 swift build -c release
 ```

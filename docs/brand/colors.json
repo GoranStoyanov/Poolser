@@ -1,0 +1,128 @@
+{
+  "light": {
+    "popover": "#F5F7F3",
+    "card": "#FFFFFF",
+    "cardLine": "#DCE7E5",
+    "hairline": "#EAF1EF",
+    "primaryText": "#153D47",
+    "secondaryText": "#536D76",
+    "fees": "#187C67",
+    "bar": "#80C5B5",
+    "barToday": "#3979B7",
+    "onBarToday": "#FFFFFF",
+    "track": "#E1ECE9",
+    "control": "#EAF1EF",
+    "strong": "#153D47",
+    "onStrong": "#FFFFFF",
+    "onStatus": "#FFFFFF",
+    "brandStart": "#278D78",
+    "brandEnd": "#3979B7",
+    "waterFront": 0.14,
+    "waterBack": 0.08,
+    "walletColors": [
+      "#4A6FA5",
+      "#7A6AA8",
+      "#A8657F",
+      "#4F8F98",
+      "#8A6F5A",
+      "#5C6B84",
+      "#93609A",
+      "#3F7E7A"
+    ],
+    "inRange": {
+      "tint": "#187C67",
+      "background": "#E5F3ED",
+      "bandFill": "#B8E1D4",
+      "bandEdge": "#278D78"
+    },
+    "nearEdge": {
+      "tint": "#8D6062",
+      "background": "#F7F0F0",
+      "bandFill": "#EBDDDD",
+      "bandEdge": "#9F7175"
+    },
+    "outOfRange": {
+      "tint": "#A64F53",
+      "background": "#FAEEEE",
+      "bandFill": "#F2DDDD",
+      "bandEdge": "#B16B70"
+    },
+    "fullRange": {
+      "tint": "#454B57",
+      "background": "#EDEEF1",
+      "bandFill": "#EDEEF1",
+      "bandEdge": "#ADB2BC"
+    },
+    "unknown": {
+      "tint": "#536D76",
+      "background": "#EAF1EF",
+      "bandFill": "#EAF1EF",
+      "bandEdge": "#C8C8CE"
+    }
+  },
+  "dark": {
+    "popover": "#10262D",
+    "card": "#18343C",
+    "cardLine": "#2E4D53",
+    "hairline": "#27454B",
+    "primaryText": "#EAF4F2",
+    "secondaryText": "#A4BEC3",
+    "fees": "#68D4B5",
+    "bar": "#347A6D",
+    "barToday": "#629FE0",
+    "onBarToday": "#153D47",
+    "track": "#24444A",
+    "control": "#24444A",
+    "strong": "#EAF4F2",
+    "onStrong": "#153D47",
+    "onStatus": "#153D47",
+    "brandStart": "#42B69C",
+    "brandEnd": "#629FE0",
+    "waterFront": 0.14,
+    "waterBack": 0.05,
+    "walletColors": [
+      "#7C9DD0",
+      "#A898D4",
+      "#D490AA",
+      "#7DBCC4",
+      "#B89C86",
+      "#8E9BB3",
+      "#BF8EC6",
+      "#6FAEA9"
+    ],
+    "inRange": {
+      "tint": "#68D4B5",
+      "background": "#16302A",
+      "bandFill": "#245C50",
+      "bandEdge": "#42B69C"
+    },
+    "nearEdge": {
+      "tint": "#DBB2B2",
+      "background": "#393032",
+      "bandFill": "#49383C",
+      "bandEdge": "#B68E92"
+    },
+    "outOfRange": {
+      "tint": "#EDA6A6",
+      "background": "#3E2B2E",
+      "bandFill": "#4D3438",
+      "bandEdge": "#C28589"
+    },
+    "fullRange": {
+      "tint": "#C4C8D0",
+      "background": "#2A2D33",
+      "bandFill": "#2A2D33",
+      "bandEdge": "#5A5F69"
+    },
+    "unknown": {
+      "tint": "#A4BEC3",
+      "background": "#24444A",
+      "bandFill": "#24444A",
+      "bandEdge": "#45454B"
+    }
+  },
+  "waterGradient": [
+    "#18D6B0",
+    "#23C5CF"
+  ]
+}

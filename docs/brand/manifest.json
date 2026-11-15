@@ -1,0 +1,158 @@
+{
+  "repository": "https://github.com/poolser-app/brand",
+  "revision": "dc734b0513d7a642bf2bc37f391115e942daa8c7",
+  "files": {
+    "Sources/Poolser/Resources/AppLogo.png": {
+      "source": "assets/AppLogo.png",
+      "sha256": "0a1c888a8106cae021c420f8b202c0ec338ce2ddf042e21d809ff3061c56b93e"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+      "source": "assets/apple/AppIcon.appiconset/Contents.json",
+      "sha256": "e633dcf75d7a10b7359ec0d660e8a721838a844c58ddde4bb0d064eaca6c2a78"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_128x128_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_128x128_1x.png",
+      "sha256": "35de904f53ee67945cfa70967ce4b67bfe63286fc1fcb0ddd79256c144b30691"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_128x128_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_128x128_2x.png",
+      "sha256": "624aa8dbc63392fc1f6ce38f4a4bdf2a0cd4f7a2d3ac7ba566ba8c57c19feb9d"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_16x16_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_16x16_1x.png",
+      "sha256": "07d59319c8013c73fa46e18d0672adf4f23df5ed06970eabf8df658749d73a49"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_16x16_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_16x16_2x.png",
+      "sha256": "58a2df4d7ecd80c7d8ccec1915df44d0a583ced9873e7607d14b70ea12453876"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_256x256_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_256x256_1x.png",
+      "sha256": "b07b6652a76aacf788ab130faa59dabee07afc2920219a87f220134aff968a05"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_256x256_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_256x256_2x.png",
+      "sha256": "6206a5cc1dccd083b4213fae9d43c72a6702742436c9a25cd2200e19cf43b264"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_32x32_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_32x32_1x.png",
+      "sha256": "bf620dbb330a364839746f90e7176b8de8ee56964a59b96113042a86f1f5c02d"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_32x32_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_32x32_2x.png",
+      "sha256": "8ec477985d1cc8c50b2c3ce171e033027e7a4d32fe59052a754a449d8d8e217e"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_512x512_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_512x512_1x.png",
+      "sha256": "6206a5cc1dccd083b4213fae9d43c72a6702742436c9a25cd2200e19cf43b264"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_dark_512x512_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_dark_512x512_2x.png",
+      "sha256": "6607b848f82ac7e826881cda9f4872c7a25bbfa0dcc0cc18a24573a9756b1178"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_128x128_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_128x128_1x.png",
+      "sha256": "a833ce330b7669a2737490949309809588338bd817de1f1c031554fe49974ef5"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_128x128_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_128x128_2x.png",
+      "sha256": "115c4ace16e8d702310d88199230088614fe62274c125498930af9544a21dc5c"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_16x16_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_16x16_1x.png",
+      "sha256": "06ad6662d912259817931b58bbfbc58b12286ea1a8686338a2690df50197f116"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_16x16_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_16x16_2x.png",
+      "sha256": "13f36f0c055ae6ce8ebefc80062368ab354bbcaa96ce21df86f6d56fbaace0d2"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_256x256_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_256x256_1x.png",
+      "sha256": "f936861b745ca6206859e271d63bd371f165944f54774a36e23edb8899f833b7"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_256x256_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_256x256_2x.png",
+      "sha256": "0a1c888a8106cae021c420f8b202c0ec338ce2ddf042e21d809ff3061c56b93e"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_32x32_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_32x32_1x.png",
+      "sha256": "e43477d4d1ba860fc90e1d5b8052248f7f95543383a1106612f6b985c16473d7"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_32x32_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_32x32_2x.png",
+      "sha256": "1afb885b2e814c379771e5f0be0c8c04129097f715d3bbcf0a677e480f97db18"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_512x512_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_512x512_1x.png",
+      "sha256": "0a1c888a8106cae021c420f8b202c0ec338ce2ddf042e21d809ff3061c56b93e"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_default_512x512_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_default_512x512_2x.png",
+      "sha256": "85c1679e2a12914faa1b8f5695eeaf48a0d7eb31904a35f9ec57dd34bcf1abc4"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_128x128_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_128x128_1x.png",
+      "sha256": "97c8fc237806c93867e6dbd72944b8ff558e198c1150806d2eeb4fe6fc2d6ae3"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_128x128_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_128x128_2x.png",
+      "sha256": "fe2528f98b9272a7f0e8cb201f0bf76423a82fc0f3df920b55f6715276cffa97"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_16x16_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_16x16_1x.png",
+      "sha256": "6b7ba00a13da7d4e959530480a3764cadd7d67c5e846431d93252c71d891b28b"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_16x16_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_16x16_2x.png",
+      "sha256": "850b60541200ff460274a2d177c59a03fc3f97fc43cd05fa472c28fb334a7c52"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_256x256_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_256x256_1x.png",
+      "sha256": "be9fc3975f1e97e08d2a1a17561e72737ff74a97e83a7b01ad3717c9c7c97c1f"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_256x256_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_256x256_2x.png",
+      "sha256": "b1e85f004e89bcaa4b14ca89771696c0f5619883dfc207793a0a80771e9cbe86"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_32x32_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_32x32_1x.png",
+      "sha256": "f91a011169e502c0e48b4a42e821ccf60412958f2abd428b6c6fcc08677c5554"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_32x32_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_32x32_2x.png",
+      "sha256": "cb388f08d4fde0d58479c9f3dbd74c3406e53fad058a2437e18c374b417d5a6d"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_512x512_1x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_512x512_1x.png",
+      "sha256": "b1e85f004e89bcaa4b14ca89771696c0f5619883dfc207793a0a80771e9cbe86"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppIcon.appiconset/icon_tinted_512x512_2x.png": {
+      "source": "assets/apple/AppIcon.appiconset/icon_tinted_512x512_2x.png",
+      "sha256": "22f37b68768164a0beec91ee1030d4d25977a946393152c91169790169fd6403"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppLogo.imageset/Contents.json": {
+      "source": "assets/apple/AppLogo.imageset/Contents.json",
+      "sha256": "8dd381e9e64385dd9e729937576735a6cf4d533bcb767d593acecd5a2067cb52"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppLogo.imageset/icon_default_256x256_1x.png": {
+      "source": "assets/apple/AppLogo.imageset/icon_default_256x256_1x.png",
+      "sha256": "f936861b745ca6206859e271d63bd371f165944f54774a36e23edb8899f833b7"
+    },
+    "Sources/Poolser/Resources/Assets.xcassets/AppLogo.imageset/icon_default_256x256_2x.png": {
+      "source": "assets/apple/AppLogo.imageset/icon_default_256x256_2x.png",
+      "sha256": "0a1c888a8106cae021c420f8b202c0ec338ce2ddf042e21d809ff3061c56b93e"
+    },
+    "Sources/PoolserKit/Resources/PoolserCharacter.png": {
+      "source": "assets/PoolserCharacter.png",
+      "sha256": "85c1679e2a12914faa1b8f5695eeaf48a0d7eb31904a35f9ec57dd34bcf1abc4"
+    },
+    "docs/brand/BRAND.md": {
+      "source": "BRAND.md",
+      "sha256": "ef02ff26ad390654282d7d9537039a19c451286b1ae011619f05380829c0cdaf"
+    },
+    "docs/brand/colors.json": {
+      "source": "tokens/colors.json",
+      "sha256": "a643e49808aaf90406523bdd573c59b2fe703936d5ecc477c0fe5a0034e278f5"
+    }
+  }
+}

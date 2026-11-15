@@ -37,4 +37,4 @@ Your saved wallet addresses and names, active address, app settings, daily fee h
 
 ## Contact
 
-For questions, open an issue at [github.com/GoranStoyanov/Poolser](https://github.com/GoranStoyanov/Poolser).
+For questions, open an issue at [github.com/poolser-app/native](https://github.com/poolser-app/native).
