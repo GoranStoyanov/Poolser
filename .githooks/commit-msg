@@ -12,7 +12,7 @@ fail() {
   exit 1
 }
 
-if printf '%s\n' "$body" | grep -iqE '^(co-authored-by|generated-by|assisted-by|signed-off-by):.*(claude|anthropic|openai|chatgpt|gpt|copilot|codex|gemini|cursor|bot|noreply@anthropic)'; then
+if printf '%s\n' "$body" | grep -iqE '^(co-authored-by|generated-by|assisted-by|signed-off-by):.*(claude|anthropic|openai|chatgpt|gpt|copilot|codex|gemini|cursor|assistant|model|bot|noreply@anthropic)'; then
   fail "AI attribution trailer"
 fi
 
